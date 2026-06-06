@@ -1,17 +1,49 @@
-# maemoji
+# MaeMoJi
 
-A new Flutter project.
+MaeMoJi는 적립식 투자자에게 현재 매일 모으고 있는 종목을 계속 모아야 하는지, 금액을 늘려야 하는지, 줄여야 하는지, 잠시 멈춰야 하는지를 추천하는 AI 투자 코치 앱입니다.
 
-## Getting Started
+## 제품 방향
 
-This project is a starting point for a Flutter application.
+- MaeMoJi는 주식 거래 앱이 아니라 적립식 투자 의사결정 앱입니다.
+- 첫 화면에서 가장 먼저 보여야 하는 것은 차트가 아니라 `오늘의 AI 추천`입니다.
+- 추천은 반드시 `증액 / 유지 / 축소 / 중단` 네 가지 상태 중 하나로 표현합니다.
+- 추천만 보여주지 않고, 주가/뉴스/기관수급/실적/밸류에이션 근거를 함께 제공해야 합니다.
+- AI는 설명과 뉴스 해석을 담당하고, 최종 추천은 규칙 기반 추천 엔진이 결정합니다.
 
-A few resources to get you started if this is your first Flutter project:
+## 디자인 원칙
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- 전체 테마는 라이트 모드만 사용합니다.
+- 배경은 `#FFFDF7` 계열의 따뜻한 종이 톤을 기본으로 합니다.
+- 스타일 비율은 `현대적 투자 앱 80% + 메모 감성 20%`를 지향합니다.
+- 메모 느낌은 배경 재질감, 카드 결, AI 메모 문장에만 은은하게 반영합니다.
+- macOS Finder처럼 밝고 정돈된 여백, 부드러운 입체감, 과하지 않은 장식을 유지합니다.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 현재 반영된 MVP UI
+
+- 하단 탭 4개: 홈 / 포트폴리오 / 추천 / 설정
+- 홈 화면: 오늘의 투자 메모 + 추천 카드 목록
+- 추천 카드: 종목명, 티커, 현재 금액, 추천 금액, 상태 배지, 근거 보기
+- 근거 미리보기: 추천 근거 화면의 핵심 섹션 구조를 샘플로 반영
+
+## 추천 엔진 기준
+
+- 기본 점수는 50점에서 시작합니다.
+- 가격, 뉴스, 기관 수급, 실적, 밸류에이션, 시장 점수를 합산합니다.
+- 점수 구간:
+  - 80점 이상: 증액
+  - 60~79점: 유지
+  - 40~59점: 축소
+  - 39점 이하: 중단 검토
+- 하드 룰:
+  - 회계 부정
+  - 상장폐지 위험
+  - 대형 정부 조사
+  - 심각한 실적 붕괴
+
+## 다음 구현 우선순위
+
+1. 더미 데이터 분리와 추천 엔진 도메인 모델링
+2. 홈/포트폴리오/추천/근거 화면 파일 분리
+3. 종목 검색 및 등록 플로우 구성
+4. Finnhub + Gemini 연결 가능한 데이터 계층 설계
+5. Pretendard 폰트와 앱 로고 방향 반영
