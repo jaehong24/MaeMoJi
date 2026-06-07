@@ -39,10 +39,10 @@ import java.util.regex.Pattern;
 @Service
 public class NewsSentimentService {
 
-    private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
-    private static final int MAX_GEMINI_CANDIDATES = 8;
+    private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
+    private static final int MAX_GEMINI_CANDIDATES = 5;
     private static final int MAX_GEMINI_ATTEMPTS = 3;
-    private static final long GEMINI_RETRY_DELAY_MILLIS = 800;
+    private static final long GEMINI_RETRY_DELAY_MILLIS = 2500;
     private static final int MAX_DAILY_NEWS = 3;
     private static final int MIN_PRE_ANALYSIS_RELEVANCE = 45;
     private static final int MIN_FINAL_RELEVANCE = 60;
@@ -117,7 +117,8 @@ public class NewsSentimentService {
 
             final GeminiBatchResult geminiResult = classifyWithGemini(companyName, symbol, candidates);
             if (geminiResult == null) {
-                return NewsSentimentResult.geminiUnavailable();
+                log.warn("Gemini를 사용할 수 없어 키워드 기반 뉴스 분석으로 대체합니다. symbol={}", symbol);
+                return fallbackKeywordAnalysis(symbol, candidates, analysisBatchHash);
             }
             return aggregateResults(symbol, candidates, geminiResult, analysisBatchHash);
         } catch (Exception exception) {
@@ -538,9 +539,9 @@ public class NewsSentimentService {
             final RawNewsItem item = candidates.get(index);
             prompt.append(index + 1)
                     .append(". 제목: ")
-                    .append(item.headline())
+                    .append(trimForPrompt(item.headline(), 180))
                     .append("\n요약: ")
-                    .append(item.summary())
+                    .append(trimForPrompt(item.summary(), 320))
                     .append("\n1차 키워드 점수: ")
                     .append(item.keywordScore())
                     .append("\n1차 관련성 점수: ")
@@ -548,6 +549,14 @@ public class NewsSentimentService {
                     .append("\n\n");
         }
         return prompt.toString();
+    }
+
+    private String trimForPrompt(String value, int maxLength) {
+        final String normalized = defaultIfBlank(value, "").trim();
+        if (normalized.length() <= maxLength) {
+            return normalized;
+        }
+        return normalized.substring(0, maxLength) + "...";
     }
 
     private NewsSentimentResult aggregateResults(
@@ -648,6 +657,86 @@ public class NewsSentimentService {
                 hardNegativeOverride,
                 geminiResult.overallSummary(),
                 geminiResult.model(),
+                false,
+                true
+        );
+    }
+
+    private NewsSentimentResult fallbackKeywordAnalysis(
+            String symbol,
+            List<RawNewsItem> candidates,
+            String analysisBatchHash
+    ) {
+        final List<AnalyzedNewsItem> analyzedNews = candidates.stream()
+                .map(item -> {
+                    final int relevanceScore = clamp(item.heuristicRelevanceScore(), 0, 100);
+                    if (relevanceScore < MIN_FINAL_RELEVANCE) {
+                        return null;
+                    }
+
+                    int sentimentScore = item.keywordScore();
+                    String impactLevel = inferImpactLevel(sentimentScore, item.hardNegative());
+                    String reason = fallbackReason(sentimentScore, relevanceScore);
+
+                    if (item.hardNegative() && relevanceScore >= MIN_FINAL_RELEVANCE) {
+                        sentimentScore = Math.min(sentimentScore, -85);
+                        impactLevel = "HIGH";
+                        reason = "강한 악재 키워드가 확인되어 우선 반영했습니다. " + reason;
+                    }
+
+                    final double recencyWeight = calculateRecencyWeight(item.publishedAt());
+                    final double impactWeight = impactWeight(impactLevel);
+                    final double articleWeight = (relevanceScore / 100.0) * recencyWeight * impactWeight;
+                    final double weightedScore = sentimentScore * articleWeight;
+
+                    return new AnalyzedNewsItem(
+                            item.newsId(),
+                            symbol,
+                            item.headline(),
+                            fallbackSummary(item),
+                            item.sourceName(),
+                            item.url(),
+                            item.publishedAt(),
+                            labelFromScore(sentimentScore),
+                            sentimentScore,
+                            item.keywordScore(),
+                            relevanceScore,
+                            impactLevel,
+                            reason,
+                            decimal(recencyWeight),
+                            decimal(impactWeight),
+                            decimal(weightedScore),
+                            item.contentHash(),
+                            analysisBatchHash
+                    );
+                })
+                .filter(item -> item != null)
+                .sorted((left, right) -> {
+                    final int byImpact = right.weightedScore().abs().compareTo(left.weightedScore().abs());
+                    if (byImpact != 0) {
+                        return byImpact;
+                    }
+                    return Comparator.nullsLast(Comparator.<OffsetDateTime>reverseOrder())
+                            .compare(left.newsPublishedAt(), right.newsPublishedAt());
+                })
+                .limit(MAX_DAILY_NEWS)
+                .toList();
+
+        if (analyzedNews.isEmpty()) {
+            return NewsSentimentResult.geminiUnavailable();
+        }
+
+        final boolean hardNegativeOverride = analyzedNews.stream().anyMatch(item ->
+                item.keywordScore() <= -85
+                        && item.relevanceScore() >= MIN_FINAL_RELEVANCE
+                        && "HIGH".equals(item.impactLevel())
+        );
+
+        return finalizeResult(
+                analyzedNews,
+                hardNegativeOverride,
+                "Gemini 응답이 일시적으로 불안정해 키워드 기반 1차 뉴스 분석으로 대체했습니다.",
+                "KEYWORD_FALLBACK",
                 false,
                 true
         );
