@@ -1,14 +1,12 @@
 server:
-  port: 8081
+  port: ${PORT:8081}
 
-spring:
-  application:
-    name: maemoji-backend
-  datasource:
-    url: jdbc:postgresql://localhost:${MAEMOJI_DB_PORT:5432}/${MAEMOJI_DB_NAME:maemoji}
-    username: ${MAEMOJI_DB_USER:maemoji}
-    password: ${MAEMOJI_DB_PASSWORD:maemoji1234}
-    driver-class-name: org.postgresql.Driver
+  spring:
+    datasource:
+      url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${MAEMOJI_DB_PORT:5432}/${MAEMOJI_DB_NAME:maemoji}}
+      username: ${SPRING_DATASOURCE_USERNAME:${MAEMOJI_DB_USER:maemoji}}
+      password: ${SPRING_DATASOURCE_PASSWORD:${MAEMOJI_DB_PASSWORD:maemoji1234}}
+      driver-class-name: org.postgresql.Driver
 
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml
@@ -28,3 +26,8 @@ maemoji:
       delay-millis: 250
       target-count: 500
       exchange: US
+    price-snapshots:
+      enabled: true
+      cron: "0 40 6 * * *"
+      delay-millis: 250
+      default-limit: 500
