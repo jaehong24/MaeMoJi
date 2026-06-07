@@ -28,6 +28,20 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
         final String datasourceUrl = blankToNull(environment.getProperty("spring.datasource.url"));
         final String datasourceUsername = blankToNull(environment.getProperty("spring.datasource.username"));
         final String datasourcePassword = blankToNull(environment.getProperty("spring.datasource.password"));
+        final String explicitDatasourceUrl = firstNonBlank(
+                environment.getProperty("SPRING_DATASOURCE_URL"),
+                environment.getProperty("MAEMOJI_DB_URL")
+        );
+        final String explicitDatasourceUsername = firstNonBlank(
+                environment.getProperty("DATABASE_USERNAME"),
+                environment.getProperty("SPRING_DATASOURCE_USERNAME"),
+                environment.getProperty("MAEMOJI_DB_USER")
+        );
+        final String explicitDatasourcePassword = firstNonBlank(
+                environment.getProperty("DATABASE_PASSWORD"),
+                environment.getProperty("SPRING_DATASOURCE_PASSWORD"),
+                environment.getProperty("MAEMOJI_DB_PASSWORD")
+        );
 
         final HostedDatasource hostedDatasource = HostedDatasource.from(
                 firstNonBlank(
@@ -37,11 +51,12 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
                 )
         );
 
-        if (datasourceUrl == null && hostedDatasource.url() != null) {
+        if (hostedDatasource.url() != null
+                && (datasourceUrl == null || explicitDatasourceUrl == null)) {
             overrides.put("spring.datasource.url", hostedDatasource.url());
         }
 
-        if (datasourceUsername == null) {
+        if (explicitDatasourceUsername == null) {
             final String username = firstNonBlank(
                     environment.getProperty("DATABASE_USERNAME"),
                     environment.getProperty("SPRING_DATASOURCE_USERNAME"),
@@ -53,7 +68,7 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
             }
         }
 
-        if (datasourcePassword == null) {
+        if (explicitDatasourcePassword == null) {
             final String password = firstNonBlank(
                     environment.getProperty("DATABASE_PASSWORD"),
                     environment.getProperty("SPRING_DATASOURCE_PASSWORD"),
@@ -97,25 +112,38 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
     record HostedDatasource(String url, String username, String password) {
 
         static HostedDatasource from(String rawUrl) {
-            final String normalizedUrl = normalizeJdbcUrl(rawUrl);
-            if (normalizedUrl == null) {
+            final String normalizedRawUrl = normalizeRawUrl(rawUrl);
+            if (normalizedRawUrl == null) {
                 return new HostedDatasource(null, null, null);
             }
 
             try {
-                final URI uri = URI.create(normalizedUrl.substring("jdbc:".length()));
+                final URI uri = URI.create(normalizedRawUrl);
                 final String userInfo = uri.getUserInfo();
+                final String jdbcUrl = toJdbcUrlWithoutUserInfo(uri);
+
                 if (userInfo == null || userInfo.isBlank()) {
-                    return new HostedDatasource(normalizedUrl, null, null);
+                    return new HostedDatasource(jdbcUrl, null, null);
                 }
 
                 final String[] parts = userInfo.split(":", 2);
                 final String username = parts.length > 0 ? blankToNull(parts[0]) : null;
                 final String password = parts.length > 1 ? blankToNull(parts[1]) : null;
-                return new HostedDatasource(normalizedUrl, username, password);
+                return new HostedDatasource(jdbcUrl, username, password);
             } catch (Exception ignored) {
-                return new HostedDatasource(normalizedUrl, null, null);
+                return new HostedDatasource(normalizeJdbcUrl(rawUrl), null, null);
             }
+        }
+
+        private static String normalizeRawUrl(String rawUrl) {
+            final String value = blankToNull(rawUrl);
+            if (value == null) {
+                return null;
+            }
+            if (value.startsWith("postgresql://") || value.startsWith("postgres://")) {
+                return value.replaceFirst("^postgres://", "postgresql://");
+            }
+            return value;
         }
 
         private static String normalizeJdbcUrl(String rawUrl) {
@@ -127,9 +155,22 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
                 return value;
             }
             if (value.startsWith("postgresql://") || value.startsWith("postgres://")) {
-                return "jdbc:" + value;
+                return "jdbc:" + value.replaceFirst("^postgres://", "postgresql://");
             }
             return value;
+        }
+
+        private static String toJdbcUrlWithoutUserInfo(URI uri) {
+            final StringBuilder jdbcUrl = new StringBuilder("jdbc:postgresql://")
+                    .append(uri.getHost());
+            if (uri.getPort() > 0) {
+                jdbcUrl.append(':').append(uri.getPort());
+            }
+            jdbcUrl.append(uri.getPath());
+            if (uri.getQuery() != null && !uri.getQuery().isBlank()) {
+                jdbcUrl.append('?').append(uri.getQuery());
+            }
+            return jdbcUrl.toString();
         }
     }
 }

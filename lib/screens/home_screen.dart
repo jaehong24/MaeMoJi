@@ -68,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '매일 모으기를 지원합니다. \n모든 투자 선택은 본인의 선택과\n책임입니다.',
+                    '매일 모으기를 지원합니다. \n모든 투자 선택은 본인의\n책임입니다.',
                     style: theme.textTheme.bodyLarge,
                   ),
                 ],
