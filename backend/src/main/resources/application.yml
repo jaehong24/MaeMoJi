@@ -1,5 +1,5 @@
 server:
-  port: 8081
+  port: ${PORT:8081}
 
 spring:
   application:
@@ -28,3 +28,8 @@ maemoji:
       delay-millis: 250
       target-count: 500
       exchange: US
+    price-snapshots:
+      enabled: true
+      cron: "0 40 6 * * *"
+      delay-millis: 250
+      default-limit: 500
