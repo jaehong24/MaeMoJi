@@ -4,184 +4,255 @@ import 'package:url_launcher/url_launcher.dart';
 import '../currency/currency_scope.dart';
 import '../models/recommendation_item.dart';
 import '../models/recommendation_news_item.dart';
+import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/evidence_section.dart';
 import '../widgets/recommendation_badge.dart';
 
-class StockDetailScreen extends StatelessWidget {
-  const StockDetailScreen({super.key, required this.item});
+class StockDetailScreen extends StatefulWidget {
+  const StockDetailScreen({
+    super.key,
+    required this.portfolioItemId,
+    this.initialItem,
+  });
 
-  final RecommendationItem item;
+  final int portfolioItemId;
+  final RecommendationItem? initialItem;
+
+  @override
+  State<StockDetailScreen> createState() => _StockDetailScreenState();
+}
+
+class _StockDetailScreenState extends State<StockDetailScreen> {
+  final RecommendationService _recommendationService =
+      const RecommendationService();
+  late Future<RecommendationItem> _detailFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _detailFuture = _recommendationService.fetchRecommendationDetail(
+      widget.portfolioItemId,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currencyController = CurrencyScope.of(context);
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('${item.name} 상세'),
+        title: Text('${widget.initialItem?.name ?? '종목'} 상세'),
       ),
-      body: ListenableBuilder(
-        listenable: currencyController,
-        builder: (context, _) {
-          final currentAmount = CurrencyFormatter.formatAmount(
-            usdAmount: item.currentAmountUsd,
-            currency: currencyController.displayCurrency,
-            usdToKrwRate: currencyController.usdToKrwRate,
-          );
-          final recommendedAmount = CurrencyFormatter.formatAmount(
-            usdAmount: item.recommendedAmountUsd,
-            currency: currencyController.displayCurrency,
-            usdToKrwRate: currencyController.usdToKrwRate,
-          );
+      body: FutureBuilder<RecommendationItem>(
+        future: _detailFuture,
+        initialData: widget.initialItem,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              snapshot.data == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-            children: [
-              AppSectionCard(
+          if (snapshot.hasError && snapshot.data == null) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: AppSectionCard(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _DetailLogo(ticker: item.ticker, logoUrl: item.logoUrl),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.name,
-                                style: theme.textTheme.headlineMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                item.ticker,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: MaeMojiColors.inkMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        RecommendationBadge(status: item.status),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Text(item.note, style: theme.textTheme.bodyLarge),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricCard(label: '현재 모으기', value: currentAmount),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _MetricCard(
-                      label: '추천 금액',
-                      value: recommendedAmount,
-                      accentColor: item.status.color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MiniMetricCard(
-                      label: '신뢰도',
-                      value: '${item.confidence}%',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _MiniMetricCard(label: '점수', value: '${item.score}'),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _MiniMetricCard(
-                      label: '보유 수량',
-                      value: item.currentHolding,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              AppSectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('추천 근거', style: theme.textTheme.titleLarge),
+                    Text('상세 추천을 불러오지 못했습니다.', style: theme.textTheme.titleLarge),
                     const SizedBox(height: 8),
                     Text(
-                      '이 종목의 모으기 금액을 판단한 핵심 근거입니다.',
+                      '운영 서버에서 최신 추천 상세를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.',
                       style: theme.textTheme.bodyMedium,
                     ),
-                    const SizedBox(height: 16),
-                    EvidenceSection(items: item.evidence),
-                  ],
-                ),
-              ),
-              if (item.relatedNews.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                AppSectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('관련 뉴스 분석', style: theme.textTheme.titleLarge),
-                      const SizedBox(height: 8),
-                      Text(
-                        '감성, 종목 관련성, 최신성, 영향도를 함께 반영한 기사별 분석입니다.',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      ...item.relatedNews.asMap().entries.map((entry) {
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            bottom: entry.key == item.relatedNews.length - 1
-                                ? 0
-                                : 12,
-                          ),
-                          child: _RelatedNewsCard(news: entry.value),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 14),
-              AppSectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('투자 메모', style: theme.textTheme.titleLarge),
-                    const SizedBox(height: 10),
-                    _MetaLine(label: '투자 시작일', value: item.startedAt),
-                    const SizedBox(height: 8),
-                    _MetaLine(
-                      label: '사용자 메모',
-                      value: item.memo.isEmpty ? '등록된 메모가 없습니다.' : item.memo,
+                    const SizedBox(height: 14),
+                    FilledButton.tonal(
+                      onPressed: _reload,
+                      child: const Text('다시 불러오기'),
                     ),
                   ],
                 ),
               ),
-            ],
+            );
+          }
+
+          final item = snapshot.data ?? widget.initialItem!;
+          final currencyController = CurrencyScope.of(context);
+
+          return ListenableBuilder(
+            listenable: currencyController,
+            builder: (context, _) {
+              final currentAmount = CurrencyFormatter.formatAmount(
+                usdAmount: item.currentAmountUsd,
+                currency: currencyController.displayCurrency,
+                usdToKrwRate: currencyController.usdToKrwRate,
+              );
+              final recommendedAmount = CurrencyFormatter.formatAmount(
+                usdAmount: item.recommendedAmountUsd,
+                currency: currencyController.displayCurrency,
+                usdToKrwRate: currencyController.usdToKrwRate,
+              );
+
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                children: [
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 10),
+                      child: LinearProgressIndicator(minHeight: 3),
+                    ),
+                  AppSectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DetailLogo(ticker: item.ticker, logoUrl: item.logoUrl),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.name, style: theme.textTheme.headlineMedium),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.ticker,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: MaeMojiColors.inkMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            RecommendationBadge(status: item.status),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Text(item.note, style: theme.textTheme.bodyLarge),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MetricCard(label: '현재 매일 모으기', value: currentAmount),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MetricCard(
+                          label: '추천 금액',
+                          value: recommendedAmount,
+                          accentColor: item.status.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MiniMetricCard(
+                          label: '신뢰도',
+                          value: '${item.confidence}%',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MiniMetricCard(label: '점수', value: '${item.score}'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MiniMetricCard(
+                          label: '보유 수량',
+                          value: item.currentHolding,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  AppSectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('추천 근거', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Text(
+                          '이 종목의 매일 모으기 금액을 판단한 핵심 근거입니다.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        EvidenceSection(items: item.evidence),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  AppSectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('관련 뉴스 분석', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.relatedNews.isEmpty
+                              ? '오늘 기준으로 관련성 높은 뉴스가 아직 반영되지 않았습니다.'
+                              : '감성, 관련성, 영향도를 함께 반영한 기사별 분석입니다.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        if (item.relatedNews.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          ...item.relatedNews.asMap().entries.map((entry) {
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: entry.key == item.relatedNews.length - 1 ? 0 : 12,
+                              ),
+                              child: _RelatedNewsCard(news: entry.value),
+                            );
+                          }),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  AppSectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('투자 메모', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 10),
+                        _MetaLine(label: '투자 시작일', value: item.startedAt),
+                        const SizedBox(height: 8),
+                        _MetaLine(
+                          label: '사용자 메모',
+                          value: item.memo.isEmpty ? '등록된 메모가 없습니다.' : item.memo,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
     );
+  }
+
+  void _reload() {
+    setState(() {
+      _detailFuture = _recommendationService.fetchRecommendationDetail(
+        widget.portfolioItemId,
+      );
+    });
   }
 }
 

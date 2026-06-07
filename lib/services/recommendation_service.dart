@@ -58,6 +58,28 @@ class RecommendationService {
     return _decodeRecommendations(utf8.decode(response.bodyBytes));
   }
 
+  Future<RecommendationItem> fetchRecommendationDetail(int portfolioItemId) async {
+    final uri = ApiConfig.buildUri(
+      '/api/recommendations/$portfolioItemId',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('추천 상세 조회에 실패했습니다. (${response.statusCode})');
+    }
+
+    final decoded =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>? ?? const {};
+    final decodedItems = _decodeRecommendationItems([data]);
+    if (decodedItems.isEmpty) {
+      throw Exception('추천 상세 데이터가 비어 있습니다.');
+    }
+    return decodedItems.first;
+  }
+
   Future<List<RecommendationItem>> generateRecommendations() async {
     final uri = ApiConfig.buildUri(
       '/api/recommendations/generate',
@@ -120,6 +142,8 @@ class RecommendationService {
           .toList();
 
       return RecommendationItem(
+        portfolioItemId: (item['portfolioItemId'] as num?)?.toInt() ?? 0,
+        stockId: (item['stockId'] as num?)?.toInt() ?? 0,
         name: (item['companyName'] ?? '').toString(),
         ticker: (item['ticker'] ?? '').toString(),
         logoUrl: (item['logoUrl'] ?? '').toString(),

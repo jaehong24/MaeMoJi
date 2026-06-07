@@ -1,9 +1,9 @@
-package com.maemoji.backend.stock.controller;
+package com.maemoji.backend.batch.controller;
 
+import com.maemoji.backend.batch.dto.DailyBatchResult;
 import com.maemoji.backend.batch.security.BatchAdminAuthorizer;
+import com.maemoji.backend.batch.service.DailyIntegratedBatchService;
 import com.maemoji.backend.common.api.ApiResponse;
-import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
-import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,26 +11,26 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/admin/batches/price-snapshots")
-public class PriceSnapshotBatchAdminController {
+@RequestMapping("/api/admin/batches/daily")
+public class DailyBatchAdminController {
 
-    private final StockPriceSnapshotBatchService stockPriceSnapshotBatchService;
+    private final DailyIntegratedBatchService dailyBatchService;
     private final BatchAdminAuthorizer authorizer;
 
-    public PriceSnapshotBatchAdminController(
-            StockPriceSnapshotBatchService stockPriceSnapshotBatchService,
+    public DailyBatchAdminController(
+            DailyIntegratedBatchService dailyBatchService,
             BatchAdminAuthorizer authorizer
     ) {
-        this.stockPriceSnapshotBatchService = stockPriceSnapshotBatchService;
+        this.dailyBatchService = dailyBatchService;
         this.authorizer = authorizer;
     }
 
-    @PostMapping("/sync")
-    public ApiResponse<PriceSnapshotBatchResult> syncPriceSnapshots(
+    @PostMapping("/run")
+    public ApiResponse<DailyBatchResult> run(
             @RequestHeader(name = "X-Batch-Secret", required = false) String batchSecret,
             @RequestParam(name = "limit", required = false) Integer limit
     ) {
         authorizer.authorize(batchSecret);
-        return ApiResponse.ok(stockPriceSnapshotBatchService.syncSnapshots(limit, false));
+        return ApiResponse.ok(dailyBatchService.run(limit));
     }
 }

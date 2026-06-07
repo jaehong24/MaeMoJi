@@ -79,7 +79,10 @@ class ScreenBlueprintScreen extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => StockDetailScreen(item: sampleItem),
+                  builder: (_) => StockDetailScreen(
+                    portfolioItemId: sampleItem.portfolioItemId,
+                    initialItem: sampleItem,
+                  ),
                 ),
               );
             },

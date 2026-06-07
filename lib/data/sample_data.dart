@@ -4,6 +4,8 @@ import '../models/recommendation_status.dart';
 
 const sampleRecommendations = [
   RecommendationItem(
+    portfolioItemId: 1,
+    stockId: 1,
     name: 'NVIDIA',
     ticker: 'NVDA',
     logoUrl: null,
@@ -12,23 +14,25 @@ const sampleRecommendations = [
     confidence: 82,
     currentHolding: '2.38주',
     startedAt: '2025.11.02',
-    memo: 'AI 반도체 장기 적립 중',
+    memo: 'AI 반도체 장기 관점 유지',
     score: 52,
-    note: '최근 30일 급등과 밸류에이션 부담이 겹쳐 현재 단계에서는 축소 의견으로 해석합니다.',
+    note: '최근 30일 급등과 밸류 부담이 겹쳐 현재 단계에서는 축소 의견으로 해석됩니다.',
     status: RecommendationStatus.reduce,
     evidence: [
       EvidenceItem(
         title: '주가 분석',
-        body: '최근 30일 +35% 상승으로 단기 과열 가능성을 감지했습니다.',
+        body: '최근 30일 +35% 상승으로 단기 과열 가능성이 감지되었습니다.',
       ),
       EvidenceItem(
         title: '뉴스 분석',
-        body: '긍정 뉴스가 더 많지만 가격 부담을 상쇄할 정도는 아니라고 판단했습니다.',
+        body: '긍정 뉴스가 많지만 가격 부담을 상쇄할 정도는 아니라고 판단했습니다.',
       ),
     ],
     relatedNews: const [],
   ),
   RecommendationItem(
+    portfolioItemId: 2,
+    stockId: 2,
     name: 'Amazon',
     ticker: 'AMZN',
     logoUrl: null,
@@ -39,12 +43,12 @@ const sampleRecommendations = [
     startedAt: '2025.09.10',
     memo: '클라우드와 광고 성장 체크',
     score: 68,
-    note: '실적 흐름은 견조하지만 추가 과열 신호가 뚜렷하지 않아 현재 금액 유지가 적절합니다.',
+    note: '실적 흐름은 견조하지만 추가 과열 신호가 선명하지 않아 현재 금액 유지가 적절합니다.',
     status: RecommendationStatus.maintain,
     evidence: [
       EvidenceItem(
         title: '사업 건전성',
-        body: '핵심 사업부의 성장 기대는 유지되고 있습니다.',
+        body: '핵심 사업부 성장 기조가 유지되고 있습니다.',
       ),
       EvidenceItem(
         title: '가격 흐름',

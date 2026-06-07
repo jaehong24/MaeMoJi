@@ -164,7 +164,10 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                       onOpenDetail: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => StockDetailScreen(item: item),
+                            builder: (_) => StockDetailScreen(
+                              portfolioItemId: item.portfolioItemId,
+                              initialItem: item,
+                            ),
                           ),
                         );
                       },

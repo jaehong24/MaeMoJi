@@ -4,6 +4,8 @@ import 'recommendation_status.dart';
 
 class RecommendationItem {
   const RecommendationItem({
+    required this.portfolioItemId,
+    required this.stockId,
     required this.name,
     required this.ticker,
     required this.logoUrl,
@@ -20,6 +22,8 @@ class RecommendationItem {
     required this.relatedNews,
   });
 
+  final int portfolioItemId;
+  final int stockId;
   final String name;
   final String ticker;
   final String? logoUrl;

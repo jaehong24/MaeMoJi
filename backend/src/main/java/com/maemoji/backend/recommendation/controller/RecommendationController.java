@@ -7,6 +7,7 @@ import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.service.NewsSentimentService;
 import com.maemoji.backend.recommendation.service.RecommendationService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +32,13 @@ public class RecommendationController {
     @GetMapping
     public ApiResponse<List<RecommendationResponse>> getLatestRecommendations() {
         return ApiResponse.ok(recommendationService.getLatestRecommendations());
+    }
+
+    @GetMapping("/{portfolioItemId:\\d+}")
+    public ApiResponse<RecommendationResponse> getRecommendationDetail(
+            @PathVariable Long portfolioItemId
+    ) {
+        return ApiResponse.ok(recommendationService.getRecommendationDetail(portfolioItemId));
     }
 
     @GetMapping("/home")

@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '📝 오늘의 매모지',
+                    '🍀 오늘의 매모지',
                     maxLines: 1,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontSize: 18,
@@ -201,7 +201,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       onOpenDetail: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => StockDetailScreen(item: item),
+                            builder: (_) => StockDetailScreen(
+                              portfolioItemId: item.portfolioItemId,
+                              initialItem: item,
+                            ),
                           ),
                         );
                       },

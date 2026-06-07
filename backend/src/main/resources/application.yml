@@ -30,7 +30,10 @@ maemoji:
       target-count: 500
       exchange: US
     price-snapshots:
-      enabled: true
+      # 운영 배치는 Render Cron Job이 담당합니다. 웹 서버에서는 중복 실행하지 않습니다.
+      enabled: false
       cron: "0 40 6 * * *"
       delay-millis: 2100
       default-limit: 500
+    daily:
+      price-limit: 500

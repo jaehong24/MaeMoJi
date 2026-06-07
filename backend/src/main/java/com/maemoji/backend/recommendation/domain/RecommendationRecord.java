@@ -5,6 +5,7 @@ import java.time.LocalDate;
 
 public class RecommendationRecord {
     private Long recommendationId;
+    private LocalDate recommendationDate;
     private Long portfolioItemId;
     private Long stockId;
     private String companyName;
@@ -37,6 +38,14 @@ public class RecommendationRecord {
 
     public void setRecommendationId(Long recommendationId) {
         this.recommendationId = recommendationId;
+    }
+
+    public LocalDate getRecommendationDate() {
+        return recommendationDate;
+    }
+
+    public void setRecommendationDate(LocalDate recommendationDate) {
+        this.recommendationDate = recommendationDate;
     }
 
     public Long getPortfolioItemId() {

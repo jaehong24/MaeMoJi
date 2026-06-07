@@ -190,6 +190,7 @@
             resultType="com.maemoji.backend.recommendation.domain.RecommendationRecord">
         select distinct on (r.portfolio_item_id)
             r.id as recommendation_id,
+            r.recommendation_date,
             r.portfolio_item_id,
             pi.stock_id,
             coalesce(s.name_ko, s.name_en) as company_name,

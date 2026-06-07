@@ -84,7 +84,8 @@ public class RecommendationService {
     @Transactional
     public List<RecommendationResponse> generateLatestRecommendations() {
         final Long userId = ensureDevUserId();
-        final LocalDate recommendationDate = LocalDate.now();
+        // Render는 UTC로 실행되므로 한국 날짜를 명시적으로 사용합니다.
+        final LocalDate recommendationDate = LocalDate.now(HOME_ZONE);
         final List<RecommendationTarget> targets =
                 recommendationMapper.findActiveRecommendationTargetsByUserId(userId);
 
@@ -110,6 +111,10 @@ public class RecommendationService {
 
         final List<RecommendationRecord> latestRecommendations =
                 recommendationMapper.findLatestRecommendationsByUserId(userId);
+        if (needsRefresh(targets, latestRecommendations)) {
+            return generateLatestRecommendations();
+        }
+
         final Map<Long, RecommendationRecord> recommendationByPortfolioItemId = new LinkedHashMap<>();
         for (RecommendationRecord record : latestRecommendations) {
             recommendationByPortfolioItemId.put(record.getPortfolioItemId(), record);
@@ -124,6 +129,14 @@ public class RecommendationService {
                             : toPendingResponse(target);
                 })
                 .toList();
+    }
+
+    @Transactional
+    public RecommendationResponse getRecommendationDetail(Long portfolioItemId) {
+        return getLatestRecommendations().stream()
+                .filter(item -> portfolioItemId.equals(item.portfolioItemId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("추천 상세 대상을 찾을 수 없습니다."));
     }
 
     @Transactional
@@ -590,6 +603,27 @@ public class RecommendationService {
                 evidence,
                 List.of()
         );
+    }
+
+    private boolean needsRefresh(
+            List<RecommendationTarget> targets,
+            List<RecommendationRecord> latestRecommendations
+    ) {
+        if (latestRecommendations.size() < targets.size()) {
+            return true;
+        }
+
+        final LocalDate today = LocalDate.now(HOME_ZONE);
+        for (RecommendationRecord record : latestRecommendations) {
+            if (!today.equals(record.getRecommendationDate())) {
+                return true;
+            }
+            if (!ENGINE_VERSION.equals(blankToEmpty(record.getEngineVersion()))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private RecommendationScoresResponse extractScores(List<RecommendationEvidenceRecord> evidenceRecords) {
