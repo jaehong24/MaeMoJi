@@ -2,8 +2,8 @@ name: maeemoji-daily-batch
 
 on:
   schedule:
-    # GitHub Actions cron uses UTC. 21:40 UTC = 06:40 KST next day.
-    - cron: "40 21 * * *"
+    # GitHub Actions cron uses UTC. 21:47 UTC = 06:47 KST next day.
+    - cron: "47 21 * * *"
   workflow_dispatch:
     inputs:
       price_limit:

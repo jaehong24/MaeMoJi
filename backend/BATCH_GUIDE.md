@@ -9,8 +9,8 @@ The daily integrated batch runs in this order:
 3. Refresh portfolio news and Gemini analysis
 4. Save the latest recommendation scores, confidence, and action results
 
-GitHub Actions runs this batch every day at `21:40 UTC`, which is
-`06:40 KST` on the next calendar day.
+GitHub Actions runs this batch every day at `21:47 UTC`, which is
+`06:47 KST` on the next calendar day.
 
 ## GitHub Actions setup
 

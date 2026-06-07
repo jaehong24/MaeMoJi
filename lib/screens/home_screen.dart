@@ -9,7 +9,6 @@ import '../widgets/app_section_card.dart';
 import '../widgets/currency_toggle.dart';
 import '../widgets/navigation_preview_tile.dart';
 import '../widgets/recommendation_card.dart';
-import '../widgets/recommendation_freshness_card.dart';
 import '../widgets/status_summary_chip.dart';
 import 'screen_blueprint_screen.dart';
 import 'stock_detail_screen.dart';
@@ -25,7 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final RecommendationService _recommendationService =
-      const RecommendationService();
+  const RecommendationService();
   late Future<HomeRecommendationSummary> _recommendationsFuture;
 
   @override
@@ -68,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '매일 모으기를 지원합니다. \n모든 투자 선택은 본인의\n책임입니다.',
+                    '매일 모으기를 지원합니다. \n모든 투자선택은 본인의\n책임입니다.',
                     style: theme.textTheme.bodyLarge,
                   ),
                 ],
@@ -162,8 +161,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Column(
               children: [
-                RecommendationFreshnessCard(summary: summary),
-                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
@@ -193,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 18),
                 ...recommendations.map(
-                  (item) => Padding(
+                      (item) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: RecommendationCard(
                       item: item,

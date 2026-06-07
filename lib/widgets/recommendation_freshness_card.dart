@@ -44,15 +44,15 @@ class RecommendationFreshnessCard extends StatelessWidget {
             runSpacing: 7,
             children: [
               _DataStamp(
-                label: '가격',
+                label: '가격 데이터',
                 value: summary.priceDataDate == null
-                    ? '준비 중'
-                    : '${_formatDate(summary.priceDataDate)} 저장',
+                    ? '아직 없음'
+                    : '${_formatDate(summary.priceDataDate)} 미국 장 마감',
               ),
               _DataStamp(
-                label: '뉴스',
+                label: '뉴스 분석',
                 value: summary.newsAnalyzedAt == null
-                    ? '분석 전'
+                    ? '아직 없음'
                     : _formatDateTime(summary.newsAnalyzedAt),
               ),
             ],
@@ -67,7 +67,7 @@ class RecommendationFreshnessCard extends StatelessWidget {
       return '-';
     }
     final local = value.toLocal();
-    return '${local.month}월 ${local.day}일';
+    return '${local.year}년 ${local.month}월 ${local.day}일';
   }
 
   static String _formatDateTime(DateTime? value) {
@@ -78,7 +78,7 @@ class RecommendationFreshnessCard extends StatelessWidget {
     final period = local.hour < 12 ? '오전' : '오후';
     final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
     final minute = local.minute.toString().padLeft(2, '0');
-    return '${local.month}월 ${local.day}일 $period $hour:$minute';
+    return '${local.year}년 ${local.month}월 ${local.day}일 $period $hour:$minute';
   }
 }
 
