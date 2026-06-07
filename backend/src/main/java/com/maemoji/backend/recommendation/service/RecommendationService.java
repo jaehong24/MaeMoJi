@@ -34,6 +34,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -97,16 +98,44 @@ public class RecommendationService {
     @Transactional
     public List<RecommendationResponse> getLatestRecommendations() {
         final Long userId = ensureDevUserId();
+        final List<RecommendationTarget> targets =
+                recommendationMapper.findActiveRecommendationTargetsByUserId(userId);
+
+        if (targets.isEmpty()) {
+            return List.of();
+        }
+
         final List<RecommendationRecord> latestRecommendations =
                 recommendationMapper.findLatestRecommendationsByUserId(userId);
 
-        if (latestRecommendations.isEmpty()) {
-            return List.of();
+        if (shouldRefreshRecommendations(targets, latestRecommendations)) {
+            return generateLatestRecommendations();
         }
 
         return latestRecommendations.stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private boolean shouldRefreshRecommendations(
+            List<RecommendationTarget> targets,
+            List<RecommendationRecord> latestRecommendations
+    ) {
+        if (latestRecommendations.isEmpty()) {
+            return true;
+        }
+
+        if (latestRecommendations.size() < targets.size()) {
+            final Set<Long> recommendedPortfolioItemIds = latestRecommendations.stream()
+                    .map(RecommendationRecord::getPortfolioItemId)
+                    .collect(Collectors.toCollection(HashSet::new));
+
+            return targets.stream()
+                    .map(RecommendationTarget::getPortfolioItemId)
+                    .anyMatch(portfolioItemId -> !recommendedPortfolioItemIds.contains(portfolioItemId));
+        }
+
+        return false;
     }
 
     private EngineResult evaluateTarget(RecommendationTarget target) {
