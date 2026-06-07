@@ -10,6 +10,6 @@ void main() {
     expect(find.text('포트폴리오'), findsOneWidget);
     expect(find.text('추천'), findsOneWidget);
     expect(find.text('설정'), findsOneWidget);
-    expect(find.text('NVIDIA'), findsOneWidget);
+    expect(find.text('화면 설계도 보기'), findsOneWidget);
   });
 }

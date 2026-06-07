@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.maemoji.backend.user.mapper.UserMapper">
+
+    <select id="findIdByEmail" resultType="long">
+        select id
+        from users
+        where email = #{email}
+        limit 1
+    </select>
+
+    <insert id="insertDevUser">
+        insert into users (
+            email,
+            password_hash,
+            nickname,
+            status
+        ) values (
+            'dev@maemoji.local',
+            'LOCAL_DEV_ONLY',
+            'MaeMoJi 개발 사용자',
+            'ACTIVE'
+        )
+        on conflict (email) do nothing
+    </insert>
+</mapper>

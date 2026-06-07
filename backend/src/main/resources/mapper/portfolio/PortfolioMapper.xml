@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.maemoji.backend.portfolio.mapper.PortfolioMapper">
+
+    <select id="findPortfolioItemIdByUserIdAndStockId" resultType="long">
+        select id
+        from portfolio_items
+        where user_id = #{userId}
+          and stock_id = #{stockId}
+        limit 1
+    </select>
+
+    <select id="countActivePortfolioItemsByUserId" resultType="int">
+        select count(*)
+        from portfolio_items
+        where user_id = #{userId}
+          and is_active = true
+    </select>
+
+    <insert id="insertPortfolioItem">
+        insert into portfolio_items (
+            user_id,
+            stock_id,
+            daily_invest_amount,
+            holding_quantity,
+            investment_start_date,
+            memo,
+            is_active
+        ) values (
+            #{userId},
+            #{request.stockId},
+            #{request.dailyInvestAmount},
+            #{request.holdingQuantity},
+            #{request.investmentStartDate},
+            #{request.memo},
+            true
+        )
+    </insert>
+
+    <update id="updatePortfolioItem">
+        update portfolio_items
+        set
+            daily_invest_amount = #{request.dailyInvestAmount},
+            holding_quantity = #{request.holdingQuantity},
+            investment_start_date = #{request.investmentStartDate},
+            memo = #{request.memo},
+            is_active = true,
+            updated_at = now()
+        where id = #{portfolioItemId}
+    </update>
+
+    <update id="deactivatePortfolioItem">
+        update portfolio_items
+        set
+            is_active = false,
+            updated_at = now()
+        where id = #{portfolioItemId}
+          and user_id = #{userId}
+          and is_active = true
+    </update>
+
+    <select id="findPortfolioItemsByUserId"
+            resultType="com.maemoji.backend.portfolio.dto.PortfolioItemSummaryResponse">
+        select
+            pi.id,
+            pi.stock_id,
+            coalesce(s.name_ko, s.name_en) as company_name,
+            s.ticker,
+            s.exchange_code,
+            pi.daily_invest_amount,
+            pi.holding_quantity,
+            pi.investment_start_date,
+            pi.memo,
+            s.logo_url
+        from portfolio_items pi
+        join stocks s on s.id = pi.stock_id
+        where pi.user_id = #{userId}
+          and pi.is_active = true
+        order by pi.updated_at desc, pi.created_at desc
+    </select>
+</mapper>

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.maemoji.backend.recommendation.mapper.RecommendationMapper">
+
+    <select id="findActiveRecommendationTargetsByUserId"
+            resultType="com.maemoji.backend.recommendation.domain.RecommendationTarget">
+        select
+            pi.id as portfolio_item_id,
+            pi.user_id,
+            pi.stock_id,
+            coalesce(s.name_ko, s.name_en) as company_name,
+            s.ticker,
+            s.finnhub_symbol,
+            s.logo_url,
+            pi.daily_invest_amount,
+            pi.holding_quantity,
+            pi.investment_start_date,
+            pi.memo
+        from portfolio_items pi
+        join stocks s on s.id = pi.stock_id
+        where pi.user_id = #{userId}
+          and pi.is_active = true
+        order by pi.updated_at desc, pi.created_at desc
+    </select>
+
+    <select id="findRecommendationIdByPortfolioItemIdAndDate" resultType="long">
+        select id
+        from recommendations
+        where portfolio_item_id = #{portfolioItemId}
+          and recommendation_date = #{recommendationDate}
+        limit 1
+    </select>
+
+    <insert id="insertRecommendation"
+            parameterType="com.maemoji.backend.recommendation.domain.RecommendationSaveCommand"
+            useGeneratedKeys="true"
+            keyProperty="command.recommendationId"
+            keyColumn="id">
+        insert into recommendations (
+            user_id,
+            portfolio_item_id,
+            recommendation_date,
+            recommendation_status,
+            engine_score,
+            confidence_score,
+            current_amount,
+            recommended_amount,
+            final_note,
+            engine_version
+        ) values (
+            #{command.userId},
+            #{command.portfolioItemId},
+            #{command.recommendationDate},
+            #{command.recommendationStatus},
+            #{command.engineScore},
+            #{command.confidenceScore},
+            #{command.currentAmount},
+            #{command.recommendedAmount},
+            #{command.finalNote},
+            #{command.engineVersion}
+        )
+    </insert>
+
+    <update id="updateRecommendation"
+            parameterType="com.maemoji.backend.recommendation.domain.RecommendationSaveCommand">
+        update recommendations
+        set
+            recommendation_status = #{command.recommendationStatus},
+            engine_score = #{command.engineScore},
+            confidence_score = #{command.confidenceScore},
+            current_amount = #{command.currentAmount},
+            recommended_amount = #{command.recommendedAmount},
+            final_note = #{command.finalNote},
+            engine_version = #{command.engineVersion}
+        where id = #{command.recommendationId}
+    </update>
+
+    <delete id="deleteRecommendationEvidence">
+        delete from recommendation_evidence
+        where recommendation_id = #{recommendationId}
+    </delete>
+
+    <insert id="insertRecommendationEvidence"
+            parameterType="com.maemoji.backend.recommendation.domain.RecommendationEvidenceSaveCommand">
+        insert into recommendation_evidence (
+            recommendation_id,
+            evidence_type,
+            title,
+            body,
+            score_impact,
+            display_order
+        ) values (
+            #{command.recommendationId},
+            #{command.evidenceType},
+            #{command.title},
+            #{command.body},
+            #{command.scoreImpact},
+            #{command.displayOrder}
+        )
+    </insert>
+
+    <delete id="deleteNewsAnalysisCacheByStockId">
+        delete from news_analysis_cache
+        where stock_id = #{stockId}
+    </delete>
+
+    <insert id="insertNewsAnalysisCache"
+            parameterType="com.maemoji.backend.recommendation.domain.NewsAnalysisSaveCommand">
+        insert into news_analysis_cache (
+            stock_id,
+            news_id,
+            symbol,
+            news_published_at,
+            headline,
+            summary,
+            source_name,
+            news_url,
+            sentiment_label,
+            sentiment_score,
+            keyword_score,
+            relevance_score,
+            impact_level,
+            reason,
+            recency_weight,
+            impact_weight,
+            weighted_score,
+            content_hash,
+            analysis_batch_hash,
+            llm_model,
+            analyzed_at
+        ) values (
+            #{command.stockId},
+            #{command.newsId},
+            #{command.symbol},
+            #{command.newsPublishedAt},
+            #{command.headline},
+            #{command.summary},
+            #{command.sourceName},
+            #{command.newsUrl},
+            #{command.sentimentLabel},
+            #{command.sentimentScore},
+            #{command.keywordScore},
+            #{command.relevanceScore},
+            #{command.impactLevel},
+            #{command.reason},
+            #{command.recencyWeight},
+            #{command.impactWeight},
+            #{command.weightedScore},
+            #{command.contentHash},
+            #{command.analysisBatchHash},
+            #{command.llmModel},
+            #{command.analyzedAt}
+        )
+        on conflict (stock_id, content_hash) do update
+        set
+            sentiment_label = excluded.sentiment_label,
+            sentiment_score = excluded.sentiment_score,
+            keyword_score = excluded.keyword_score,
+            relevance_score = excluded.relevance_score,
+            impact_level = excluded.impact_level,
+            reason = excluded.reason,
+            recency_weight = excluded.recency_weight,
+            impact_weight = excluded.impact_weight,
+            weighted_score = excluded.weighted_score,
+            analysis_batch_hash = excluded.analysis_batch_hash,
+            llm_model = excluded.llm_model,
+            analyzed_at = excluded.analyzed_at
+    </insert>
+
+    <select id="findLatestRecommendationsByUserId"
+            resultType="com.maemoji.backend.recommendation.domain.RecommendationRecord">
+        select distinct on (r.portfolio_item_id)
+            r.id as recommendation_id,
+            r.portfolio_item_id,
+            pi.stock_id,
+            coalesce(s.name_ko, s.name_en) as company_name,
+            s.ticker,
+            s.logo_url,
+            r.recommendation_status,
+            r.engine_score,
+            r.confidence_score,
+            r.current_amount,
+            r.recommended_amount,
+            r.final_note,
+            r.engine_version,
+            pi.holding_quantity,
+            pi.investment_start_date,
+            pi.memo
+        from recommendations r
+        join portfolio_items pi on pi.id = r.portfolio_item_id
+        join stocks s on s.id = pi.stock_id
+        where r.user_id = #{userId}
+          and pi.is_active = true
+        order by r.portfolio_item_id, r.recommendation_date desc, r.created_at desc
+    </select>
+
+    <select id="findRecommendationEvidenceByRecommendationId"
+            resultType="com.maemoji.backend.recommendation.domain.RecommendationEvidenceRecord">
+        select
+            recommendation_id,
+            evidence_type,
+            title,
+            body,
+            score_impact,
+            display_order
+        from recommendation_evidence
+        where recommendation_id = #{recommendationId}
+        order by display_order asc, id asc
+    </select>
+
+    <select id="findLatestNewsAnalysisByStockId"
+            resultType="com.maemoji.backend.recommendation.domain.NewsAnalysisCacheRecord">
+        select
+            stock_id,
+            news_id,
+            symbol,
+            news_published_at,
+            headline,
+            summary,
+            source_name,
+            news_url,
+            sentiment_label,
+            sentiment_score,
+            keyword_score,
+            relevance_score,
+            impact_level,
+            reason,
+            recency_weight,
+            impact_weight,
+            weighted_score,
+            content_hash,
+            analysis_batch_hash,
+            llm_model,
+            analyzed_at
+        from news_analysis_cache
+        where stock_id = #{stockId}
+          and relevance_score >= 60
+        order by abs(weighted_score) desc nulls last, news_published_at desc nulls last
+        limit 3
+    </select>
+</mapper>

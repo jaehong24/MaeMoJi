@@ -1,0 +1,4 @@
+enum DisplayCurrency {
+  usd,
+  krw,
+}

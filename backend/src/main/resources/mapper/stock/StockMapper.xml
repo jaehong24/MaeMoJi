@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.maemoji.backend.stock.mapper.StockMapper">
+
+    <select id="searchStocks" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            is_active,
+            created_at,
+            updated_at
+        from stocks
+        where is_active = true
+          and (
+            ticker_normalized like concat('%', lower(trim(#{keyword})), '%')
+            or coalesce(name_ko_normalized, '') like concat('%', lower(trim(#{keyword})), '%')
+            or name_en_normalized like concat('%', lower(trim(#{keyword})), '%')
+          )
+        order by
+            case
+                when ticker_normalized = lower(trim(#{keyword})) then 1
+                when coalesce(name_ko_normalized, '') = lower(trim(#{keyword})) then 2
+                when name_en_normalized = lower(trim(#{keyword})) then 3
+                when ticker_normalized like concat(lower(trim(#{keyword})), '%') then 4
+                when coalesce(name_ko_normalized, '') like concat(lower(trim(#{keyword})), '%') then 5
+                when name_en_normalized like concat(lower(trim(#{keyword})), '%') then 6
+                else 7
+            end,
+            ticker_normalized asc
+        limit 10
+    </select>
+
+    <select id="findStockById" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            is_active,
+            created_at,
+            updated_at
+        from stocks
+        where id = #{id}
+        limit 1
+    </select>
+
+    <select id="findActiveStocksForRefresh" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            is_active,
+            created_at,
+            updated_at
+        from stocks
+        where is_active = true
+          and finnhub_symbol is not null
+        order by id asc
+    </select>
+
+    <select id="findStockIdByFinnhubSymbol" resultType="long">
+        select id
+        from stocks
+        where finnhub_symbol = #{finnhubSymbol}
+        limit 1
+    </select>
+
+    <insert id="upsertStockMaster">
+        insert into stocks (
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            is_active
+        ) values (
+            #{ticker},
+            #{exchangeCode},
+            #{finnhubSymbol},
+            #{nameKo},
+            #{nameEn},
+            #{tickerNormalized},
+            #{nameKoNormalized},
+            #{nameEnNormalized},
+            #{searchText},
+            #{logoUrl},
+            #{marketType},
+            true
+        )
+        on conflict (ticker, exchange_code) do update
+        set
+            finnhub_symbol = excluded.finnhub_symbol,
+            name_ko = excluded.name_ko,
+            name_en = excluded.name_en,
+            ticker_normalized = excluded.ticker_normalized,
+            name_ko_normalized = excluded.name_ko_normalized,
+            name_en_normalized = excluded.name_en_normalized,
+            search_text = excluded.search_text,
+            logo_url = excluded.logo_url,
+            market_type = excluded.market_type,
+            is_active = true,
+            updated_at = now()
+    </insert>
+
+    <update id="updateStockMaster">
+        update stocks
+        set
+            exchange_code = #{exchangeCode},
+            finnhub_symbol = #{finnhubSymbol},
+            name_ko = #{nameKo},
+            name_en = #{nameEn},
+            ticker_normalized = #{tickerNormalized},
+            name_ko_normalized = #{nameKoNormalized},
+            name_en_normalized = #{nameEnNormalized},
+            search_text = #{searchText},
+            logo_url = #{logoUrl},
+            market_type = #{marketType},
+            is_active = true,
+            updated_at = now()
+        where id = #{id}
+    </update>
+</mapper>

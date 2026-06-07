@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// 추천 상태는 기획서 기준 4단계로 고정합니다.
 enum RecommendationStatus {
   increase('증액', MaeMojiColors.increase),
   maintain('유지', MaeMojiColors.maintain),

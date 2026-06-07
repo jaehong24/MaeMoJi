@@ -1,0 +1,30 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: maemoji-backend
+  datasource:
+    url: jdbc:postgresql://localhost:${MAEMOJI_DB_PORT:5432}/${MAEMOJI_DB_NAME:maemoji}
+    username: ${MAEMOJI_DB_USER:maemoji}
+    password: ${MAEMOJI_DB_PASSWORD:maemoji1234}
+    driver-class-name: org.postgresql.Driver
+
+mybatis:
+  mapper-locations: classpath:/mapper/**/*.xml
+  type-aliases-package: com.maemoji.backend
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.maemoji.backend: debug
+
+maemoji:
+  batch:
+    top-stocks:
+      enabled: false
+      cron: "0 0 6 * * *"
+      delay-millis: 250
+      target-count: 500
+      exchange: US

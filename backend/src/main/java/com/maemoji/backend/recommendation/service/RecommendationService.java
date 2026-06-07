@@ -1,0 +1,773 @@
+package com.maemoji.backend.recommendation.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.maemoji.backend.recommendation.domain.NewsAnalysisCacheRecord;
+import com.maemoji.backend.recommendation.domain.NewsAnalysisSaveCommand;
+import com.maemoji.backend.recommendation.domain.RecommendationEvidenceRecord;
+import com.maemoji.backend.recommendation.domain.RecommendationEvidenceSaveCommand;
+import com.maemoji.backend.recommendation.domain.RecommendationRecord;
+import com.maemoji.backend.recommendation.domain.RecommendationSaveCommand;
+import com.maemoji.backend.recommendation.domain.RecommendationTarget;
+import com.maemoji.backend.recommendation.dto.RecommendationEvidenceResponse;
+import com.maemoji.backend.recommendation.dto.RecommendationResponse;
+import com.maemoji.backend.recommendation.dto.RecommendationScoresResponse;
+import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
+import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
+import com.maemoji.backend.user.mapper.UserMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+public class RecommendationService {
+
+    private static final String DEV_USER_EMAIL = "dev@maemoji.local";
+    private static final String ENGINE_VERSION = "RULE_V2_GEMINI_NEWS";
+    private static final Set<String> HARD_RISK_KEYWORDS = Set.of(
+            "fraud", "delist", "bankruptcy", "lawsuit", "investigation",
+            "분식", "상장폐지", "파산", "소송", "회계부정", "조사"
+    );
+
+    private final RecommendationMapper recommendationMapper;
+    private final UserMapper userMapper;
+    private final ObjectMapper objectMapper;
+    private final NewsSentimentService newsSentimentService;
+    private final HttpClient httpClient;
+
+    public RecommendationService(
+            RecommendationMapper recommendationMapper,
+            UserMapper userMapper,
+            ObjectMapper objectMapper,
+            NewsSentimentService newsSentimentService
+    ) {
+        this.recommendationMapper = recommendationMapper;
+        this.userMapper = userMapper;
+        this.objectMapper = objectMapper;
+        this.newsSentimentService = newsSentimentService;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+    }
+
+    @Transactional
+    public List<RecommendationResponse> generateLatestRecommendations() {
+        final Long userId = ensureDevUserId();
+        final LocalDate recommendationDate = LocalDate.now();
+        final List<RecommendationTarget> targets =
+                recommendationMapper.findActiveRecommendationTargetsByUserId(userId);
+
+        final List<RecommendationResponse> responses = new ArrayList<>();
+        for (RecommendationTarget target : targets) {
+            final EngineResult engineResult = evaluateTarget(target);
+            final Long recommendationId = saveRecommendation(userId, target, recommendationDate, engineResult);
+            responses.add(toResponse(target, recommendationId, engineResult));
+        }
+
+        return responses;
+    }
+
+    @Transactional
+    public List<RecommendationResponse> getLatestRecommendations() {
+        final Long userId = ensureDevUserId();
+        final List<RecommendationRecord> latestRecommendations =
+                recommendationMapper.findLatestRecommendationsByUserId(userId);
+
+        if (latestRecommendations.isEmpty()) {
+            return List.of();
+        }
+
+        return latestRecommendations.stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private EngineResult evaluateTarget(RecommendationTarget target) {
+        final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
+        final String memo = blankToEmpty(target.getMemo());
+        final boolean hasHardRisk = containsHardRiskKeyword(memo);
+
+        final PriceSnapshot priceSnapshot = fetchPriceSnapshot(target);
+        final NewsSentimentService.NewsSentimentResult newsSentiment =
+                newsSentimentService.analyze(
+                        target.getStockId(),
+                        resolveSymbol(target),
+                        target.getCompanyName()
+                );
+
+        final int businessHealthScore = 24;
+        final int valuationScore = 13;
+        final int priceOverheatingScore = resolvePriceOverheatingScore(priceSnapshot.thirtyDayReturn());
+        final int newsSentimentScore = newsSentiment.score();
+        final int institutionalConfidenceScore = 10;
+
+        int finalScore = businessHealthScore
+                + valuationScore
+                + priceOverheatingScore
+                + newsSentimentScore
+                + institutionalConfidenceScore;
+
+        String recommendationStatus = resolveRecommendationStatus(finalScore);
+        if (priceSnapshot.hasSevereDrop() || hasHardRisk) {
+            recommendationStatus = "STOP";
+            finalScore = Math.min(finalScore, 39);
+        } else if (newsSentiment.hardNegativeOverride()) {
+            // 강한 악재 한 건이 다수의 가벼운 호재에 묻히지 않도록 최소 축소 판단을 적용합니다.
+            recommendationStatus = "REDUCE";
+            finalScore = Math.min(finalScore, 54);
+        }
+
+        if ("INCREASE".equals(recommendationStatus)) {
+            recommendationStatus = "MAINTAIN";
+            finalScore = Math.min(finalScore, 84);
+        }
+
+        final BigDecimal recommendedAmount = resolveRecommendedAmount(currentAmount, recommendationStatus);
+        final int confidenceScore = resolveConfidence(target, priceSnapshot, newsSentiment);
+        final List<RecommendationEvidenceSaveCommand> evidence = buildEvidence(
+                target,
+                priceSnapshot,
+                newsSentiment,
+                businessHealthScore,
+                valuationScore,
+                priceOverheatingScore,
+                newsSentimentScore,
+                institutionalConfidenceScore,
+                finalScore,
+                recommendationStatus
+        );
+        final String finalNote = buildFinalNote(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment);
+
+        return new EngineResult(
+                recommendationStatus,
+                finalScore,
+                confidenceScore,
+                currentAmount,
+                recommendedAmount,
+                finalNote,
+                businessHealthScore,
+                valuationScore,
+                priceOverheatingScore,
+                newsSentimentScore,
+                institutionalConfidenceScore,
+                evidence,
+                newsSentiment.relatedNews(),
+                newsSentiment.llmModel(),
+                newsSentiment.analysisConfidence(),
+                newsSentiment.cacheReused(),
+                newsSentiment.replaceCache()
+        );
+    }
+
+    private Long saveRecommendation(
+            Long userId,
+            RecommendationTarget target,
+            LocalDate recommendationDate,
+            EngineResult engineResult
+    ) {
+        final Long existingRecommendationId = recommendationMapper.findRecommendationIdByPortfolioItemIdAndDate(
+                target.getPortfolioItemId(),
+                recommendationDate
+        );
+
+        final RecommendationSaveCommand command = new RecommendationSaveCommand();
+        command.setRecommendationId(existingRecommendationId);
+        command.setUserId(userId);
+        command.setPortfolioItemId(target.getPortfolioItemId());
+        command.setRecommendationDate(recommendationDate);
+        command.setRecommendationStatus(engineResult.recommendationStatus());
+        command.setEngineScore(engineResult.finalScore());
+        command.setConfidenceScore(engineResult.confidenceScore());
+        command.setCurrentAmount(engineResult.currentAmount());
+        command.setRecommendedAmount(engineResult.recommendedAmount());
+        command.setFinalNote(engineResult.finalNote());
+        command.setEngineVersion(ENGINE_VERSION);
+
+        if (existingRecommendationId == null) {
+            recommendationMapper.insertRecommendation(command);
+        } else {
+            recommendationMapper.updateRecommendation(command);
+        }
+
+        final Long recommendationId = command.getRecommendationId();
+        recommendationMapper.deleteRecommendationEvidence(recommendationId);
+        for (RecommendationEvidenceSaveCommand evidenceCommand : engineResult.evidence()) {
+            evidenceCommand.setRecommendationId(recommendationId);
+            recommendationMapper.insertRecommendationEvidence(evidenceCommand);
+        }
+
+        if (engineResult.replaceNewsCache()) {
+            recommendationMapper.deleteNewsAnalysisCacheByStockId(target.getStockId());
+            for (NewsSentimentService.AnalyzedNewsItem newsItem : engineResult.relatedNews()) {
+                final NewsAnalysisSaveCommand newsCommand = new NewsAnalysisSaveCommand();
+                newsCommand.setStockId(target.getStockId());
+                newsCommand.setNewsId(newsItem.newsId());
+                newsCommand.setSymbol(newsItem.symbol());
+                newsCommand.setNewsPublishedAt(newsItem.newsPublishedAt());
+                newsCommand.setHeadline(newsItem.headline());
+                newsCommand.setSummary(newsItem.summary());
+                newsCommand.setSourceName(newsItem.sourceName());
+                newsCommand.setNewsUrl(newsItem.newsUrl());
+                newsCommand.setSentimentLabel(newsItem.sentimentLabel());
+                newsCommand.setSentimentScore(newsItem.sentimentScore());
+                newsCommand.setKeywordScore(newsItem.keywordScore());
+                newsCommand.setRelevanceScore(newsItem.relevanceScore());
+                newsCommand.setImpactLevel(newsItem.impactLevel());
+                newsCommand.setReason(newsItem.reason());
+                newsCommand.setRecencyWeight(newsItem.recencyWeight());
+                newsCommand.setImpactWeight(newsItem.impactWeight());
+                newsCommand.setWeightedScore(newsItem.weightedScore());
+                newsCommand.setContentHash(newsItem.contentHash());
+                newsCommand.setAnalysisBatchHash(newsItem.analysisBatchHash());
+                newsCommand.setLlmModel(engineResult.llmModel());
+                newsCommand.setAnalyzedAt(OffsetDateTime.now(ZoneOffset.UTC));
+                recommendationMapper.insertNewsAnalysisCache(newsCommand);
+            }
+        }
+
+        return recommendationId;
+    }
+
+    private RecommendationResponse toResponse(
+            RecommendationTarget target,
+            Long recommendationId,
+            EngineResult engineResult
+    ) {
+        return new RecommendationResponse(
+                recommendationId,
+                target.getPortfolioItemId(),
+                target.getStockId(),
+                target.getCompanyName(),
+                target.getTicker(),
+                target.getLogoUrl(),
+                engineResult.recommendationStatus(),
+                engineResult.finalScore(),
+                engineResult.confidenceScore(),
+                engineResult.currentAmount(),
+                engineResult.recommendedAmount(),
+                formatHoldingQuantity(target.getHoldingQuantity()),
+                target.getInvestmentStartDate() == null ? "" : target.getInvestmentStartDate().toString(),
+                blankToEmpty(target.getMemo()),
+                engineResult.finalNote(),
+                ENGINE_VERSION,
+                new RecommendationScoresResponse(
+                        engineResult.businessHealthScore(),
+                        engineResult.valuationScore(),
+                        engineResult.priceOverheatingScore(),
+                        engineResult.newsSentimentScore(),
+                        engineResult.institutionalConfidenceScore()
+                ),
+                engineResult.evidence().stream()
+                        .map(this::toEvidenceResponse)
+                        .toList(),
+                engineResult.relatedNews().stream()
+                        .map(this::toRelatedNewsResponse)
+                        .toList()
+        );
+    }
+
+    private RecommendationResponse toResponse(RecommendationRecord record) {
+        final List<RecommendationEvidenceRecord> evidenceRecords =
+                recommendationMapper.findRecommendationEvidenceByRecommendationId(record.getRecommendationId());
+        final List<NewsAnalysisCacheRecord> newsRecords =
+                recommendationMapper.findLatestNewsAnalysisByStockId(record.getStockId());
+
+        return new RecommendationResponse(
+                record.getRecommendationId(),
+                record.getPortfolioItemId(),
+                record.getStockId(),
+                record.getCompanyName(),
+                record.getTicker(),
+                record.getLogoUrl(),
+                record.getRecommendationStatus(),
+                zeroIfNull(record.getEngineScore()),
+                zeroIfNull(record.getConfidenceScore()),
+                safeAmount(record.getCurrentAmount()),
+                safeAmount(record.getRecommendedAmount()),
+                formatHoldingQuantity(record.getHoldingQuantity()),
+                record.getInvestmentStartDate() == null ? "" : record.getInvestmentStartDate().toString(),
+                blankToEmpty(record.getMemo()),
+                blankToEmpty(record.getFinalNote()),
+                blankToEmpty(record.getEngineVersion()),
+                extractScores(evidenceRecords),
+                evidenceRecords.stream()
+                        .map(this::toEvidenceResponse)
+                        .toList(),
+                newsRecords.stream()
+                        .map(this::toRelatedNewsResponse)
+                        .toList()
+        );
+    }
+
+    private RecommendationScoresResponse extractScores(List<RecommendationEvidenceRecord> evidenceRecords) {
+        final Map<String, Integer> scoreMap = evidenceRecords.stream()
+                .filter(record -> record.getScoreImpact() != null)
+                .collect(Collectors.toMap(
+                        RecommendationEvidenceRecord::getEvidenceType,
+                        RecommendationEvidenceRecord::getScoreImpact,
+                        (left, right) -> left
+                ));
+
+        return new RecommendationScoresResponse(
+                scoreMap.getOrDefault("EARNINGS", 0),
+                scoreMap.getOrDefault("VALUATION", 0),
+                scoreMap.getOrDefault("PRICE", 0),
+                scoreMap.getOrDefault("NEWS", 0),
+                scoreMap.getOrDefault("INSTITUTION", 0)
+        );
+    }
+
+    private RecommendationEvidenceResponse toEvidenceResponse(RecommendationEvidenceSaveCommand command) {
+        return new RecommendationEvidenceResponse(
+                command.getEvidenceType(),
+                command.getTitle(),
+                command.getBody(),
+                command.getScoreImpact(),
+                command.getDisplayOrder()
+        );
+    }
+
+    private RecommendationEvidenceResponse toEvidenceResponse(RecommendationEvidenceRecord record) {
+        return new RecommendationEvidenceResponse(
+                record.getEvidenceType(),
+                record.getTitle(),
+                record.getBody(),
+                record.getScoreImpact(),
+                record.getDisplayOrder()
+        );
+    }
+
+    private RelatedNewsResponse toRelatedNewsResponse(NewsSentimentService.AnalyzedNewsItem item) {
+        return new RelatedNewsResponse(
+                item.headline(),
+                item.summary(),
+                item.sourceName(),
+                item.newsUrl(),
+                item.sentimentLabel(),
+                item.sentimentScore(),
+                item.relevanceScore(),
+                item.impactLevel(),
+                item.reason(),
+                item.weightedScore()
+        );
+    }
+
+    private RelatedNewsResponse toRelatedNewsResponse(NewsAnalysisCacheRecord record) {
+        return new RelatedNewsResponse(
+                record.getHeadline(),
+                record.getSummary(),
+                record.getSourceName(),
+                record.getNewsUrl(),
+                record.getSentimentLabel(),
+                record.getSentimentScore(),
+                record.getRelevanceScore(),
+                record.getImpactLevel(),
+                record.getReason(),
+                record.getWeightedScore()
+        );
+    }
+
+    private List<RecommendationEvidenceSaveCommand> buildEvidence(
+            RecommendationTarget target,
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment,
+            int businessHealthScore,
+            int valuationScore,
+            int priceOverheatingScore,
+            int newsSentimentScore,
+            int institutionalConfidenceScore,
+            int finalScore,
+            String recommendationStatus
+    ) {
+        final List<RecommendationEvidenceSaveCommand> evidence = new ArrayList<>();
+        evidence.add(evidence(
+                "EARNINGS",
+                "사업 건전성",
+                "재무제표와 실적 성장률은 아직 정식 연동 전이라, 1차 엔진에서는 중립 점수 24/35를 적용했습니다.",
+                businessHealthScore,
+                1
+        ));
+        evidence.add(evidence(
+                "VALUATION",
+                "밸류에이션",
+                "업종 평균 PER/PBR 비교 데이터가 아직 없어 보수적인 중립 점수 13/20으로 반영했습니다.",
+                valuationScore,
+                2
+        ));
+        evidence.add(evidence(
+                "PRICE",
+                "가격 과열도",
+                buildPriceEvidence(priceSnapshot),
+                priceOverheatingScore,
+                3
+        ));
+        evidence.add(evidence(
+                "NEWS",
+                "뉴스 심리",
+                newsSentiment.summary()
+                        + " 종목별 가중 감성 점수는 "
+                        + formatSignedNumber(newsSentiment.weightedSentimentScore())
+                        + "점이며 분석 신뢰도는 "
+                        + newsSentiment.analysisConfidence()
+                        + "%입니다.",
+                newsSentimentScore,
+                4
+        ));
+        evidence.add(evidence(
+                "INSTITUTION",
+                "기관 신뢰도",
+                "기관 보유 변동과 13F 데이터는 아직 연동 전이라 중립 점수 10/15로 처리했습니다.",
+                institutionalConfidenceScore,
+                5
+        ));
+        evidence.add(evidence(
+                "AI_NOTE",
+                "최종 해석",
+                buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment),
+                null,
+                6
+        ));
+        return evidence;
+    }
+
+    private RecommendationEvidenceSaveCommand evidence(
+            String type,
+            String title,
+            String body,
+            Integer scoreImpact,
+            Integer displayOrder
+    ) {
+        final RecommendationEvidenceSaveCommand command = new RecommendationEvidenceSaveCommand();
+        command.setEvidenceType(type);
+        command.setTitle(title);
+        command.setBody(body);
+        command.setScoreImpact(scoreImpact);
+        command.setDisplayOrder(displayOrder);
+        return command;
+    }
+
+    private String buildPriceEvidence(PriceSnapshot priceSnapshot) {
+        if (!priceSnapshot.hasThirtyDayReturn()) {
+            return "최근 30일 가격 데이터가 아직 충분하지 않아 가격 과열도는 중립 점수 10/15로 반영했습니다.";
+        }
+
+        return "최근 30일 수익률은 " + formatSignedPercent(priceSnapshot.thirtyDayReturn())
+                + "이며, 이 값을 기준으로 가격 과열도 점수를 계산했습니다.";
+    }
+
+    private String buildAiComment(
+            RecommendationTarget target,
+            String recommendationStatus,
+            int finalScore,
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment
+    ) {
+        final String companyName = target.getCompanyName();
+
+        if ("STOP".equals(recommendationStatus)) {
+            return companyName + "은 현재 데이터 기준으로 리스크 관리가 우선이라, 매수보다 중단 또는 관망 쪽에 더 가까운 상태입니다.";
+        }
+        if (newsSentiment.hardNegativeOverride()) {
+            return companyName + "과 직접 관련된 강한 악재가 확인되어, 다른 긍정 기사보다 우선 반영하고 모으기 금액 축소를 권합니다.";
+        }
+        if ("REDUCE".equals(recommendationStatus)) {
+            return companyName + "은 현재 점수 " + finalScore
+                    + "점으로 공격적으로 늘리기보다 금액을 줄여 관찰하는 보수적 전략이 적절합니다.";
+        }
+        if ("NEGATIVE".equals(newsSentiment.label())) {
+            return companyName + "은 최근 뉴스 심리가 부정적으로 기울어 있어, 당장 증액보다 현재 금액 유지가 더 안전합니다.";
+        }
+        if (priceSnapshot.hasThirtyDayReturn() && priceSnapshot.thirtyDayReturn() >= 10) {
+            return companyName + "은 최근 단기 상승 폭이 있어, 지금은 무리한 증액보다 현재 금액 유지가 더 적절합니다.";
+        }
+
+        return companyName + "은 현재 기준에서 뚜렷한 경고 신호가 없어, 기존 모으기 금액을 유지하는 전략이 가장 자연스럽습니다.";
+    }
+
+    private String buildFinalNote(
+            RecommendationTarget target,
+            String recommendationStatus,
+            int finalScore,
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment
+    ) {
+        return buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment);
+    }
+
+    private String resolveRecommendationStatus(int finalScore) {
+        if (finalScore >= 85) {
+            return "INCREASE";
+        }
+        if (finalScore >= 65) {
+            return "MAINTAIN";
+        }
+        if (finalScore >= 45) {
+            return "REDUCE";
+        }
+        return "STOP";
+    }
+
+    private BigDecimal resolveRecommendedAmount(BigDecimal currentAmount, String recommendationStatus) {
+        return switch (recommendationStatus) {
+            case "INCREASE" -> scale(currentAmount.multiply(BigDecimal.valueOf(1.2)));
+            case "MAINTAIN" -> scale(currentAmount);
+            case "REDUCE" -> scale(currentAmount.multiply(BigDecimal.valueOf(0.7)));
+            default -> BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        };
+    }
+
+    private int resolveConfidence(
+            RecommendationTarget target,
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment
+    ) {
+        int confidence = 55;
+
+        if (priceSnapshot.hasCurrentPrice()) {
+            confidence += 5;
+        }
+        if (priceSnapshot.hasThirtyDayReturn()) {
+            confidence += 10;
+        }
+        if (target.getInvestmentStartDate() != null) {
+            confidence += 5;
+        }
+        if (!blankToEmpty(target.getMemo()).isBlank()) {
+            confidence += 5;
+        }
+        if (!newsSentiment.relatedNews().isEmpty()) {
+            confidence += Math.round(newsSentiment.analysisConfidence() / 10.0f);
+        }
+
+        return Math.min(confidence, 90);
+    }
+
+    private int resolvePriceOverheatingScore(Double thirtyDayReturn) {
+        if (thirtyDayReturn == null) {
+            return 10;
+        }
+        if (thirtyDayReturn >= 30) {
+            return 0;
+        }
+        if (thirtyDayReturn >= 10) {
+            return 6;
+        }
+        if (thirtyDayReturn >= -10) {
+            return 10;
+        }
+        if (thirtyDayReturn >= -20) {
+            return 12;
+        }
+        return 5;
+    }
+
+    private PriceSnapshot fetchPriceSnapshot(RecommendationTarget target) {
+        final String apiKey = System.getenv("FINNHUB_API_KEY");
+        final String symbol = resolveSymbol(target);
+
+        if (blankToEmpty(apiKey).isBlank() || blankToEmpty(symbol).isBlank()) {
+            return PriceSnapshot.unavailable();
+        }
+
+        try {
+            final Double currentPrice = fetchCurrentPrice(symbol, apiKey);
+            final Double thirtyDayReturn = fetchThirtyDayReturn(symbol, apiKey);
+            return new PriceSnapshot(currentPrice, thirtyDayReturn);
+        } catch (Exception ignored) {
+            return PriceSnapshot.unavailable();
+        }
+    }
+
+    private String resolveSymbol(RecommendationTarget target) {
+        return !blankToEmpty(target.getFinnhubSymbol()).isBlank()
+                ? target.getFinnhubSymbol()
+                : target.getTicker();
+    }
+
+    private Double fetchCurrentPrice(String symbol, String apiKey) throws Exception {
+        final String uri = "https://finnhub.io/api/v1/quote?symbol="
+                + encode(symbol)
+                + "&token="
+                + encode(apiKey);
+
+        final JsonNode body = getJson(uri);
+        if (body == null || !body.has("c")) {
+            return null;
+        }
+
+        final double currentPrice = body.path("c").asDouble(0);
+        return currentPrice > 0 ? currentPrice : null;
+    }
+
+    private Double fetchThirtyDayReturn(String symbol, String apiKey) throws Exception {
+        final long to = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+        final long from = LocalDate.now().minusDays(35).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+
+        final String uri = "https://finnhub.io/api/v1/stock/candle?symbol="
+                + encode(symbol)
+                + "&resolution=D&from="
+                + from
+                + "&to="
+                + to
+                + "&token="
+                + encode(apiKey);
+
+        final JsonNode body = getJson(uri);
+        if (body == null || !"ok".equalsIgnoreCase(body.path("s").asText())) {
+            return null;
+        }
+
+        final JsonNode closes = body.path("c");
+        if (!closes.isArray() || closes.size() < 2) {
+            return null;
+        }
+
+        final double first = closes.get(0).asDouble(0);
+        final double last = closes.get(closes.size() - 1).asDouble(0);
+        if (first <= 0 || last <= 0) {
+            return null;
+        }
+
+        return ((last - first) / first) * 100;
+    }
+
+    private JsonNode getJson(String uri) throws Exception {
+        final HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofSeconds(15))
+                .GET()
+                .build();
+
+        final HttpResponse<String> response = httpClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+        );
+
+        if (response.statusCode() != 200 || response.body().isBlank()) {
+            return null;
+        }
+
+        return objectMapper.readTree(response.body());
+    }
+
+    private boolean containsHardRiskKeyword(String memo) {
+        final String lowered = memo.toLowerCase(Locale.ROOT);
+        return HARD_RISK_KEYWORDS.stream().anyMatch(lowered::contains);
+    }
+
+    private String formatSignedPercent(Double value) {
+        if (value == null) {
+            return "데이터 없음";
+        }
+        return String.format(Locale.US, "%+.1f%%", value);
+    }
+
+    private String formatSignedNumber(int value) {
+        return String.format(Locale.US, "%+d", value);
+    }
+
+    private String formatHoldingQuantity(BigDecimal holdingQuantity) {
+        if (holdingQuantity == null) {
+            return "-";
+        }
+        return holdingQuantity.stripTrailingZeros().toPlainString() + "주";
+    }
+
+    private BigDecimal safeAmount(BigDecimal amount) {
+        if (amount == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return scale(amount);
+    }
+
+    private BigDecimal scale(BigDecimal amount) {
+        return amount.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private Integer zeroIfNull(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private String blankToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private Long ensureDevUserId() {
+        Long userId = userMapper.findIdByEmail(DEV_USER_EMAIL);
+        if (userId != null) {
+            return userId;
+        }
+
+        userMapper.insertDevUser();
+        userId = userMapper.findIdByEmail(DEV_USER_EMAIL);
+        if (userId == null) {
+            throw new IllegalStateException("개발용 사용자 ID를 찾을 수 없습니다.");
+        }
+
+        return userId;
+    }
+
+    private record EngineResult(
+            String recommendationStatus,
+            int finalScore,
+            int confidenceScore,
+            BigDecimal currentAmount,
+            BigDecimal recommendedAmount,
+            String finalNote,
+            int businessHealthScore,
+            int valuationScore,
+            int priceOverheatingScore,
+            int newsSentimentScore,
+            int institutionalConfidenceScore,
+            List<RecommendationEvidenceSaveCommand> evidence,
+            List<NewsSentimentService.AnalyzedNewsItem> relatedNews,
+            String llmModel,
+            int newsAnalysisConfidence,
+            boolean newsCacheReused,
+            boolean replaceNewsCache
+    ) {
+    }
+
+    private record PriceSnapshot(
+            Double currentPrice,
+            Double thirtyDayReturn
+    ) {
+        static PriceSnapshot unavailable() {
+            return new PriceSnapshot(null, null);
+        }
+
+        boolean hasCurrentPrice() {
+            return currentPrice != null && currentPrice > 0;
+        }
+
+        boolean hasThirtyDayReturn() {
+            return thirtyDayReturn != null;
+        }
+
+        boolean hasSevereDrop() {
+            return thirtyDayReturn != null && thirtyDayReturn <= -35;
+        }
+    }
+}
