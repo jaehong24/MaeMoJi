@@ -1,11 +1,15 @@
 server:
-  port: ${PORT:8081}     
+  port: ${PORT:8081}
 
-    datasource:
-      url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${MAEMOJI_DB_PORT:5432}/${MAEMOJI_DB_NAME:maemoji}}
-      username: ${SPRING_DATASOURCE_USERNAME:${MAEMOJI_DB_USER:maemoji}}
-      password: ${SPRING_DATASOURCE_PASSWORD:${MAEMOJI_DB_PASSWORD:maemoji1234}}
-      driver-class-name: org.postgresql.Driver
+spring:
+  application:
+    name: maemoji-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${MAEMOJI_DB_PORT:5432}/${MAEMOJI_DB_NAME:maemoji}}
+    username: ${SPRING_DATASOURCE_USERNAME:${MAEMOJI_DB_USER:maemoji}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${MAEMOJI_DB_PASSWORD:maemoji1234}}
+    driver-class-name: org.postgresql.Driver
+
 
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml
