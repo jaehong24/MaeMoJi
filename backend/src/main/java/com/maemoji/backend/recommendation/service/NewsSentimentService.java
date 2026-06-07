@@ -44,7 +44,7 @@ public class NewsSentimentService {
     private static final int MAX_GEMINI_ATTEMPTS = 3;
     private static final long GEMINI_RETRY_DELAY_MILLIS = 800;
     private static final int MAX_DAILY_NEWS = 3;
-    private static final int MIN_PRE_ANALYSIS_RELEVANCE = 50;
+    private static final int MIN_PRE_ANALYSIS_RELEVANCE = 45;
     private static final int MIN_FINAL_RELEVANCE = 60;
     private static final ZoneId DAILY_NEWS_ZONE = ZoneId.of("Asia/Seoul");
     private static final Logger log = LoggerFactory.getLogger(NewsSentimentService.class);
@@ -256,12 +256,6 @@ public class NewsSentimentService {
 
     private LocalDate resolveDisplayDate(Iterable<RawNewsItem> newsItems) {
         final LocalDate today = LocalDate.now(DAILY_NEWS_ZONE);
-        final int dayOfWeek = today.getDayOfWeek().getValue();
-        final boolean weekend = dayOfWeek == 6 || dayOfWeek == 7;
-        if (!weekend) {
-            return today;
-        }
-
         LocalDate latestDate = null;
         for (RawNewsItem item : newsItems) {
             if (item.publishedAt() == null) {
@@ -274,6 +268,11 @@ public class NewsSentimentService {
                     && (latestDate == null || publishedDate.isAfter(latestDate))) {
                 latestDate = publishedDate;
             }
+        }
+
+        // 평일에도 오늘 뉴스가 비어 있으면 가장 최근 발행일 기사로 자연스럽게 내려갑니다.
+        if (latestDate != null) {
+            return latestDate;
         }
         return latestDate;
     }
@@ -289,7 +288,8 @@ public class NewsSentimentService {
     private int calculateHeuristicRelevance(RawNewsItem item, String symbol, String companyName) {
         final String headline = normalizeText(item.headline());
         final String fullText = normalizeText(item.headline() + " " + item.summary());
-        int score = 0;
+        // Finnhub company-news 자체가 종목 뉴스 피드이므로 기본 관련성을 부여합니다.
+        int score = 55;
 
         if (containsWholeWord(headline, symbol)) {
             score = Math.max(score, 90);

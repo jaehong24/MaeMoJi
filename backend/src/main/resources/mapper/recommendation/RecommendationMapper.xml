@@ -266,18 +266,12 @@
         where stock_id = #{stockId}
           and relevance_score >= 60
           and (news_published_at at time zone 'Asia/Seoul')::date = (
-              case
-                  when extract(isodow from current_timestamp at time zone 'Asia/Seoul') in (6, 7)
-                      then (
-                          select max((weekend_news.news_published_at at time zone 'Asia/Seoul')::date)
-                          from news_analysis_cache weekend_news
-                          where weekend_news.stock_id = #{stockId}
-                            and weekend_news.relevance_score >= 60
-                            and (weekend_news.news_published_at at time zone 'Asia/Seoul')::date
-                                &lt;= (current_timestamp at time zone 'Asia/Seoul')::date
-                      )
-                  else (current_timestamp at time zone 'Asia/Seoul')::date
-              end
+              select max((latest_news.news_published_at at time zone 'Asia/Seoul')::date)
+              from news_analysis_cache latest_news
+              where latest_news.stock_id = #{stockId}
+                and latest_news.relevance_score >= 60
+                and (latest_news.news_published_at at time zone 'Asia/Seoul')::date
+                    &lt;= (current_timestamp at time zone 'Asia/Seoul')::date
           )
         order by abs(weighted_score) desc nulls last, news_published_at desc nulls last
         limit 3

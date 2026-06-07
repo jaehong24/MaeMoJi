@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private static final String DEV_USER_EMAIL = "dev@maemoji.local";
-    private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE";
+    private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE_V2";
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
     private static final Set<String> HARD_RISK_KEYWORDS = Set.of(
             "fraud", "delist", "bankruptcy", "lawsuit", "investigation",
