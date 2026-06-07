@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../currency/currency_scope.dart';
-import '../models/recommendation_item.dart';
+import '../models/home_recommendation_summary.dart';
 import '../models/recommendation_status.dart';
 import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
@@ -9,25 +9,37 @@ import '../widgets/app_section_card.dart';
 import '../widgets/currency_toggle.dart';
 import '../widgets/navigation_preview_tile.dart';
 import '../widgets/recommendation_card.dart';
+import '../widgets/recommendation_freshness_card.dart';
 import '../widgets/status_summary_chip.dart';
 import 'screen_blueprint_screen.dart';
 import 'stock_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.refreshVersion = 0});
+
+  final int refreshVersion;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final RecommendationService _recommendationService = const RecommendationService();
-  late Future<List<RecommendationItem>> _recommendationsFuture;
+  final RecommendationService _recommendationService =
+      const RecommendationService();
+  late Future<HomeRecommendationSummary> _recommendationsFuture;
 
   @override
   void initState() {
     super.initState();
-    _recommendationsFuture = _recommendationService.fetchRecommendations();
+    _recommendationsFuture = _recommendationService.fetchHomeRecommendations();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshVersion != widget.refreshVersion) {
+      _reloadRecommendations();
+    }
   }
 
   @override
@@ -45,7 +57,15 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('오늘의 매모지', style: theme.textTheme.displaySmall),
+                  Text(
+                    '📝 오늘의 매모지',
+                    maxLines: 1,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     '매일 모으기를 지원합니다. \n모든 투자 선택은 본인의 선택과\n책임입니다.',
@@ -59,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        FutureBuilder<List<RecommendationItem>>(
+        FutureBuilder<HomeRecommendationSummary>(
           future: _recommendationsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -102,7 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            final recommendations = (snapshot.data ?? const []).take(5).toList();
+            final summary = snapshot.data!;
+            final recommendations = summary.items.take(5).toList();
             if (recommendations.isEmpty) {
               return const AppSectionCard(
                 child: Column(
@@ -141,6 +162,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Column(
               children: [
+                RecommendationFreshnessCard(summary: summary),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
@@ -208,7 +231,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _reloadRecommendations() {
     setState(() {
-      _recommendationsFuture = _recommendationService.generateRecommendations();
+      _recommendationsFuture = _recommendationService
+          .fetchHomeRecommendations();
     });
   }
 }

@@ -1,6 +1,7 @@
 package com.maemoji.backend.recommendation.controller;
 
 import com.maemoji.backend.common.api.ApiResponse;
+import com.maemoji.backend.recommendation.dto.HomeRecommendationResponse;
 import com.maemoji.backend.recommendation.dto.NewsEngineStatusResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.service.NewsSentimentService;
@@ -30,6 +31,11 @@ public class RecommendationController {
     @GetMapping
     public ApiResponse<List<RecommendationResponse>> getLatestRecommendations() {
         return ApiResponse.ok(recommendationService.getLatestRecommendations());
+    }
+
+    @GetMapping("/home")
+    public ApiResponse<HomeRecommendationResponse> getHomeRecommendations() {
+        return ApiResponse.ok(recommendationService.getLightweightHomeRecommendations());
     }
 
     @PostMapping("/generate")

@@ -11,6 +11,7 @@ import com.maemoji.backend.recommendation.domain.RecommendationSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import com.maemoji.backend.recommendation.dto.RecommendationCalculationResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationEvidenceResponse;
+import com.maemoji.backend.recommendation.dto.HomeRecommendationResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationScoresResponse;
 import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
@@ -32,9 +33,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,6 +48,7 @@ public class RecommendationService {
 
     private static final String DEV_USER_EMAIL = "dev@maemoji.local";
     private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE";
+    private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
     private static final Set<String> HARD_RISK_KEYWORDS = Set.of(
             "fraud", "delist", "bankruptcy", "lawsuit", "investigation",
             "분식", "상장폐지", "파산", "소송", "회계부정", "조사"
@@ -107,35 +110,49 @@ public class RecommendationService {
 
         final List<RecommendationRecord> latestRecommendations =
                 recommendationMapper.findLatestRecommendationsByUserId(userId);
-
-        if (shouldRefreshRecommendations(targets, latestRecommendations)) {
-            return generateLatestRecommendations();
+        final Map<Long, RecommendationRecord> recommendationByPortfolioItemId = new LinkedHashMap<>();
+        for (RecommendationRecord record : latestRecommendations) {
+            recommendationByPortfolioItemId.put(record.getPortfolioItemId(), record);
         }
 
-        return latestRecommendations.stream()
-                .map(this::toResponse)
+        return targets.stream()
+                .map(target -> {
+                    final RecommendationRecord record =
+                            recommendationByPortfolioItemId.get(target.getPortfolioItemId());
+                    return record != null
+                            ? toResponse(record)
+                            : toPendingResponse(target);
+                })
                 .toList();
     }
 
-    private boolean shouldRefreshRecommendations(
-            List<RecommendationTarget> targets,
-            List<RecommendationRecord> latestRecommendations
-    ) {
-        if (latestRecommendations.isEmpty()) {
-            return true;
-        }
+    @Transactional
+    public HomeRecommendationResponse getLightweightHomeRecommendations() {
+        final Long userId = ensureDevUserId();
+        final List<RecommendationTarget> targets =
+                recommendationMapper.findActiveRecommendationTargetsByUserId(userId);
+        final List<LightweightRecommendationResult> results = targets.stream()
+                .limit(5)
+                .map(this::toLightweightHomeResponse)
+                .toList();
 
-        if (latestRecommendations.size() < targets.size()) {
-            final Set<Long> recommendedPortfolioItemIds = latestRecommendations.stream()
-                    .map(RecommendationRecord::getPortfolioItemId)
-                    .collect(Collectors.toCollection(HashSet::new));
+        final LocalDate priceDataDate = results.stream()
+                .map(LightweightRecommendationResult::priceDataDate)
+                .filter(date -> date != null)
+                .min(LocalDate::compareTo)
+                .orElse(null);
+        final OffsetDateTime newsAnalyzedAt = results.stream()
+                .map(LightweightRecommendationResult::newsAnalyzedAt)
+                .filter(analyzedAt -> analyzedAt != null)
+                .min(OffsetDateTime::compareTo)
+                .orElse(null);
 
-            return targets.stream()
-                    .map(RecommendationTarget::getPortfolioItemId)
-                    .anyMatch(portfolioItemId -> !recommendedPortfolioItemIds.contains(portfolioItemId));
-        }
-
-        return false;
+        return new HomeRecommendationResponse(
+                OffsetDateTime.now(HOME_ZONE),
+                priceDataDate,
+                newsAnalyzedAt,
+                results.stream().map(LightweightRecommendationResult::response).toList()
+        );
     }
 
     private EngineResult evaluateTarget(RecommendationTarget target) {
@@ -214,13 +231,7 @@ public class RecommendationService {
             LocalDate recommendationDate,
             EngineResult engineResult
     ) {
-        final Long existingRecommendationId = recommendationMapper.findRecommendationIdByPortfolioItemIdAndDate(
-                target.getPortfolioItemId(),
-                recommendationDate
-        );
-
         final RecommendationSaveCommand command = new RecommendationSaveCommand();
-        command.setRecommendationId(existingRecommendationId);
         command.setUserId(userId);
         command.setPortfolioItemId(target.getPortfolioItemId());
         command.setRecommendationDate(recommendationDate);
@@ -242,13 +253,8 @@ public class RecommendationService {
         command.setNewsSentimentScore(engineResult.scoreResult().newsSentimentScore());
         command.setIncreaseEligible(engineResult.scoreResult().increaseEligible());
 
-        if (existingRecommendationId == null) {
-            recommendationMapper.insertRecommendation(command);
-        } else {
-            recommendationMapper.updateRecommendation(command);
-        }
-
-        final Long recommendationId = command.getRecommendationId();
+        final Long recommendationId = recommendationMapper.upsertRecommendation(command);
+        command.setRecommendationId(recommendationId);
         recommendationMapper.deleteRecommendationEvidence(recommendationId);
         for (RecommendationEvidenceSaveCommand evidenceCommand : engineResult.evidence()) {
             evidenceCommand.setRecommendationId(recommendationId);
@@ -285,6 +291,184 @@ public class RecommendationService {
         }
 
         return recommendationId;
+    }
+
+    private LightweightRecommendationResult toLightweightHomeResponse(RecommendationTarget target) {
+        final StockPriceSnapshotRecord snapshot =
+                stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
+        final List<NewsAnalysisCacheRecord> cachedNews =
+                recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId());
+        final CachedNewsSummary newsSummary = summarizeCachedNews(cachedNews);
+        final Double thirtyDayReturn = snapshot == null || snapshot.getChangeRate30d() == null
+                ? null
+                : snapshot.getChangeRate30d().doubleValue();
+        final boolean hardStopRisk = (thirtyDayReturn != null && thirtyDayReturn <= -35)
+                || containsHardRiskKeyword(blankToEmpty(target.getMemo()));
+        final int confidence = resolveLightweightConfidence(target, snapshot, newsSummary);
+        final RecommendationScoreCalculator.ScoreResult scoreResult = scoreCalculator.calculate(
+                thirtyDayReturn,
+                newsSummary.sentimentScore(),
+                hardStopRisk,
+                newsSummary.hardNegative(),
+                confidence
+        );
+        final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
+        final BigDecimal recommendedAmount = resolveRecommendedAmount(
+                currentAmount,
+                scoreResult.recommendationStatus()
+        );
+        final List<RecommendationEvidenceResponse> evidence = buildLightweightEvidence(
+                scoreResult,
+                newsSummary
+        );
+
+        final RecommendationResponse response = new RecommendationResponse(
+                null,
+                target.getPortfolioItemId(),
+                target.getStockId(),
+                target.getCompanyName(),
+                target.getTicker(),
+                target.getLogoUrl(),
+                scoreResult.recommendationStatus(),
+                scoreResult.finalScore(),
+                confidence,
+                currentAmount,
+                recommendedAmount,
+                formatHoldingQuantity(target.getHoldingQuantity()),
+                target.getInvestmentStartDate() == null ? "" : target.getInvestmentStartDate().toString(),
+                blankToEmpty(target.getMemo()),
+                buildLightweightNote(target, scoreResult, newsSummary),
+                "HOME_LIGHT_V1",
+                new RecommendationScoresResponse(
+                        0,
+                        0,
+                        scoreResult.priceScore() == null ? 0 : scoreResult.priceScore(),
+                        scoreResult.newsScore() == null ? 0 : scoreResult.newsScore(),
+                        0
+                ),
+                toCalculationResponse(scoreResult),
+                evidence,
+                cachedNews.stream().map(this::toRelatedNewsResponse).toList()
+        );
+        final OffsetDateTime newsAnalyzedAt = cachedNews.stream()
+                .map(NewsAnalysisCacheRecord::getAnalyzedAt)
+                .filter(analyzedAt -> analyzedAt != null)
+                .min(OffsetDateTime::compareTo)
+                .orElse(null);
+        return new LightweightRecommendationResult(
+                response,
+                snapshot == null ? null : snapshot.getSnapshotDate(),
+                newsAnalyzedAt
+        );
+    }
+
+    private CachedNewsSummary summarizeCachedNews(List<NewsAnalysisCacheRecord> cachedNews) {
+        if (cachedNews.isEmpty()) {
+            return new CachedNewsSummary(null, false, 0);
+        }
+
+        double weightedTotal = 0;
+        double totalWeight = 0;
+        double relevanceTotal = 0;
+        boolean hardNegative = false;
+
+        for (NewsAnalysisCacheRecord record : cachedNews) {
+            final int sentiment = zeroIfNull(record.getSentimentScore());
+            final int relevance = zeroIfNull(record.getRelevanceScore());
+            final double recencyWeight = record.getRecencyWeight() == null
+                    ? 1.0
+                    : record.getRecencyWeight().doubleValue();
+            final double impactWeight = record.getImpactWeight() == null
+                    ? 1.0
+                    : record.getImpactWeight().doubleValue();
+            final double weight = relevance / 100.0 * recencyWeight * impactWeight;
+            weightedTotal += sentiment * weight;
+            totalWeight += weight;
+            relevanceTotal += relevance;
+            hardNegative = hardNegative
+                    || (zeroIfNull(record.getKeywordScore()) <= -85
+                    && relevance >= 60
+                    && "HIGH".equals(record.getImpactLevel()));
+        }
+
+        final Integer sentimentScore = totalWeight == 0
+                ? null
+                : (int) Math.round(weightedTotal / totalWeight);
+        final int confidence = Math.min(
+                95,
+                (int) Math.round(40 + cachedNews.size() * 10 + relevanceTotal / cachedNews.size() * 0.3)
+        );
+        return new CachedNewsSummary(sentimentScore, hardNegative, confidence);
+    }
+
+    private int resolveLightweightConfidence(
+            RecommendationTarget target,
+            StockPriceSnapshotRecord snapshot,
+            CachedNewsSummary newsSummary
+    ) {
+        int confidence = 50;
+        if (snapshot != null && snapshot.getCurrentPrice() != null) {
+            confidence += 5;
+        }
+        if (snapshot != null && snapshot.getChangeRate30d() != null) {
+            confidence += 10;
+        }
+        if (target.getInvestmentStartDate() != null) {
+            confidence += 5;
+        }
+        if (!blankToEmpty(target.getMemo()).isBlank()) {
+            confidence += 5;
+        }
+        if (newsSummary.sentimentScore() != null) {
+            confidence += Math.round(newsSummary.confidence() / 10.0f);
+        }
+        return Math.min(confidence, 90);
+    }
+
+    private List<RecommendationEvidenceResponse> buildLightweightEvidence(
+            RecommendationScoreCalculator.ScoreResult scoreResult,
+            CachedNewsSummary newsSummary
+    ) {
+        final List<RecommendationEvidenceResponse> evidence = new ArrayList<>();
+        evidence.add(new RecommendationEvidenceResponse(
+                "PRICE",
+                "30일 가격 흐름",
+                scoreResult.thirtyDayReturn() == null
+                        ? "아직 30일 가격 이력이 충분하지 않아 가격 점수에서 제외했습니다."
+                        : "DB에 누적된 30일 수익률 "
+                        + formatSignedPercent(scoreResult.thirtyDayReturn())
+                        + "를 반영했습니다.",
+                scoreResult.priceScore(),
+                1
+        ));
+        evidence.add(new RecommendationEvidenceResponse(
+                "NEWS_CACHE",
+                "저장된 뉴스 분석",
+                newsSummary.sentimentScore() == null
+                        ? "저장된 관련 뉴스 분석이 없어 뉴스 점수에서 제외했습니다."
+                        : "최근 저장된 Gemini 뉴스 분석 점수 "
+                        + formatSignedNumber(newsSummary.sentimentScore())
+                        + "를 재사용했습니다.",
+                scoreResult.newsScore(),
+                2
+        ));
+        return evidence;
+    }
+
+    private String buildLightweightNote(
+            RecommendationTarget target,
+            RecommendationScoreCalculator.ScoreResult scoreResult,
+            CachedNewsSummary newsSummary
+    ) {
+        final String newsText = newsSummary.sentimentScore() == null
+                ? "저장된 뉴스 분석 없이"
+                : "저장된 뉴스 분석과";
+        return target.getCompanyName()
+                + "은 "
+                + newsText
+                + " DB 가격 데이터를 기준으로 빠르게 갱신한 결과입니다. 현재 판단은 "
+                + scoreResult.recommendationStatus()
+                + "입니다.";
     }
 
     private RecommendationResponse toResponse(
@@ -357,6 +541,54 @@ public class RecommendationService {
                 newsRecords.stream()
                         .map(this::toRelatedNewsResponse)
                         .toList()
+        );
+    }
+
+    private RecommendationResponse toPendingResponse(RecommendationTarget target) {
+        final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
+        final List<RecommendationEvidenceResponse> evidence = List.of(
+                new RecommendationEvidenceResponse(
+                        "PENDING",
+                        "추천 분석 대기",
+                        "홈 화면에서는 저장된 추천 결과만 빠르게 보여줍니다. 상세 분석이 필요하면 추천 생성 시 최신 분석을 불러옵니다.",
+                        null,
+                        1
+                )
+        );
+
+        return new RecommendationResponse(
+                null,
+                target.getPortfolioItemId(),
+                target.getStockId(),
+                target.getCompanyName(),
+                target.getTicker(),
+                target.getLogoUrl(),
+                "MAINTAIN",
+                50,
+                55,
+                currentAmount,
+                currentAmount,
+                formatHoldingQuantity(target.getHoldingQuantity()),
+                target.getInvestmentStartDate() == null ? "" : target.getInvestmentStartDate().toString(),
+                blankToEmpty(target.getMemo()),
+                "상세 분석 전까지는 현재 모으기 금액을 유지하는 기본 상태로 표시합니다.",
+                "PENDING",
+                new RecommendationScoresResponse(0, 0, 0, 0, 0),
+                new RecommendationCalculationResponse(
+                        "PENDING",
+                        50,
+                        50,
+                        0,
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        null,
+                        false
+                ),
+                evidence,
+                List.of()
         );
     }
 
@@ -911,5 +1143,19 @@ public class RecommendationService {
         boolean hasSevereDrop() {
             return thirtyDayReturn != null && thirtyDayReturn <= -35;
         }
+    }
+
+    private record CachedNewsSummary(
+            Integer sentimentScore,
+            boolean hardNegative,
+            int confidence
+    ) {
+    }
+
+    private record LightweightRecommendationResult(
+            RecommendationResponse response,
+            LocalDate priceDataDate,
+            OffsetDateTime newsAnalyzedAt
+    ) {
     }
 }

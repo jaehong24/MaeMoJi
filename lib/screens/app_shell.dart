@@ -17,12 +17,13 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
+  int _homeRefreshVersion = 0;
 
-  final List<Widget> _pages = const [
-    HomeScreen(),
-    PortfolioScreen(),
-    RecommendationsScreen(),
-    SettingsScreen(),
+  List<Widget> get _pages => [
+    HomeScreen(refreshVersion: _homeRefreshVersion),
+    const PortfolioScreen(),
+    const RecommendationsScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -53,6 +54,9 @@ class _AppShellState extends State<AppShell> {
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
+            if (index == 0) {
+              _homeRefreshVersion++;
+            }
           });
         },
         destinations: const [

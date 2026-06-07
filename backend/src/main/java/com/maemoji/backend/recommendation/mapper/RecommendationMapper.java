@@ -10,7 +10,6 @@ import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
@@ -18,14 +17,7 @@ public interface RecommendationMapper {
 
     List<RecommendationTarget> findActiveRecommendationTargetsByUserId(@Param("userId") Long userId);
 
-    Long findRecommendationIdByPortfolioItemIdAndDate(
-            @Param("portfolioItemId") Long portfolioItemId,
-            @Param("recommendationDate") LocalDate recommendationDate
-    );
-
-    void insertRecommendation(@Param("command") RecommendationSaveCommand command);
-
-    void updateRecommendation(@Param("command") RecommendationSaveCommand command);
+    Long upsertRecommendation(@Param("command") RecommendationSaveCommand command);
 
     void deleteRecommendationEvidence(@Param("recommendationId") Long recommendationId);
 

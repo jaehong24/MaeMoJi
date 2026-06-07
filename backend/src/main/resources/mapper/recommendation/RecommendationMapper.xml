@@ -25,19 +25,10 @@
         order by pi.updated_at desc, pi.created_at desc
     </select>
 
-    <select id="findRecommendationIdByPortfolioItemIdAndDate" resultType="long">
-        select id
-        from recommendations
-        where portfolio_item_id = #{portfolioItemId}
-          and recommendation_date = #{recommendationDate}
-        limit 1
-    </select>
-
-    <insert id="insertRecommendation"
+    <select id="upsertRecommendation"
             parameterType="com.maemoji.backend.recommendation.domain.RecommendationSaveCommand"
-            useGeneratedKeys="true"
-            keyProperty="command.recommendationId"
-            keyColumn="id">
+            resultType="long"
+            affectData="true">
         insert into recommendations (
             user_id,
             portfolio_item_id,
@@ -81,31 +72,27 @@
             #{command.newsSentimentScore},
             #{command.increaseEligible}
         )
-    </insert>
-
-    <update id="updateRecommendation"
-            parameterType="com.maemoji.backend.recommendation.domain.RecommendationSaveCommand">
-        update recommendations
+        on conflict (portfolio_item_id, recommendation_date) do update
         set
-            recommendation_status = #{command.recommendationStatus},
-            engine_score = #{command.engineScore},
-            confidence_score = #{command.confidenceScore},
-            current_amount = #{command.currentAmount},
-            recommended_amount = #{command.recommendedAmount},
-            final_note = #{command.finalNote},
-            engine_version = #{command.engineVersion},
-            formula_version = #{command.formulaVersion},
-            raw_score = #{command.rawScore},
-            risk_adjustment = #{command.riskAdjustment},
-            price_score = #{command.priceScore},
-            news_score = #{command.newsScore},
-            price_weight = #{command.priceWeight},
-            news_weight = #{command.newsWeight},
-            price_return_30d = #{command.priceReturn30d},
-            news_sentiment_score = #{command.newsSentimentScore},
-            increase_eligible = #{command.increaseEligible}
-        where id = #{command.recommendationId}
-    </update>
+            recommendation_status = excluded.recommendation_status,
+            engine_score = excluded.engine_score,
+            confidence_score = excluded.confidence_score,
+            current_amount = excluded.current_amount,
+            recommended_amount = excluded.recommended_amount,
+            final_note = excluded.final_note,
+            engine_version = excluded.engine_version,
+            formula_version = excluded.formula_version,
+            raw_score = excluded.raw_score,
+            risk_adjustment = excluded.risk_adjustment,
+            price_score = excluded.price_score,
+            news_score = excluded.news_score,
+            price_weight = excluded.price_weight,
+            news_weight = excluded.news_weight,
+            price_return_30d = excluded.price_return_30d,
+            news_sentiment_score = excluded.news_sentiment_score,
+            increase_eligible = excluded.increase_eligible
+        returning id
+    </select>
 
     <delete id="deleteRecommendationEvidence">
         delete from recommendation_evidence

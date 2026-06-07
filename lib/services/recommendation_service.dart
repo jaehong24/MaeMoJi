@@ -5,12 +5,43 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../models/evidence_item.dart';
+import '../models/home_recommendation_summary.dart';
 import '../models/recommendation_item.dart';
 import '../models/recommendation_news_item.dart';
 import '../models/recommendation_status.dart';
 
 class RecommendationService {
   const RecommendationService();
+
+  Future<HomeRecommendationSummary> fetchHomeRecommendations() async {
+    final uri = ApiConfig.buildUri(
+      '/api/recommendations/home',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('홈 추천 조회에 실패했습니다. (${response.statusCode})');
+    }
+
+    final decoded =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>? ?? const {};
+    return HomeRecommendationSummary(
+      calculatedAt: DateTime.tryParse((data['calculatedAt'] ?? '').toString()),
+      priceDataDate: DateTime.tryParse(
+        (data['priceDataDate'] ?? '').toString(),
+      ),
+      newsAnalyzedAt: DateTime.tryParse(
+        (data['newsAnalyzedAt'] ?? '').toString(),
+      ),
+      items: _decodeRecommendationItems(
+        (data['items'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>(),
+      ),
+    );
+  }
 
   Future<List<RecommendationItem>> fetchRecommendations() async {
     final uri = ApiConfig.buildUri(
@@ -47,6 +78,12 @@ class RecommendationService {
     final items = (decoded['data'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>();
 
+    return _decodeRecommendationItems(items);
+  }
+
+  List<RecommendationItem> _decodeRecommendationItems(
+    List<Map<String, dynamic>> items,
+  ) {
     return items.map((item) {
       final evidenceItems = (item['evidence'] as List<dynamic>? ?? const [])
           .cast<Map<String, dynamic>>()
