@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
 public class NewsSentimentService {
 
     private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
-    private static final int MAX_GEMINI_CANDIDATES = 5;
+    private static final int MAX_GEMINI_CANDIDATES = 3;
     private static final int MAX_GEMINI_ATTEMPTS = 3;
     private static final long GEMINI_RETRY_DELAY_MILLIS = 2500;
     private static final int MAX_DAILY_NEWS = 3;
