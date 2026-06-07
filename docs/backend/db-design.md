@@ -157,6 +157,7 @@ MyBatis를 기준으로 설계하는 이유는 추천 조회, 근거 조회, 이
 - `snapshot_date`
 - `current_price`
 - `change_rate_1d`
+- `change_rate_7d`
 - `change_rate_30d`
 - `market_cap`
 - `per_value`

@@ -45,10 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('오늘의 투자 매모', style: theme.textTheme.displaySmall),
+                  Text('오늘의 매모지', style: theme.textTheme.displaySmall),
                   const SizedBox(height: 8),
                   Text(
-                    '매모지는 모으기를 추천합니다. 모든 투자 선택은 개인의 선택과 책임입니다.',
+                    '매일 모으기를 지원합니다. \n모든 투자 선택은 본인의 선택과\n책임입니다.',
                     style: theme.textTheme.bodyLarge,
                   ),
                 ],

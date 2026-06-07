@@ -17,6 +17,16 @@ public class RecommendationRecord {
     private BigDecimal recommendedAmount;
     private String finalNote;
     private String engineVersion;
+    private String formulaVersion;
+    private Integer rawScore;
+    private Integer riskAdjustment;
+    private Integer priceScore;
+    private Integer newsScore;
+    private Integer priceWeight;
+    private Integer newsWeight;
+    private BigDecimal priceReturn30d;
+    private Integer newsSentimentScore;
+    private Boolean increaseEligible;
     private BigDecimal holdingQuantity;
     private LocalDate investmentStartDate;
     private String memo;
@@ -123,6 +133,86 @@ public class RecommendationRecord {
 
     public void setEngineVersion(String engineVersion) {
         this.engineVersion = engineVersion;
+    }
+
+    public String getFormulaVersion() {
+        return formulaVersion;
+    }
+
+    public void setFormulaVersion(String formulaVersion) {
+        this.formulaVersion = formulaVersion;
+    }
+
+    public Integer getRawScore() {
+        return rawScore;
+    }
+
+    public void setRawScore(Integer rawScore) {
+        this.rawScore = rawScore;
+    }
+
+    public Integer getRiskAdjustment() {
+        return riskAdjustment;
+    }
+
+    public void setRiskAdjustment(Integer riskAdjustment) {
+        this.riskAdjustment = riskAdjustment;
+    }
+
+    public Integer getPriceScore() {
+        return priceScore;
+    }
+
+    public void setPriceScore(Integer priceScore) {
+        this.priceScore = priceScore;
+    }
+
+    public Integer getNewsScore() {
+        return newsScore;
+    }
+
+    public void setNewsScore(Integer newsScore) {
+        this.newsScore = newsScore;
+    }
+
+    public Integer getPriceWeight() {
+        return priceWeight;
+    }
+
+    public void setPriceWeight(Integer priceWeight) {
+        this.priceWeight = priceWeight;
+    }
+
+    public Integer getNewsWeight() {
+        return newsWeight;
+    }
+
+    public void setNewsWeight(Integer newsWeight) {
+        this.newsWeight = newsWeight;
+    }
+
+    public BigDecimal getPriceReturn30d() {
+        return priceReturn30d;
+    }
+
+    public void setPriceReturn30d(BigDecimal priceReturn30d) {
+        this.priceReturn30d = priceReturn30d;
+    }
+
+    public Integer getNewsSentimentScore() {
+        return newsSentimentScore;
+    }
+
+    public void setNewsSentimentScore(Integer newsSentimentScore) {
+        this.newsSentimentScore = newsSentimentScore;
+    }
+
+    public Boolean getIncreaseEligible() {
+        return increaseEligible;
+    }
+
+    public void setIncreaseEligible(Boolean increaseEligible) {
+        this.increaseEligible = increaseEligible;
     }
 
     public BigDecimal getHoldingQuantity() {

@@ -9,11 +9,14 @@ import com.maemoji.backend.recommendation.domain.RecommendationEvidenceSaveComma
 import com.maemoji.backend.recommendation.domain.RecommendationRecord;
 import com.maemoji.backend.recommendation.domain.RecommendationSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationTarget;
+import com.maemoji.backend.recommendation.dto.RecommendationCalculationResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationEvidenceResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationScoresResponse;
 import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
+import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
+import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import com.maemoji.backend.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +44,7 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private static final String DEV_USER_EMAIL = "dev@maemoji.local";
-    private static final String ENGINE_VERSION = "RULE_V2_GEMINI_NEWS";
+    private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE";
     private static final Set<String> HARD_RISK_KEYWORDS = Set.of(
             "fraud", "delist", "bankruptcy", "lawsuit", "investigation",
             "분식", "상장폐지", "파산", "소송", "회계부정", "조사"
@@ -51,18 +54,24 @@ public class RecommendationService {
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
     private final NewsSentimentService newsSentimentService;
+    private final RecommendationScoreCalculator scoreCalculator;
+    private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final HttpClient httpClient;
 
     public RecommendationService(
             RecommendationMapper recommendationMapper,
             UserMapper userMapper,
             ObjectMapper objectMapper,
-            NewsSentimentService newsSentimentService
+            NewsSentimentService newsSentimentService,
+            RecommendationScoreCalculator scoreCalculator,
+            StockPriceSnapshotMapper stockPriceSnapshotMapper
     ) {
         this.recommendationMapper = recommendationMapper;
         this.userMapper = userMapper;
         this.objectMapper = objectMapper;
         this.newsSentimentService = newsSentimentService;
+        this.scoreCalculator = scoreCalculator;
+        this.stockPriceSnapshotMapper = stockPriceSnapshotMapper;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -113,46 +122,38 @@ public class RecommendationService {
                         target.getCompanyName()
                 );
 
-        final int businessHealthScore = 24;
-        final int valuationScore = 13;
-        final int priceOverheatingScore = resolvePriceOverheatingScore(priceSnapshot.thirtyDayReturn());
-        final int newsSentimentScore = newsSentiment.score();
-        final int institutionalConfidenceScore = 10;
-
-        int finalScore = businessHealthScore
-                + valuationScore
-                + priceOverheatingScore
-                + newsSentimentScore
-                + institutionalConfidenceScore;
-
-        String recommendationStatus = resolveRecommendationStatus(finalScore);
-        if (priceSnapshot.hasSevereDrop() || hasHardRisk) {
-            recommendationStatus = "STOP";
-            finalScore = Math.min(finalScore, 39);
-        } else if (newsSentiment.hardNegativeOverride()) {
-            // 강한 악재 한 건이 다수의 가벼운 호재에 묻히지 않도록 최소 축소 판단을 적용합니다.
-            recommendationStatus = "REDUCE";
-            finalScore = Math.min(finalScore, 54);
-        }
-
-        if ("INCREASE".equals(recommendationStatus)) {
-            recommendationStatus = "MAINTAIN";
-            finalScore = Math.min(finalScore, 84);
-        }
+        final int confidenceScore = resolveConfidence(target, priceSnapshot, newsSentiment);
+        final Integer rawNewsSentiment = newsSentiment.relatedNews().isEmpty()
+                ? null
+                : newsSentiment.weightedSentimentScore();
+        final RecommendationScoreCalculator.ScoreResult scoreResult = scoreCalculator.calculate(
+                priceSnapshot.thirtyDayReturn(),
+                rawNewsSentiment,
+                priceSnapshot.hasSevereDrop() || hasHardRisk,
+                newsSentiment.hardNegativeOverride(),
+                confidenceScore
+        );
+        final int finalScore = scoreResult.finalScore();
+        final String recommendationStatus = scoreResult.recommendationStatus();
+        final int priceContribution = weightedContribution(
+                scoreResult.priceScore(),
+                scoreResult.priceWeight(),
+                scoreResult.priceWeight() + scoreResult.newsWeight()
+        );
+        final int newsContribution = weightedContribution(
+                scoreResult.newsScore(),
+                scoreResult.newsWeight(),
+                scoreResult.priceWeight() + scoreResult.newsWeight()
+        );
 
         final BigDecimal recommendedAmount = resolveRecommendedAmount(currentAmount, recommendationStatus);
-        final int confidenceScore = resolveConfidence(target, priceSnapshot, newsSentiment);
-        final List<RecommendationEvidenceSaveCommand> evidence = buildEvidence(
+        final List<RecommendationEvidenceSaveCommand> evidence = buildV3Evidence(
                 target,
                 priceSnapshot,
                 newsSentiment,
-                businessHealthScore,
-                valuationScore,
-                priceOverheatingScore,
-                newsSentimentScore,
-                institutionalConfidenceScore,
-                finalScore,
-                recommendationStatus
+                scoreResult,
+                priceContribution,
+                newsContribution
         );
         final String finalNote = buildFinalNote(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment);
 
@@ -163,17 +164,18 @@ public class RecommendationService {
                 currentAmount,
                 recommendedAmount,
                 finalNote,
-                businessHealthScore,
-                valuationScore,
-                priceOverheatingScore,
-                newsSentimentScore,
-                institutionalConfidenceScore,
+                0,
+                0,
+                priceContribution,
+                newsContribution,
+                0,
                 evidence,
                 newsSentiment.relatedNews(),
                 newsSentiment.llmModel(),
                 newsSentiment.analysisConfidence(),
                 newsSentiment.cacheReused(),
-                newsSentiment.replaceCache()
+                newsSentiment.replaceCache(),
+                scoreResult
         );
     }
 
@@ -200,6 +202,16 @@ public class RecommendationService {
         command.setRecommendedAmount(engineResult.recommendedAmount());
         command.setFinalNote(engineResult.finalNote());
         command.setEngineVersion(ENGINE_VERSION);
+        command.setFormulaVersion(RecommendationScoreCalculator.FORMULA_VERSION);
+        command.setRawScore(engineResult.scoreResult().rawScore());
+        command.setRiskAdjustment(engineResult.scoreResult().riskAdjustment());
+        command.setPriceScore(engineResult.scoreResult().priceScore());
+        command.setNewsScore(engineResult.scoreResult().newsScore());
+        command.setPriceWeight(engineResult.scoreResult().priceWeight());
+        command.setNewsWeight(engineResult.scoreResult().newsWeight());
+        command.setPriceReturn30d(decimalOrNull(engineResult.scoreResult().thirtyDayReturn()));
+        command.setNewsSentimentScore(engineResult.scoreResult().newsSentimentScore());
+        command.setIncreaseEligible(engineResult.scoreResult().increaseEligible());
 
         if (existingRecommendationId == null) {
             recommendationMapper.insertRecommendation(command);
@@ -275,6 +287,7 @@ public class RecommendationService {
                         engineResult.newsSentimentScore(),
                         engineResult.institutionalConfidenceScore()
                 ),
+                toCalculationResponse(engineResult.scoreResult()),
                 engineResult.evidence().stream()
                         .map(this::toEvidenceResponse)
                         .toList(),
@@ -308,6 +321,7 @@ public class RecommendationService {
                 blankToEmpty(record.getFinalNote()),
                 blankToEmpty(record.getEngineVersion()),
                 extractScores(evidenceRecords),
+                toCalculationResponse(record),
                 evidenceRecords.stream()
                         .map(this::toEvidenceResponse)
                         .toList(),
@@ -383,6 +397,111 @@ public class RecommendationService {
                 record.getReason(),
                 record.getWeightedScore()
         );
+    }
+
+    private RecommendationCalculationResponse toCalculationResponse(
+            RecommendationScoreCalculator.ScoreResult result
+    ) {
+        return new RecommendationCalculationResponse(
+                RecommendationScoreCalculator.FORMULA_VERSION,
+                result.rawScore(),
+                result.finalScore(),
+                result.riskAdjustment(),
+                result.priceScore(),
+                result.newsScore(),
+                result.priceWeight(),
+                result.newsWeight(),
+                result.thirtyDayReturn(),
+                result.newsSentimentScore(),
+                result.increaseEligible()
+        );
+    }
+
+    private RecommendationCalculationResponse toCalculationResponse(RecommendationRecord record) {
+        return new RecommendationCalculationResponse(
+                blankToEmpty(record.getFormulaVersion()),
+                zeroIfNull(record.getRawScore()),
+                zeroIfNull(record.getEngineScore()),
+                zeroIfNull(record.getRiskAdjustment()),
+                record.getPriceScore(),
+                record.getNewsScore(),
+                zeroIfNull(record.getPriceWeight()),
+                zeroIfNull(record.getNewsWeight()),
+                record.getPriceReturn30d() == null
+                        ? null
+                        : record.getPriceReturn30d().doubleValue(),
+                record.getNewsSentimentScore(),
+                Boolean.TRUE.equals(record.getIncreaseEligible())
+        );
+    }
+
+    private List<RecommendationEvidenceSaveCommand> buildV3Evidence(
+            RecommendationTarget target,
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment,
+            RecommendationScoreCalculator.ScoreResult scoreResult,
+            int priceContribution,
+            int newsContribution
+    ) {
+        final List<RecommendationEvidenceSaveCommand> evidence = new ArrayList<>();
+        evidence.add(evidence(
+                "PRICE",
+                "30일 가격 흐름",
+                priceSnapshot.hasThirtyDayReturn()
+                        ? "최근 30일 수익률 "
+                                + formatSignedPercent(priceSnapshot.thirtyDayReturn())
+                                + "를 가격 점수 "
+                                + scoreResult.priceScore()
+                                + "점으로 변환했습니다."
+                        : "가격 이력 데이터가 없어 이번 계산의 가격 가중치에서 제외했습니다.",
+                scoreResult.priceScore() == null ? null : priceContribution,
+                1
+        ));
+        evidence.add(evidence(
+                "NEWS",
+                "관련 뉴스 분석",
+                scoreResult.newsScore() == null
+                        ? "오늘 표시 가능한 관련 뉴스가 없어 이번 계산의 뉴스 가중치에서 제외했습니다."
+                        : newsSentiment.summary()
+                                + " Gemini 종합 감성 "
+                                + formatSignedNumber(scoreResult.newsSentimentScore())
+                                + "점을 정규화해 뉴스 점수 "
+                                + scoreResult.newsScore()
+                                + "점으로 계산했습니다.",
+                scoreResult.newsScore() == null ? null : newsContribution,
+                2
+        ));
+        evidence.add(evidence(
+                "FORMULA",
+                "최종 점수 계산",
+                "사용 가능한 데이터만 가중 평균했습니다. 가격 "
+                        + scoreResult.priceWeight()
+                        + "%, 뉴스 "
+                        + scoreResult.newsWeight()
+                        + "%를 적용해 원점수 "
+                        + scoreResult.rawScore()
+                        + "점, 위험 조정 "
+                        + formatSignedNumber(scoreResult.riskAdjustment())
+                        + "점, 최종 "
+                        + scoreResult.finalScore()
+                        + "점입니다.",
+                scoreResult.riskAdjustment(),
+                3
+        ));
+        evidence.add(evidence(
+                "AI_NOTE",
+                "최종 해석",
+                buildAiComment(
+                        target,
+                        scoreResult.recommendationStatus(),
+                        scoreResult.finalScore(),
+                        priceSnapshot,
+                        newsSentiment
+                ),
+                null,
+                4
+        ));
+        return evidence;
     }
 
     private List<RecommendationEvidenceSaveCommand> buildEvidence(
@@ -580,6 +699,19 @@ public class RecommendationService {
     }
 
     private PriceSnapshot fetchPriceSnapshot(RecommendationTarget target) {
+        final StockPriceSnapshotRecord latestSnapshot =
+                stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
+        if (latestSnapshot != null
+                && latestSnapshot.getCurrentPrice() != null
+                && latestSnapshot.getCurrentPrice().doubleValue() > 0) {
+            return new PriceSnapshot(
+                    latestSnapshot.getCurrentPrice().doubleValue(),
+                    latestSnapshot.getChangeRate30d() == null
+                            ? null
+                            : latestSnapshot.getChangeRate30d().doubleValue()
+            );
+        }
+
         final String apiKey = System.getenv("FINNHUB_API_KEY");
         final String symbol = resolveSymbol(target);
 
@@ -589,8 +721,7 @@ public class RecommendationService {
 
         try {
             final Double currentPrice = fetchCurrentPrice(symbol, apiKey);
-            final Double thirtyDayReturn = fetchThirtyDayReturn(symbol, apiKey);
-            return new PriceSnapshot(currentPrice, thirtyDayReturn);
+            return new PriceSnapshot(currentPrice, null);
         } catch (Exception ignored) {
             return PriceSnapshot.unavailable();
         }
@@ -615,38 +746,6 @@ public class RecommendationService {
 
         final double currentPrice = body.path("c").asDouble(0);
         return currentPrice > 0 ? currentPrice : null;
-    }
-
-    private Double fetchThirtyDayReturn(String symbol, String apiKey) throws Exception {
-        final long to = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC);
-        final long from = LocalDate.now().minusDays(35).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
-
-        final String uri = "https://finnhub.io/api/v1/stock/candle?symbol="
-                + encode(symbol)
-                + "&resolution=D&from="
-                + from
-                + "&to="
-                + to
-                + "&token="
-                + encode(apiKey);
-
-        final JsonNode body = getJson(uri);
-        if (body == null || !"ok".equalsIgnoreCase(body.path("s").asText())) {
-            return null;
-        }
-
-        final JsonNode closes = body.path("c");
-        if (!closes.isArray() || closes.size() < 2) {
-            return null;
-        }
-
-        final double first = closes.get(0).asDouble(0);
-        final double last = closes.get(closes.size() - 1).asDouble(0);
-        if (first <= 0 || last <= 0) {
-            return null;
-        }
-
-        return ((last - first) / first) * 100;
     }
 
     private JsonNode getJson(String uri) throws Exception {
@@ -702,6 +801,19 @@ public class RecommendationService {
         return amount.setScale(2, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal decimalOrNull(Double value) {
+        return value == null
+                ? null
+                : BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private int weightedContribution(Integer score, int weight, int totalWeight) {
+        if (score == null || weight == 0 || totalWeight == 0) {
+            return 0;
+        }
+        return (int) Math.round(score * weight / (double) totalWeight);
+    }
+
     private Integer zeroIfNull(Integer value) {
         return value == null ? 0 : value;
     }
@@ -746,7 +858,8 @@ public class RecommendationService {
             String llmModel,
             int newsAnalysisConfidence,
             boolean newsCacheReused,
-            boolean replaceNewsCache
+            boolean replaceNewsCache,
+            RecommendationScoreCalculator.ScoreResult scoreResult
     ) {
     }
 

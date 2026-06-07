@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper">
+
+    <select id="findActiveStocksForSnapshot" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            is_active,
+            created_at,
+            updated_at
+        from stocks
+        where is_active = true
+          and finnhub_symbol is not null
+        order by id asc
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
+    </select>
+
+    <select id="findLatestSnapshotByStockId" resultType="com.maemoji.backend.stock.domain.StockPriceSnapshotRecord">
+        select
+            stock_id,
+            snapshot_date,
+            current_price,
+            change_rate_1d,
+            change_rate_7d,
+            change_rate_30d,
+            market_cap,
+            per_value,
+            source
+        from stock_price_snapshots
+        where stock_id = #{stockId}
+        order by snapshot_date desc, id desc
+        limit 1
+    </select>
+
+    <select id="findPreviousPrice" resultType="java.math.BigDecimal">
+        select current_price
+        from stock_price_snapshots
+        where stock_id = #{stockId}
+          and snapshot_date &lt; #{snapshotDate}
+          and current_price is not null
+          and current_price > 0
+        order by snapshot_date desc, id desc
+        limit 1
+    </select>
+
+    <select id="findReferencePrice" resultType="java.math.BigDecimal">
+        select current_price
+        from stock_price_snapshots
+        where stock_id = #{stockId}
+          and snapshot_date &lt;= #{targetDate}
+          and snapshot_date >= #{oldestDate}
+          and current_price is not null
+          and current_price > 0
+        order by snapshot_date desc, id desc
+        limit 1
+    </select>
+
+    <insert id="upsertPriceSnapshot">
+        insert into stock_price_snapshots (
+            stock_id,
+            snapshot_date,
+            current_price,
+            change_rate_1d,
+            change_rate_7d,
+            change_rate_30d,
+            market_cap,
+            per_value,
+            source
+        ) values (
+            #{stockId},
+            #{snapshotDate},
+            #{currentPrice},
+            #{changeRate1d},
+            #{changeRate7d},
+            #{changeRate30d},
+            #{marketCap},
+            #{perValue},
+            #{source}
+        )
+        on conflict (stock_id, snapshot_date) do update
+        set
+            current_price = excluded.current_price,
+            change_rate_1d = excluded.change_rate_1d,
+            change_rate_7d = excluded.change_rate_7d,
+            change_rate_30d = excluded.change_rate_30d,
+            market_cap = excluded.market_cap,
+            per_value = excluded.per_value,
+            source = excluded.source
+    </insert>
+</mapper>

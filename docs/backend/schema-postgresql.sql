@@ -68,7 +68,29 @@ create table recommendations (
     recommended_amount numeric(15, 2) not null,
     final_note text,
     engine_version varchar(50),
+    formula_version varchar(50),
+    raw_score integer,
+    risk_adjustment integer,
+    price_score integer,
+    news_score integer,
+    price_weight integer,
+    news_weight integer,
+    price_return_30d numeric(10, 4),
+    news_sentiment_score integer,
+    increase_eligible boolean,
     created_at timestamptz not null default now(),
+    constraint ck_recommendations_raw_score
+        check (raw_score between 0 and 100),
+    constraint ck_recommendations_price_score
+        check (price_score between 0 and 100),
+    constraint ck_recommendations_news_score
+        check (news_score between 0 and 100),
+    constraint ck_recommendations_price_weight
+        check (price_weight between 0 and 100),
+    constraint ck_recommendations_news_weight
+        check (news_weight between 0 and 100),
+    constraint ck_recommendations_news_sentiment_score
+        check (news_sentiment_score between -100 and 100),
     constraint fk_recommendations_user
         foreign key (user_id) references users (id),
     constraint fk_recommendations_portfolio_item
@@ -106,6 +128,7 @@ create table stock_price_snapshots (
     snapshot_date date not null,
     current_price numeric(15, 4),
     change_rate_1d numeric(8, 4),
+    change_rate_7d numeric(8, 4),
     change_rate_30d numeric(8, 4),
     market_cap numeric(20, 2),
     per_value numeric(12, 4),
@@ -117,6 +140,9 @@ create table stock_price_snapshots (
 
 create index idx_stock_price_snapshots_stock_date
     on stock_price_snapshots (stock_id, snapshot_date desc);
+
+create unique index uk_stock_price_snapshots_stock_date
+    on stock_price_snapshots (stock_id, snapshot_date);
 
 create table news_analysis_cache (
     id bigserial primary key,

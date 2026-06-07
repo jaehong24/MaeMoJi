@@ -3,25 +3,18 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart';
 import '../models/portfolio_item_summary.dart';
 
 class PortfolioService {
   const PortfolioService();
 
-  String get _host {
-    if (kIsWeb) {
-      return 'localhost';
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return '10.0.2.2';
-    }
-
-    return 'localhost';
-  }
-
   Future<List<PortfolioItemSummary>> fetchPortfolioItems() async {
-    final uri = Uri.http('$_host:8081', '/api/portfolio-items');
+    final uri = ApiConfig.buildUri(
+      '/api/portfolio-items',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
     final response = await http.get(uri);
 
     if (response.statusCode != 200) {
@@ -38,7 +31,11 @@ class PortfolioService {
     String? investmentStartDate,
     String? memo,
   }) async {
-    final uri = Uri.http('$_host:8081', '/api/portfolio-items');
+    final uri = ApiConfig.buildUri(
+      '/api/portfolio-items',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
     final response = await http.post(
       uri,
       headers: const {'Content-Type': 'application/json'},
@@ -64,7 +61,11 @@ class PortfolioService {
   }
 
   Future<List<PortfolioItemSummary>> deletePortfolioItem(int portfolioItemId) async {
-    final uri = Uri.http('$_host:8081', '/api/portfolio-items/$portfolioItemId');
+    final uri = ApiConfig.buildUri(
+      '/api/portfolio-items/$portfolioItemId',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
     final response = await http.delete(uri);
 
     if (response.statusCode != 200) {

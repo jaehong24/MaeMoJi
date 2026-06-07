@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -40,9 +41,12 @@ public class NewsSentimentService {
 
     private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
     private static final int MAX_GEMINI_CANDIDATES = 8;
+    private static final int MAX_GEMINI_ATTEMPTS = 3;
+    private static final long GEMINI_RETRY_DELAY_MILLIS = 800;
     private static final int MAX_DAILY_NEWS = 3;
     private static final int MIN_PRE_ANALYSIS_RELEVANCE = 50;
     private static final int MIN_FINAL_RELEVANCE = 60;
+    private static final ZoneId DAILY_NEWS_ZONE = ZoneId.of("Asia/Seoul");
     private static final Logger log = LoggerFactory.getLogger(NewsSentimentService.class);
 
     private static final Set<String> POSITIVE_KEYWORDS = Set.of(
@@ -224,11 +228,20 @@ public class NewsSentimentService {
             uniqueItems.put(item.contentHash(), item);
         }
 
-        return uniqueItems.values().stream()
+        final List<RawNewsItem> relevantItems = uniqueItems.values().stream()
                 .map(item -> item.withHeuristicRelevance(
                         calculateHeuristicRelevance(item, symbol, companyName)
                 ))
                 .filter(item -> item.heuristicRelevanceScore() >= MIN_PRE_ANALYSIS_RELEVANCE)
+                .toList();
+        final LocalDate displayDate = resolveDisplayDate(relevantItems);
+        if (displayDate == null) {
+            return List.of();
+        }
+
+        return relevantItems.stream()
+                // 평일은 당일 뉴스만, 주말은 가장 최근 날짜의 뉴스를 표시합니다.
+                .filter(item -> isPublishedOn(item, displayDate))
                 .sorted(
                         Comparator.comparingInt(RawNewsItem::heuristicRelevanceScore)
                                 .reversed()
@@ -239,6 +252,38 @@ public class NewsSentimentService {
                 )
                 .limit(MAX_GEMINI_CANDIDATES)
                 .toList();
+    }
+
+    private LocalDate resolveDisplayDate(Iterable<RawNewsItem> newsItems) {
+        final LocalDate today = LocalDate.now(DAILY_NEWS_ZONE);
+        final int dayOfWeek = today.getDayOfWeek().getValue();
+        final boolean weekend = dayOfWeek == 6 || dayOfWeek == 7;
+        if (!weekend) {
+            return today;
+        }
+
+        LocalDate latestDate = null;
+        for (RawNewsItem item : newsItems) {
+            if (item.publishedAt() == null) {
+                continue;
+            }
+            final LocalDate publishedDate = item.publishedAt()
+                    .atZoneSameInstant(DAILY_NEWS_ZONE)
+                    .toLocalDate();
+            if (!publishedDate.isAfter(today)
+                    && (latestDate == null || publishedDate.isAfter(latestDate))) {
+                latestDate = publishedDate;
+            }
+        }
+        return latestDate;
+    }
+
+    private boolean isPublishedOn(RawNewsItem item, LocalDate displayDate) {
+        return item.publishedAt() != null
+                && item.publishedAt()
+                .atZoneSameInstant(DAILY_NEWS_ZONE)
+                .toLocalDate()
+                .equals(displayDate);
     }
 
     private int calculateHeuristicRelevance(RawNewsItem item, String symbol, String companyName) {
@@ -318,10 +363,7 @@ public class NewsSentimentService {
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
                     .build();
 
-            final HttpResponse<String> response = httpClient.send(
-                    request,
-                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
-            );
+            final HttpResponse<String> response = sendGeminiRequestWithRetry(request, symbol);
             if (response.statusCode() != 200 || response.body().isBlank()) {
                 log.warn(
                         "Gemini 뉴스 분석 호출에 실패했습니다. symbol={}, status={}",
@@ -387,6 +429,42 @@ public class NewsSentimentService {
             log.warn("Gemini 뉴스 분석 중 오류가 발생했습니다. symbol={}", symbol, exception);
             return null;
         }
+    }
+
+    private HttpResponse<String> sendGeminiRequestWithRetry(
+            HttpRequest request,
+            String symbol
+    ) throws Exception {
+        HttpResponse<String> response = null;
+        for (int attempt = 1; attempt <= MAX_GEMINI_ATTEMPTS; attempt++) {
+            response = httpClient.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+            );
+            if (response.statusCode() == 200
+                    || !isRetryableGeminiStatus(response.statusCode())
+                    || attempt == MAX_GEMINI_ATTEMPTS) {
+                return response;
+            }
+
+            log.warn(
+                    "Gemini 뉴스 분석을 재시도합니다. symbol={}, status={}, attempt={}/{}",
+                    symbol,
+                    response.statusCode(),
+                    attempt,
+                    MAX_GEMINI_ATTEMPTS
+            );
+            Thread.sleep(GEMINI_RETRY_DELAY_MILLIS * attempt);
+        }
+        return response;
+    }
+
+    boolean isRetryableGeminiStatus(int statusCode) {
+        return statusCode == 429
+                || statusCode == 500
+                || statusCode == 502
+                || statusCode == 503
+                || statusCode == 504;
     }
 
     private Map<String, Object> geminiResponseSchema() {
@@ -896,11 +974,19 @@ public class NewsSentimentService {
     }
 
     private String buildAnalysisBatchHash(List<RawNewsItem> candidates) {
-        return sha256(candidates.stream()
+        final String displayDate = candidates.stream()
+                .map(RawNewsItem::publishedAt)
+                .filter(publishedAt -> publishedAt != null)
+                .map(publishedAt -> publishedAt.atZoneSameInstant(DAILY_NEWS_ZONE).toLocalDate())
+                .max(LocalDate::compareTo)
+                .orElse(LocalDate.now(DAILY_NEWS_ZONE))
+                .toString();
+        final String contentHashes = candidates.stream()
                 .map(RawNewsItem::contentHash)
                 .sorted()
                 .reduce((left, right) -> left + "|" + right)
-                .orElse(""));
+                .orElse("");
+        return sha256(displayDate + "|" + contentHashes);
     }
 
     private BigDecimal decimal(double value) {
@@ -1031,14 +1117,14 @@ public class NewsSentimentService {
             return new NewsSentimentResult(
                     9,
                     "NEUTRAL",
-                    "최근 7일 기준으로 분석 가능한 관련 뉴스가 없어 중립 점수로 처리했습니다.",
+                    "한국시간 기준 표시 가능한 관련 뉴스가 없어 뉴스 점수를 중립으로 처리했습니다.",
                     List.of(),
                     null,
                     0,
                     false,
                     0,
                     false,
-                    true
+                    false
             );
         }
 
@@ -1053,7 +1139,7 @@ public class NewsSentimentService {
                     false,
                     0,
                     false,
-                    true
+                    false
             );
         }
     }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart';
 import '../models/evidence_item.dart';
 import '../models/recommendation_item.dart';
 import '../models/recommendation_news_item.dart';
@@ -11,20 +12,12 @@ import '../models/recommendation_status.dart';
 class RecommendationService {
   const RecommendationService();
 
-  String get _host {
-    if (kIsWeb) {
-      return 'localhost';
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return '10.0.2.2';
-    }
-
-    return 'localhost';
-  }
-
   Future<List<RecommendationItem>> fetchRecommendations() async {
-    final uri = Uri.http('$_host:8081', '/api/recommendations');
+    final uri = ApiConfig.buildUri(
+      '/api/recommendations',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
     final response = await http.get(uri);
 
     if (response.statusCode != 200) {
@@ -35,7 +28,11 @@ class RecommendationService {
   }
 
   Future<List<RecommendationItem>> generateRecommendations() async {
-    final uri = Uri.http('$_host:8081', '/api/recommendations/generate');
+    final uri = ApiConfig.buildUri(
+      '/api/recommendations/generate',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
     final response = await http.post(uri);
 
     if (response.statusCode != 200) {

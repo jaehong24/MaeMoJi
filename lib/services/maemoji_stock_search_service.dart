@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart';
 import '../models/stock_search_item.dart';
 
 /// MaeMoJi WAS의 종목 검색 API를 호출하는 서비스입니다.
@@ -12,22 +13,6 @@ import '../models/stock_search_item.dart';
 class MaeMojiStockSearchService {
   const MaeMojiStockSearchService();
 
-  /// 플랫폼에 따라 로컬 개발 서버 주소를 다르게 잡습니다.
-  ///
-  /// - Android 에뮬레이터: `10.0.2.2`
-  /// - 그 외 로컬 실행: `localhost`
-  String get _host {
-    if (kIsWeb) {
-      return 'localhost';
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return '10.0.2.2';
-    }
-
-    return 'localhost';
-  }
-
   /// Flutter 검색 화면에서 사용할 종목 목록을 WAS 응답에서 변환합니다.
   Future<List<StockSearchItem>> searchStocks(String query) async {
     final trimmed = query.trim();
@@ -36,9 +21,12 @@ class MaeMojiStockSearchService {
       return const [];
     }
 
-    final uri = Uri.http('$_host:8081', '/api/stocks/search', {
-      'keyword': trimmed,
-    });
+    final uri = ApiConfig.buildUri(
+      '/api/stocks/search',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+      queryParameters: {'keyword': trimmed},
+    );
 
     final response = await http.get(uri);
 

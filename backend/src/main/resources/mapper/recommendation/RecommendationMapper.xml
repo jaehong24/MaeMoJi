@@ -48,7 +48,17 @@
             current_amount,
             recommended_amount,
             final_note,
-            engine_version
+            engine_version,
+            formula_version,
+            raw_score,
+            risk_adjustment,
+            price_score,
+            news_score,
+            price_weight,
+            news_weight,
+            price_return_30d,
+            news_sentiment_score,
+            increase_eligible
         ) values (
             #{command.userId},
             #{command.portfolioItemId},
@@ -59,7 +69,17 @@
             #{command.currentAmount},
             #{command.recommendedAmount},
             #{command.finalNote},
-            #{command.engineVersion}
+            #{command.engineVersion},
+            #{command.formulaVersion},
+            #{command.rawScore},
+            #{command.riskAdjustment},
+            #{command.priceScore},
+            #{command.newsScore},
+            #{command.priceWeight},
+            #{command.newsWeight},
+            #{command.priceReturn30d},
+            #{command.newsSentimentScore},
+            #{command.increaseEligible}
         )
     </insert>
 
@@ -73,7 +93,17 @@
             current_amount = #{command.currentAmount},
             recommended_amount = #{command.recommendedAmount},
             final_note = #{command.finalNote},
-            engine_version = #{command.engineVersion}
+            engine_version = #{command.engineVersion},
+            formula_version = #{command.formulaVersion},
+            raw_score = #{command.rawScore},
+            risk_adjustment = #{command.riskAdjustment},
+            price_score = #{command.priceScore},
+            news_score = #{command.newsScore},
+            price_weight = #{command.priceWeight},
+            news_weight = #{command.newsWeight},
+            price_return_30d = #{command.priceReturn30d},
+            news_sentiment_score = #{command.newsSentimentScore},
+            increase_eligible = #{command.increaseEligible}
         where id = #{command.recommendationId}
     </update>
 
@@ -185,6 +215,16 @@
             r.recommended_amount,
             r.final_note,
             r.engine_version,
+            r.formula_version,
+            r.raw_score,
+            r.risk_adjustment,
+            r.price_score,
+            r.news_score,
+            r.price_weight,
+            r.news_weight,
+            r.price_return_30d,
+            r.news_sentiment_score,
+            r.increase_eligible,
             pi.holding_quantity,
             pi.investment_start_date,
             pi.memo
@@ -237,6 +277,20 @@
         from news_analysis_cache
         where stock_id = #{stockId}
           and relevance_score >= 60
+          and (news_published_at at time zone 'Asia/Seoul')::date = (
+              case
+                  when extract(isodow from current_timestamp at time zone 'Asia/Seoul') in (6, 7)
+                      then (
+                          select max((weekend_news.news_published_at at time zone 'Asia/Seoul')::date)
+                          from news_analysis_cache weekend_news
+                          where weekend_news.stock_id = #{stockId}
+                            and weekend_news.relevance_score >= 60
+                            and (weekend_news.news_published_at at time zone 'Asia/Seoul')::date
+                                &lt;= (current_timestamp at time zone 'Asia/Seoul')::date
+                      )
+                  else (current_timestamp at time zone 'Asia/Seoul')::date
+              end
+          )
         order by abs(weighted_score) desc nulls last, news_published_at desc nulls last
         limit 3
     </select>

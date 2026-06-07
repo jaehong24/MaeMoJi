@@ -102,3 +102,39 @@ powershell -ExecutionPolicy Bypass -File .\backend\run-backend.ps1
 - 종목 검색 API 초안
 - Gradle Wrapper
 - JAR 기반 실행 스크립트
+
+## 6. 가격 스냅샷 배치
+
+- 수동 실행: [http://localhost:8081/api/admin/batches/price-snapshots/sync](http://localhost:8081/api/admin/batches/price-snapshots/sync)
+- 문서: [price-snapshot-batch.md](C:/Users/icand/Documents/MaeMoJi/docs/backend/price-snapshot-batch.md:1)
+
+## 7. Render PostgreSQL 연결
+
+로컬 Docker DB 대신 Render PostgreSQL을 바로 사용할 수도 있습니다.
+
+Spring Boot는 아래 환경변수 중 하나만 맞게 주면 됩니다.
+
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- 또는 Render 스타일 `DATABASE_URL`
+
+예시:
+
+```powershell
+$env:DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE"
+powershell -ExecutionPolicy Bypass -File .\backend\run-backend.ps1 -BuildFirst
+```
+
+또는 JDBC 형식으로 직접 지정할 수도 있습니다.
+
+```powershell
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://HOST:5432/DATABASE"
+$env:SPRING_DATASOURCE_USERNAME="USER"
+$env:SPRING_DATASOURCE_PASSWORD="PASSWORD"
+powershell -ExecutionPolicy Bypass -File .\backend\run-backend.ps1 -BuildFirst
+```
+
+참고:
+- 이번 백엔드는 `postgresql://...` 형식의 `DATABASE_URL`을 자동으로 `jdbc:postgresql://...`로 변환합니다.
+- 접속 비밀번호를 외부에 공유했다면 Render 대시보드에서 한 번 재발급하는 편이 안전합니다.

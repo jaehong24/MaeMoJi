@@ -21,6 +21,7 @@ public record RecommendationResponse(
         String aiFinalComment,
         String engineVersion,
         RecommendationScoresResponse scores,
+        RecommendationCalculationResponse calculation,
         List<RecommendationEvidenceResponse> evidence,
         List<RelatedNewsResponse> relatedNews
 ) {
