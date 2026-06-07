@@ -41,7 +41,8 @@ class RecommendationCard extends StatelessWidget {
           usdToKrwRate: currencyController.usdToKrwRate,
         );
 
-        final detailAction = onOpenDetail ??
+        final detailAction =
+            onOpenDetail ??
             () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -72,11 +73,12 @@ class RecommendationCard extends StatelessWidget {
                           item.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: compact
-                              ? theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                )
-                              : theme.textTheme.titleLarge,
+                          style:
+                              compact
+                                  ? theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  )
+                                  : theme.textTheme.titleLarge,
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -99,7 +101,7 @@ class RecommendationCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _AmountBlock(
-                      label: '현재 모으기',
+                      label: '현재 매일 모으기',
                       amount: currentAmount,
                       compact: compact,
                     ),
@@ -127,19 +129,14 @@ class RecommendationCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Text(
-                    '신뢰도 ${item.confidence}% · 점수 ${item.score}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: MaeMojiColors.inkMuted,
-                    ),
-                  ),
                   const Spacer(),
                   TextButton(
                     onPressed: detailAction,
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
@@ -204,10 +201,7 @@ class _RecommendationLogo extends StatelessWidget {
       );
     }
 
-    return _RecommendationFallback(
-      shortTicker: shortTicker,
-      size: size,
-    );
+    return _RecommendationFallback(shortTicker: shortTicker, size: size);
   }
 }
 
