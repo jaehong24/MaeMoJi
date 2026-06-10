@@ -90,6 +90,11 @@ public class GoogleAuthService {
         );
     }
 
+    @Transactional
+    public void logout(Long userId) {
+        userMapper.clearAuthSession(userId);
+    }
+
     private GoogleTokenProfile verifyGoogleIdToken(String idToken) {
         try {
             final HttpRequest request = HttpRequest.newBuilder()

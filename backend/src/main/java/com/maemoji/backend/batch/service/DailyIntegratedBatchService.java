@@ -5,6 +5,7 @@ import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.service.RecommendationService;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
+import com.maemoji.backend.user.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,14 +23,17 @@ public class DailyIntegratedBatchService {
 
     private final StockPriceSnapshotBatchService priceSnapshotBatchService;
     private final RecommendationService recommendationService;
+    private final UserMapper userMapper;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     public DailyIntegratedBatchService(
             StockPriceSnapshotBatchService priceSnapshotBatchService,
-            RecommendationService recommendationService
+            RecommendationService recommendationService,
+            UserMapper userMapper
     ) {
         this.priceSnapshotBatchService = priceSnapshotBatchService;
         this.recommendationService = recommendationService;
+        this.userMapper = userMapper;
     }
 
     public DailyBatchResult run(Integer priceLimit) {
@@ -45,23 +49,42 @@ public class DailyIntegratedBatchService {
             priceResult = priceSnapshotBatchService.syncSnapshots(priceLimit, true);
 
             if (priceResult.requestedCount() == 0 || priceResult.savedCount() == 0) {
-                return failed(startedAt, priceResult, "PRICE_SNAPSHOTS",
-                        "가격 스냅샷을 한 건도 저장하지 못했습니다.");
+                return failed(
+                        startedAt,
+                        priceResult,
+                        "PRICE_SNAPSHOTS",
+                        "가격 스냅샷을 한 건도 저장하지 못했습니다."
+                );
             }
 
-            final List<RecommendationResponse> recommendations =
-                    recommendationService.generateLatestRecommendations();
-            final String status = priceResult.failedCount() > 0
+            final List<Long> activeUserIds = userMapper.findActiveUserIdsWithPortfolioItems();
+            int recommendationCount = 0;
+            int failedUserCount = 0;
+
+            for (Long userId : activeUserIds) {
+                try {
+                    final List<RecommendationResponse> recommendations =
+                            recommendationService.generateLatestRecommendations(userId);
+                    recommendationCount += recommendations.size();
+                } catch (Exception exception) {
+                    failedUserCount++;
+                    log.warn("사용자 추천 배치에 실패했습니다. userId={}", userId, exception);
+                }
+            }
+
+            final String status = priceResult.failedCount() > 0 || failedUserCount > 0
                     ? "PARTIAL_SUCCESS"
                     : "SUCCESS";
             final OffsetDateTime finishedAt = OffsetDateTime.now(BATCH_ZONE);
 
             log.info(
-                    "일일 통합 배치를 완료했습니다. status={}, prices={}/{}, recommendations={}, finishedAt={}",
+                    "일일 통합 배치를 완료했습니다. status={}, prices={}/{}, users={}, recommendations={}, failedUsers={}, finishedAt={}",
                     status,
                     priceResult.savedCount(),
                     priceResult.requestedCount(),
-                    recommendations.size(),
+                    activeUserIds.size(),
+                    recommendationCount,
+                    failedUserCount,
                     finishedAt
             );
             return new DailyBatchResult(
@@ -69,7 +92,7 @@ public class DailyIntegratedBatchService {
                     startedAt,
                     finishedAt,
                     priceResult,
-                    recommendations.size(),
+                    recommendationCount,
                     null,
                     null
             );

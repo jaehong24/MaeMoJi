@@ -4,6 +4,7 @@ import com.maemoji.backend.user.domain.UserSessionRecord;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
 import java.time.OffsetDateTime;
 
 @Mapper
@@ -37,7 +38,11 @@ public interface UserMapper {
             @Param("lastLoginAt") OffsetDateTime lastLoginAt
     );
 
+    void clearAuthSession(@Param("userId") Long userId);
+
     UserSessionRecord findSessionUserByAuthToken(@Param("authToken") String authToken);
+
+    List<Long> findActiveUserIdsWithPortfolioItems();
 
     void insertDevUser();
 }

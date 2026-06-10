@@ -18,7 +18,6 @@ import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
-import com.maemoji.backend.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +45,6 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendationService {
 
-    private static final String DEV_USER_EMAIL = "dev@maemoji.local";
     private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE_V2";
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
     private static final Set<String> HARD_RISK_KEYWORDS = Set.of(
@@ -55,7 +53,6 @@ public class RecommendationService {
     );
 
     private final RecommendationMapper recommendationMapper;
-    private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
     private final NewsSentimentService newsSentimentService;
     private final RecommendationScoreCalculator scoreCalculator;
@@ -64,14 +61,12 @@ public class RecommendationService {
 
     public RecommendationService(
             RecommendationMapper recommendationMapper,
-            UserMapper userMapper,
             ObjectMapper objectMapper,
             NewsSentimentService newsSentimentService,
             RecommendationScoreCalculator scoreCalculator,
             StockPriceSnapshotMapper stockPriceSnapshotMapper
     ) {
         this.recommendationMapper = recommendationMapper;
-        this.userMapper = userMapper;
         this.objectMapper = objectMapper;
         this.newsSentimentService = newsSentimentService;
         this.scoreCalculator = scoreCalculator;
@@ -79,11 +74,6 @@ public class RecommendationService {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-    }
-
-    @Transactional
-    public List<RecommendationResponse> generateLatestRecommendations() {
-        return generateLatestRecommendations(ensureDevUserId());
     }
 
     @Transactional
@@ -101,11 +91,6 @@ public class RecommendationService {
         }
 
         return responses;
-    }
-
-    @Transactional
-    public List<RecommendationResponse> getLatestRecommendations() {
-        return getLatestRecommendations(ensureDevUserId());
     }
 
     @Transactional
@@ -140,21 +125,11 @@ public class RecommendationService {
     }
 
     @Transactional
-    public RecommendationResponse getRecommendationDetail(Long portfolioItemId) {
-        return getRecommendationDetail(ensureDevUserId(), portfolioItemId);
-    }
-
-    @Transactional
     public RecommendationResponse getRecommendationDetail(Long userId, Long portfolioItemId) {
         return getLatestRecommendations(userId).stream()
                 .filter(item -> portfolioItemId.equals(item.portfolioItemId()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("추천 상세 대상을 찾을 수 없습니다."));
-    }
-
-    @Transactional
-    public HomeRecommendationResponse getLightweightHomeRecommendations() {
-        return getLightweightHomeRecommendations(ensureDevUserId());
     }
 
     @Transactional
@@ -1138,6 +1113,7 @@ public class RecommendationService {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
+    /*
     private Long ensureDevUserId() {
         Long userId = userMapper.findIdByEmail(DEV_USER_EMAIL);
         if (userId != null) {
@@ -1153,6 +1129,7 @@ public class RecommendationService {
         return userId;
     }
 
+    */
     private record EngineResult(
             String recommendationStatus,
             int finalScore,

@@ -76,6 +76,14 @@
         where id = #{userId}
     </update>
 
+    <update id="clearAuthSession">
+        update users
+        set
+            auth_token = null,
+            auth_token_expires_at = null
+        where id = #{userId}
+    </update>
+
     <select id="findSessionUserByAuthToken"
             resultType="com.maemoji.backend.user.domain.UserSessionRecord">
         select
@@ -92,6 +100,15 @@
           and auth_token_expires_at > now()
           and status = 'ACTIVE'
         limit 1
+    </select>
+
+    <select id="findActiveUserIdsWithPortfolioItems" resultType="long">
+        select distinct u.id
+        from users u
+        join portfolio_items pi on pi.user_id = u.id
+        where u.status = 'ACTIVE'
+          and pi.is_active = true
+        order by u.id asc
     </select>
 
     <insert id="insertDevUser">

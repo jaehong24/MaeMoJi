@@ -161,7 +161,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _signingOut = true;
     });
     try {
-      await _authService.signOut();
+      await _authService.signOut(accessToken: _authSessionStore.accessToken);
       await _authSessionStore.clear();
     } finally {
       if (mounted) {

@@ -13,6 +13,18 @@ class AuthSession {
 
   bool get isExpired => DateTime.now().isAfter(expiresAt);
 
+  AuthSession copyWith({
+    String? accessToken,
+    DateTime? expiresAt,
+    AuthUser? user,
+  }) {
+    return AuthSession(
+      accessToken: accessToken ?? this.accessToken,
+      expiresAt: expiresAt ?? this.expiresAt,
+      user: user ?? this.user,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'accessToken': accessToken,

@@ -50,4 +50,13 @@ public class AuthController {
                 )
         );
     }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        googleAuthService.logout(userId);
+        return ApiResponse.ok(null);
+    }
 }
