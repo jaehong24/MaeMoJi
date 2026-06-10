@@ -210,8 +210,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: RecommendationCard(
                       item: item,
                       compact: true,
-                      onOpenDetail: () {
-                        Navigator.of(context).push(
+                      onOpenDetail: () async {
+                        await Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => StockDetailScreen(
                               portfolioItemId: item.portfolioItemId,
@@ -219,6 +219,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         );
+                        if (mounted) {
+                          _reloadRecommendations();
+                        }
                       },
                     ),
                   ),

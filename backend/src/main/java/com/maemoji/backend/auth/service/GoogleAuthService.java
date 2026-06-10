@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -68,10 +69,7 @@ public class GoogleAuthService {
             );
         }
 
-        final String accessToken = UUID.randomUUID().toString().replace("-", "")
-                + UUID.randomUUID().toString().replace("-", "");
-        final OffsetDateTime expiresAt = now.plus(SESSION_TTL);
-        userMapper.updateAuthSession(userId, accessToken, expiresAt, now);
+        final String accessToken = issueSessionToken(userId, now);
 
         final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(accessToken);
         if (authenticatedUser == null) {
@@ -80,7 +78,38 @@ public class GoogleAuthService {
 
         return new AuthLoginResponse(
                 accessToken,
-                expiresAt,
+                now.plus(SESSION_TTL),
+                new AuthUserResponse(
+                        authenticatedUser.getId(),
+                        authenticatedUser.getEmail(),
+                        authenticatedUser.getNickname(),
+                        authenticatedUser.getProfileImageUrl()
+                )
+        );
+    }
+
+    @Transactional
+    public AuthLoginResponse loginAsDev(String hostName) {
+        if (!isAllowedDevHost(hostName)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "로컬 개발 환경에서만 사용할 수 있습니다.");
+        }
+
+        userMapper.insertDevUser();
+        final Long userId = userMapper.findIdByEmail("dev@maemoji.local");
+        if (userId == null) {
+            throw new IllegalStateException("개발용 사용자 계정을 찾을 수 없습니다.");
+        }
+
+        final OffsetDateTime now = OffsetDateTime.now();
+        final String accessToken = issueSessionToken(userId, now);
+        final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(accessToken);
+        if (authenticatedUser == null) {
+            throw new IllegalStateException("개발용 로그인 세션을 생성하지 못했습니다.");
+        }
+
+        return new AuthLoginResponse(
+                accessToken,
+                now.plus(SESSION_TTL),
                 new AuthUserResponse(
                         authenticatedUser.getId(),
                         authenticatedUser.getEmail(),
@@ -93,6 +122,34 @@ public class GoogleAuthService {
     @Transactional
     public void logout(Long userId) {
         userMapper.clearAuthSession(userId);
+    }
+
+    private String issueSessionToken(Long userId, OffsetDateTime now) {
+        final String accessToken = UUID.randomUUID().toString().replace("-", "")
+                + UUID.randomUUID().toString().replace("-", "");
+        final OffsetDateTime expiresAt = now.plus(SESSION_TTL);
+        userMapper.updateAuthSession(userId, accessToken, expiresAt, now);
+        return accessToken;
+    }
+
+    private boolean isAllowedDevHost(String hostName) {
+        if (hostName == null || hostName.isBlank()) {
+            return false;
+        }
+
+        final String normalized = hostName.trim().toLowerCase();
+        if (normalized.equals("localhost")
+                || normalized.equals("127.0.0.1")
+                || normalized.equals("10.0.2.2")) {
+            return true;
+        }
+
+        try {
+            final InetAddress address = InetAddress.getByName(normalized);
+            return address.isLoopbackAddress() || address.isAnyLocalAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private GoogleTokenProfile verifyGoogleIdToken(String idToken) {

@@ -81,6 +81,28 @@ class RecommendationService {
     return decodedItems.first;
   }
 
+  Future<RecommendationItem> refreshRecommendationDetail(int portfolioItemId) async {
+    final uri = ApiConfig.buildUri(
+      '/api/recommendations/$portfolioItemId/refresh',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
+    final response = await http.post(uri, headers: ApiAuthHeaders.auth());
+
+    if (response.statusCode != 200) {
+      throw Exception('최신 추천 갱신에 실패했습니다. (${response.statusCode})');
+    }
+
+    final decoded =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>? ?? const {};
+    final decodedItems = _decodeRecommendationItems([data]);
+    if (decodedItems.isEmpty) {
+      throw Exception('최신 추천 데이터가 비어 있습니다.');
+    }
+    return decodedItems.first;
+  }
+
   Future<List<RecommendationItem>> generateRecommendations() async {
     final uri = ApiConfig.buildUri(
       '/api/recommendations/generate',

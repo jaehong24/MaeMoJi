@@ -30,6 +30,20 @@ class ApiConfig {
     return 'http://localhost:8081';
   }
 
+  static bool isLocalDevelopment({
+    required bool isWeb,
+    required String platformName,
+  }) {
+    final baseUrl = resolveBaseUrl(isWeb: isWeb, platformName: platformName);
+    final uri = Uri.tryParse(baseUrl);
+    if (uri == null) {
+      return false;
+    }
+
+    final host = uri.host.toLowerCase();
+    return host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
+  }
+
   static Uri buildUri(
     String path, {
     required bool isWeb,

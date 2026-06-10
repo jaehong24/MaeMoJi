@@ -1,10 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'config/api_config.dart';
 import 'currency/currency_controller.dart';
 import 'currency/currency_scope.dart';
-import 'services/auth_service.dart';
 import 'screens/app_shell.dart';
 import 'screens/auth_screen.dart';
+import 'services/auth_service.dart';
 import 'services/auth_session_store.dart';
 import 'theme/app_theme.dart';
 
@@ -20,6 +22,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
   final AuthService _authService = AuthService();
   final AuthSessionStore _authSessionStore = AuthSessionStore.instance;
   bool _checkingSavedSession = true;
+  bool _localDevAutoLoginInFlight = false;
 
   @override
   void initState() {
@@ -52,6 +55,14 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
             }
 
             if (!_authSessionStore.isSignedIn) {
+              if (_isLocalDevelopment && !_localDevAutoLoginInFlight) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _signInAsLocalDev();
+                });
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
               return const AuthScreen();
             }
 
@@ -74,6 +85,10 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
 
     final session = _authSessionStore.session;
     if (session == null || session.isExpired) {
+      if (_isLocalDevelopment) {
+        await _signInAsLocalDev();
+        return;
+      }
       if (mounted) {
         setState(() {
           _checkingSavedSession = false;
@@ -88,6 +103,38 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
     } catch (_) {
       await _authSessionStore.clear();
     } finally {
+      if (mounted) {
+        setState(() {
+          _checkingSavedSession = false;
+        });
+      }
+    }
+  }
+
+  bool get _isLocalDevelopment => ApiConfig.isLocalDevelopment(
+        isWeb: kIsWeb,
+        platformName: defaultTargetPlatform.name,
+      );
+
+  Future<void> _signInAsLocalDev() async {
+    if (_localDevAutoLoginInFlight) {
+      return;
+    }
+
+    _localDevAutoLoginInFlight = true;
+    if (mounted) {
+      setState(() {
+        _checkingSavedSession = true;
+      });
+    }
+
+    try {
+      final session = await _authService.signInAsDev();
+      await _authSessionStore.save(session);
+    } catch (_) {
+      await _authSessionStore.clear();
+    } finally {
+      _localDevAutoLoginInFlight = false;
       if (mounted) {
         setState(() {
           _checkingSavedSession = false;

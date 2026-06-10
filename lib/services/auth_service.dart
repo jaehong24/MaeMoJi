@@ -5,8 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
-import '../models/auth_session.dart';
 import '../config/google_auth_config.dart';
+import '../models/auth_session.dart';
 import '../models/auth_user.dart';
 
 class AuthService {
@@ -76,6 +76,30 @@ class AuthService {
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     final data = decoded['data'] as Map<String, dynamic>? ?? const {};
     return AuthUser.fromJson(data);
+  }
+
+  Future<AuthSession> signInAsDev() async {
+    final uri = ApiConfig.buildUri(
+      '/api/auth/dev',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
+    final response = await http.post(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('로컬 개발 로그인에 실패했습니다. (${response.statusCode})');
+    }
+
+    final decoded =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>? ?? const {};
+    return AuthSession(
+      accessToken: (data['accessToken'] ?? '').toString(),
+      expiresAt: DateTime.parse((data['expiresAt'] ?? '').toString()),
+      user: AuthUser.fromJson(
+        (data['user'] as Map<String, dynamic>? ?? const {}),
+      ),
+    );
   }
 
   Future<void> signOut({String? accessToken}) async {

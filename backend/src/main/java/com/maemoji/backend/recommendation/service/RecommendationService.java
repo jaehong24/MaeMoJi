@@ -160,6 +160,51 @@ public class RecommendationService {
         );
     }
 
+    @Transactional
+    public HomeRecommendationResponse getOptimizedHomeRecommendations(Long userId) {
+        final List<RecommendationResponse> recommendations = getLatestRecommendations(userId);
+        return buildHomeRecommendationResponse(recommendations);
+    }
+
+    @Transactional
+    public RecommendationResponse getOptimizedRecommendationDetail(Long userId, Long portfolioItemId) {
+        RecommendationRecord record = recommendationMapper
+                .findLatestRecommendationByUserIdAndPortfolioItemId(userId, portfolioItemId);
+
+        if (record == null || needsRefresh(record)) {
+            generateLatestRecommendations(userId);
+            record = recommendationMapper.findLatestRecommendationByUserIdAndPortfolioItemId(
+                    userId,
+                    portfolioItemId
+            );
+        }
+
+        if (record == null) {
+            throw new IllegalArgumentException("추천 상세 대상을 찾을 수 없습니다.");
+        }
+
+        return toResponse(record);
+    }
+
+    @Transactional
+    public RecommendationResponse refreshRecommendationDetail(Long userId, Long portfolioItemId) {
+        final RecommendationTarget target = recommendationMapper
+                .findActiveRecommendationTargetByUserIdAndPortfolioItemId(userId, portfolioItemId);
+        if (target == null) {
+            throw new IllegalArgumentException("추천 상세 대상을 찾을 수 없습니다.");
+        }
+
+        final LocalDate recommendationDate = LocalDate.now(HOME_ZONE);
+        final EngineResult engineResult = evaluateTarget(target);
+        final Long recommendationId = saveRecommendation(
+                userId,
+                target,
+                recommendationDate,
+                engineResult
+        );
+        return toResponse(target, recommendationId, engineResult);
+    }
+
     private EngineResult evaluateTarget(RecommendationTarget target) {
         final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
         final String memo = blankToEmpty(target.getMemo());
@@ -364,6 +409,50 @@ public class RecommendationService {
                 response,
                 snapshot == null ? null : snapshot.getSnapshotDate(),
                 newsAnalyzedAt
+        );
+    }
+
+    private LightweightRecommendationResult toLightweightHomeResponse(RecommendationResponse response) {
+        final StockPriceSnapshotRecord snapshot =
+                stockPriceSnapshotMapper.findLatestSnapshotByStockId(response.stockId());
+        final List<NewsAnalysisCacheRecord> cachedNews =
+                recommendationMapper.findLatestNewsAnalysisByStockId(response.stockId());
+        final OffsetDateTime newsAnalyzedAt = cachedNews.stream()
+                .map(NewsAnalysisCacheRecord::getAnalyzedAt)
+                .filter(analyzedAt -> analyzedAt != null)
+                .min(OffsetDateTime::compareTo)
+                .orElse(null);
+        return new LightweightRecommendationResult(
+                response,
+                snapshot == null ? null : snapshot.getSnapshotDate(),
+                newsAnalyzedAt
+        );
+    }
+
+    private HomeRecommendationResponse buildHomeRecommendationResponse(
+            List<RecommendationResponse> recommendations
+    ) {
+        final List<LightweightRecommendationResult> results = recommendations.stream()
+                .limit(5)
+                .map(this::toLightweightHomeResponse)
+                .toList();
+
+        final LocalDate priceDataDate = results.stream()
+                .map(LightweightRecommendationResult::priceDataDate)
+                .filter(date -> date != null)
+                .min(LocalDate::compareTo)
+                .orElse(null);
+        final OffsetDateTime newsAnalyzedAt = results.stream()
+                .map(LightweightRecommendationResult::newsAnalyzedAt)
+                .filter(analyzedAt -> analyzedAt != null)
+                .min(OffsetDateTime::compareTo)
+                .orElse(null);
+
+        return new HomeRecommendationResponse(
+                OffsetDateTime.now(HOME_ZONE),
+                priceDataDate,
+                newsAnalyzedAt,
+                results.stream().map(LightweightRecommendationResult::response).toList()
         );
     }
 
@@ -616,6 +705,14 @@ public class RecommendationService {
         }
 
         return false;
+    }
+
+    private boolean needsRefresh(RecommendationRecord record) {
+        final LocalDate today = LocalDate.now(HOME_ZONE);
+        if (!today.equals(record.getRecommendationDate())) {
+            return true;
+        }
+        return !ENGINE_VERSION.equals(blankToEmpty(record.getEngineVersion()));
     }
 
     private RecommendationScoresResponse extractScores(List<RecommendationEvidenceRecord> evidenceRecords) {

@@ -48,7 +48,16 @@ public class RecommendationController {
             @PathVariable("portfolioItemId") Long portfolioItemId
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
-        return ApiResponse.ok(recommendationService.getRecommendationDetail(userId, portfolioItemId));
+        return ApiResponse.ok(recommendationService.getOptimizedRecommendationDetail(userId, portfolioItemId));
+    }
+
+    @PostMapping("/{portfolioItemId:\\d+}/refresh")
+    public ApiResponse<RecommendationResponse> refreshRecommendationDetail(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @PathVariable("portfolioItemId") Long portfolioItemId
+    ) {
+        final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        return ApiResponse.ok(recommendationService.refreshRecommendationDetail(userId, portfolioItemId));
     }
 
     @GetMapping("/home")
@@ -56,7 +65,7 @@ public class RecommendationController {
             @RequestHeader("Authorization") String authorizationHeader
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
-        return ApiResponse.ok(recommendationService.getLightweightHomeRecommendations(userId));
+        return ApiResponse.ok(recommendationService.getOptimizedHomeRecommendations(userId));
     }
 
     @PostMapping("/generate")

@@ -1,10 +1,14 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../currency/currency_scope.dart';
+import '../models/display_currency.dart';
 import '../models/recommendation_item.dart';
 import '../models/recommendation_news_item.dart';
+import '../models/stock_quote.dart';
 import '../services/recommendation_service.dart';
+import '../services/stock_quote_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/app_section_card.dart';
@@ -28,14 +32,33 @@ class StockDetailScreen extends StatefulWidget {
 class _StockDetailScreenState extends State<StockDetailScreen> {
   final RecommendationService _recommendationService =
       const RecommendationService();
+  final StockQuoteService _stockQuoteService = const StockQuoteService();
+  final DateFormat _quoteTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
+
   late Future<RecommendationItem> _detailFuture;
+  RecommendationItem? _currentItem;
+  StockQuote? _quote;
+  int? _loadedQuoteStockId;
+  bool _isRefreshingLatest = false;
+  bool _isLoadingQuote = false;
+  String? _statusMessage;
 
   @override
   void initState() {
     super.initState();
+    _currentItem = widget.initialItem;
     _detailFuture = _recommendationService.fetchRecommendationDetail(
       widget.portfolioItemId,
     );
+    _detailFuture.then(_applyFetchedItem).catchError((_) {});
+
+    if (widget.initialItem != null) {
+      _loadQuote(widget.initialItem!.stockId);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshLatestRecommendation();
+    });
   }
 
   @override
@@ -51,12 +74,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         future: _detailFuture,
         initialData: widget.initialItem,
         builder: (context, snapshot) {
+          final item = _currentItem ?? snapshot.data;
+
           if (snapshot.connectionState == ConnectionState.waiting &&
-              snapshot.data == null) {
+              item == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError && snapshot.data == null) {
+          if (snapshot.hasError && item == null) {
             return Padding(
               padding: const EdgeInsets.all(20),
               child: AppSectionCard(
@@ -64,10 +89,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('상세 추천을 불러오지 못했습니다.', style: theme.textTheme.titleLarge),
+                    Text(
+                      '상세 추천을 불러오지 못했어요.',
+                      style: theme.textTheme.titleLarge,
+                    ),
                     const SizedBox(height: 8),
                     Text(
-                      '운영 서버에서 최신 추천 상세를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.',
+                      '최신 상세 데이터를 가져오지 못했어요. 잠시 후 다시 시도해주세요.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 14),
@@ -81,19 +109,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             );
           }
 
-          final item = snapshot.data ?? widget.initialItem!;
+          final resolvedItem = item!;
           final currencyController = CurrencyScope.of(context);
 
           return ListenableBuilder(
             listenable: currencyController,
             builder: (context, _) {
               final currentAmount = CurrencyFormatter.formatAmount(
-                usdAmount: item.currentAmountUsd,
+                usdAmount: resolvedItem.currentAmountUsd,
                 currency: currencyController.displayCurrency,
                 usdToKrwRate: currencyController.usdToKrwRate,
               );
               final recommendedAmount = CurrencyFormatter.formatAmount(
-                usdAmount: item.recommendedAmountUsd,
+                usdAmount: resolvedItem.recommendedAmountUsd,
                 currency: currencyController.displayCurrency,
                 usdToKrwRate: currencyController.usdToKrwRate,
               );
@@ -101,11 +129,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                 children: [
-                  if (snapshot.connectionState == ConnectionState.waiting)
+                  if (_isRefreshingLatest)
                     const Padding(
                       padding: EdgeInsets.only(bottom: 10),
                       child: LinearProgressIndicator(minHeight: 3),
                     ),
+                  _DetailStatusCard(
+                    isRefreshingLatest: _isRefreshingLatest,
+                    message: _statusMessage,
+                  ),
+                  const SizedBox(height: 12),
                   AppSectionCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,16 +146,22 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DetailLogo(ticker: item.ticker, logoUrl: item.logoUrl),
+                            _DetailLogo(
+                              ticker: resolvedItem.ticker,
+                              logoUrl: resolvedItem.logoUrl,
+                            ),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(item.name, style: theme.textTheme.headlineMedium),
+                                  Text(
+                                    resolvedItem.name,
+                                    style: theme.textTheme.headlineMedium,
+                                  ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    item.ticker,
+                                    resolvedItem.ticker,
                                     style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -133,11 +172,26 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            RecommendationBadge(status: item.status),
+                            RecommendationBadge(status: resolvedItem.status),
                           ],
                         ),
-                        const SizedBox(height: 18),
-                        Text(item.note, style: theme.textTheme.bodyLarge),
+                        const SizedBox(height: 12),
+                        _LivePriceCard(
+                          quote: _quote,
+                          isLoading: _isLoadingQuote,
+                          displayCurrency: currencyController.displayCurrency,
+                          usdToKrwRate: currencyController.usdToKrwRate,
+                          quoteTimeFormat: _quoteTimeFormat,
+                        ),
+                        const SizedBox(height: 14),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          child: Text(
+                            resolvedItem.note,
+                            key: ValueKey(resolvedItem.note),
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -145,14 +199,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: _MetricCard(label: '현재 매일 모으기', value: currentAmount),
+                        child: _MetricCard(
+                          label: '현재 매일 모으기',
+                          value: currentAmount,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MetricCard(
                           label: '추천 금액',
                           value: recommendedAmount,
-                          accentColor: item.status.color,
+                          accentColor: resolvedItem.status.color,
                         ),
                       ),
                     ],
@@ -163,18 +220,21 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       Expanded(
                         child: _MiniMetricCard(
                           label: '신뢰도',
-                          value: '${item.confidence}%',
+                          value: '${resolvedItem.confidence}%',
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _MiniMetricCard(label: '점수', value: '${item.score}'),
+                        child: _MiniMetricCard(
+                          label: '점수',
+                          value: '${resolvedItem.score}',
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MiniMetricCard(
                           label: '보유 수량',
-                          value: item.currentHolding,
+                          value: resolvedItem.currentHolding,
                         ),
                       ),
                     ],
@@ -191,7 +251,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           style: theme.textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 16),
-                        EvidenceSection(items: item.evidence),
+                        EvidenceSection(items: resolvedItem.evidence),
                       ],
                     ),
                   ),
@@ -203,17 +263,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         Text('관련 뉴스 분석', style: theme.textTheme.titleLarge),
                         const SizedBox(height: 8),
                         Text(
-                          item.relatedNews.isEmpty
-                              ? '오늘 기준으로 관련성 높은 뉴스가 아직 반영되지 않았습니다.'
-                              : '감성, 관련성, 영향도를 함께 반영한 기사별 분석입니다.',
+                          resolvedItem.relatedNews.isEmpty
+                              ? '아직 반영된 관련 뉴스가 없습니다.'
+                              : '감성, 관련성, 영향도를 반영한 기사별 분석입니다.',
                           style: theme.textTheme.bodyMedium,
                         ),
-                        if (item.relatedNews.isNotEmpty) ...[
+                        if (resolvedItem.relatedNews.isNotEmpty) ...[
                           const SizedBox(height: 16),
-                          ...item.relatedNews.asMap().entries.map((entry) {
+                          ...resolvedItem.relatedNews.asMap().entries.map((entry) {
                             return Padding(
                               padding: EdgeInsets.only(
-                                bottom: entry.key == item.relatedNews.length - 1 ? 0 : 12,
+                                bottom: entry.key == resolvedItem.relatedNews.length - 1
+                                    ? 0
+                                    : 12,
                               ),
                               child: _RelatedNewsCard(news: entry.value),
                             );
@@ -227,13 +289,15 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('투자 메모', style: theme.textTheme.titleLarge),
+                        Text('사용자 메모', style: theme.textTheme.titleLarge),
                         const SizedBox(height: 10),
-                        _MetaLine(label: '투자 시작일', value: item.startedAt),
+                        _MetaLine(label: '투자 시작일', value: resolvedItem.startedAt),
                         const SizedBox(height: 8),
                         _MetaLine(
-                          label: '사용자 메모',
-                          value: item.memo.isEmpty ? '등록된 메모가 없습니다.' : item.memo,
+                          label: '메모',
+                          value: resolvedItem.memo.isEmpty
+                              ? '등록된 메모가 없습니다.'
+                              : resolvedItem.memo,
                         ),
                       ],
                     ),
@@ -249,10 +313,341 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   void _reload() {
     setState(() {
+      _statusMessage = null;
       _detailFuture = _recommendationService.fetchRecommendationDetail(
         widget.portfolioItemId,
       );
     });
+    _detailFuture.then(_applyFetchedItem).catchError((_) {});
+    _refreshLatestRecommendation();
+  }
+
+  Future<void> _refreshLatestRecommendation() async {
+    if (_isRefreshingLatest) {
+      return;
+    }
+
+    setState(() {
+      _isRefreshingLatest = true;
+      _statusMessage = '최근 저장된 분석 결과를 먼저 보여드리고 있어요.';
+    });
+
+    try {
+      final refreshedItem = await _recommendationService.refreshRecommendationDetail(
+        widget.portfolioItemId,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      final hasVisibleChange = _hasMeaningfulDifference(_currentItem, refreshedItem);
+      setState(() {
+        if (hasVisibleChange) {
+          _currentItem = refreshedItem;
+          _statusMessage = '최신 분석 결과를 바로 반영했어요.';
+        } else {
+          _currentItem = refreshedItem;
+          _statusMessage = '방금 최신 뉴스까지 확인했어요.';
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _statusMessage = '최신 분석 반영이 조금 지연되고 있어요.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshingLatest = false;
+        });
+      }
+    }
+  }
+
+  void _applyFetchedItem(RecommendationItem item) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _currentItem = item;
+    });
+    _loadQuote(item.stockId);
+  }
+
+  Future<void> _loadQuote(int stockId) async {
+    if (_isLoadingQuote || _loadedQuoteStockId == stockId) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingQuote = true;
+    });
+
+    try {
+      final quote = await _stockQuoteService.fetchQuote(stockId);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _quote = quote;
+        _loadedQuoteStockId = stockId;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loadedQuoteStockId = stockId;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingQuote = false;
+        });
+      }
+    }
+  }
+
+  bool _hasMeaningfulDifference(
+    RecommendationItem? current,
+    RecommendationItem next,
+  ) {
+    if (current == null) {
+      return true;
+    }
+
+    return current.score != next.score ||
+        current.confidence != next.confidence ||
+        current.status != next.status ||
+        current.note != next.note ||
+        current.currentAmountUsd != next.currentAmountUsd ||
+        current.recommendedAmountUsd != next.recommendedAmountUsd ||
+        current.relatedNews.length != next.relatedNews.length;
+  }
+}
+
+class _DetailStatusCard extends StatelessWidget {
+  const _DetailStatusCard({
+    required this.isRefreshingLatest,
+    required this.message,
+  });
+
+  final bool isRefreshingLatest;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = <Widget>[
+      if (isRefreshingLatest)
+        const _StatusChip(
+          label: '최신 분석 중',
+          color: MaeMojiColors.reduce,
+        ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: MaeMojiColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (chips.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: chips,
+            ),
+          if (message != null) ...[
+            SizedBox(height: chips.isNotEmpty ? 10 : 0),
+            Text(
+              message!,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.45,
+                color: MaeMojiColors.inkSoft,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LivePriceCard extends StatelessWidget {
+  const _LivePriceCard({
+    required this.quote,
+    required this.isLoading,
+    required this.displayCurrency,
+    required this.usdToKrwRate,
+    required this.quoteTimeFormat,
+  });
+
+  final StockQuote? quote;
+  final bool isLoading;
+  final DisplayCurrency displayCurrency;
+  final double? usdToKrwRate;
+  final DateFormat quoteTimeFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final resolvedQuote = quote;
+
+    if (resolvedQuote == null) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              isLoading ? '현재가 불러오는 중...' : '현재가 정보를 아직 불러오지 못했어요.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: 12,
+                color: MaeMojiColors.inkMuted,
+              ),
+            ),
+          ),
+          if (isLoading)
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+        ],
+      );
+    }
+
+    final showKrw =
+        displayCurrency == DisplayCurrency.krw &&
+        usdToKrwRate != null &&
+        usdToKrwRate! > 0;
+    final primaryPrice = CurrencyFormatter.formatAmount(
+      usdAmount: resolvedQuote.currentPrice,
+      currency: showKrw ? DisplayCurrency.krw : DisplayCurrency.usd,
+      usdToKrwRate: usdToKrwRate,
+    );
+    final convertedChange =
+        showKrw && usdToKrwRate != null
+            ? resolvedQuote.change * usdToKrwRate!
+            : resolvedQuote.change;
+    final changePrefix = convertedChange > 0 ? '+' : '';
+    final percentPrefix = resolvedQuote.percentChange > 0 ? '+' : '';
+    final changeColor =
+        resolvedQuote.change > 0
+            ? MaeMojiColors.increase
+            : resolvedQuote.change < 0
+            ? MaeMojiColors.stop
+            : MaeMojiColors.inkMuted;
+    final changeText =
+        showKrw
+            ? '$changePrefix${convertedChange.toStringAsFixed(0)}원'
+            : '$changePrefix${convertedChange.toStringAsFixed(2)} USD';
+    final quotedAt = _formatQuoteTime(resolvedQuote.quoteTimestamp, quoteTimeFormat);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                primaryPrice,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: MaeMojiColors.ink,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: changeColor.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$percentPrefix${resolvedQuote.percentChange.toStringAsFixed(2)}% · $changeText',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: changeColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                quotedAt == null ? '가격 시각 확인 중' : '가격 기준 $quotedAt',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: 11,
+                  color: MaeMojiColors.inkMuted,
+                ),
+              ),
+            ),
+            if (isLoading)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static String? _formatQuoteTime(int? timestamp, DateFormat formatter) {
+    if (timestamp == null || timestamp <= 0) {
+      return null;
+    }
+
+    final dateTime = DateTime.fromMillisecondsSinceEpoch(
+      timestamp * 1000,
+      isUtc: true,
+    ).toLocal();
+    return formatter.format(dateTime);
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
   }
 }
 
@@ -555,7 +950,7 @@ class _RelatedNewsCard extends StatelessWidget {
               if (news.newsUrl.isNotEmpty)
                 TextButton(
                   onPressed: () => _openNews(context, news.newsUrl),
-                  child: const Text('원문 보기'),
+                  child: const Text('뉴스 보기'),
                 ),
             ],
           ),
@@ -571,7 +966,7 @@ class _RelatedNewsCard extends StatelessWidget {
     if (uri == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('뉴스 링크를 열 수 없습니다.')));
+      ).showSnackBar(const SnackBar(content: Text('뉴스 링크를 열 수 없어요.')));
       return;
     }
 
@@ -579,7 +974,7 @@ class _RelatedNewsCard extends StatelessWidget {
     if (!opened && context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('뉴스 링크를 열지 못했습니다.')));
+      ).showSnackBar(const SnackBar(content: Text('뉴스 링크를 여는 데 실패했어요.')));
     }
   }
 }
@@ -609,3 +1004,5 @@ class _NewsChip extends StatelessWidget {
     );
   }
 }
+
+

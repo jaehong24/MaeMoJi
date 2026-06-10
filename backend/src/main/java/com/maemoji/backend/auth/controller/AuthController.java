@@ -6,6 +6,7 @@ import com.maemoji.backend.auth.dto.GoogleLoginRequest;
 import com.maemoji.backend.auth.service.GoogleAuthService;
 import com.maemoji.backend.common.api.ApiResponse;
 import com.maemoji.backend.common.auth.AuthenticatedUserResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +35,11 @@ public class AuthController {
             @Valid @RequestBody GoogleLoginRequest request
     ) {
         return ApiResponse.ok(googleAuthService.login(request.idToken()));
+    }
+
+    @PostMapping("/dev")
+    public ApiResponse<AuthLoginResponse> loginAsDev(HttpServletRequest request) {
+        return ApiResponse.ok(googleAuthService.loginAsDev(request.getServerName()));
     }
 
     @GetMapping("/me")

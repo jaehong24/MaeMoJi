@@ -3,6 +3,7 @@ package com.maemoji.backend.portfolio.service;
 import com.maemoji.backend.portfolio.dto.PortfolioCreateRequest;
 import com.maemoji.backend.portfolio.dto.PortfolioItemSummaryResponse;
 import com.maemoji.backend.portfolio.mapper.PortfolioMapper;
+import com.maemoji.backend.recommendation.service.RecommendationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,9 +20,14 @@ public class PortfolioService {
     private static final int MAX_PORTFOLIO_ITEMS = 5;
 
     private final PortfolioMapper portfolioMapper;
+    private final RecommendationService recommendationService;
 
-    public PortfolioService(PortfolioMapper portfolioMapper) {
+    public PortfolioService(
+            PortfolioMapper portfolioMapper,
+            RecommendationService recommendationService
+    ) {
         this.portfolioMapper = portfolioMapper;
+        this.recommendationService = recommendationService;
     }
 
     @Transactional
@@ -50,6 +56,7 @@ public class PortfolioService {
             portfolioMapper.updatePortfolioItem(portfolioItemId, request);
         }
 
+        recommendationService.generateLatestRecommendations(userId);
         return portfolioMapper.findPortfolioItemsByUserId(userId);
     }
 
@@ -61,6 +68,7 @@ public class PortfolioService {
             throw new ResponseStatusException(NOT_FOUND, "삭제할 포트폴리오 종목을 찾을 수 없습니다.");
         }
 
+        recommendationService.generateLatestRecommendations(userId);
         return portfolioMapper.findPortfolioItemsByUserId(userId);
     }
 

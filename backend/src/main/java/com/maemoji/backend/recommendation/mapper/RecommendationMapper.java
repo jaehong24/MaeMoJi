@@ -17,6 +17,11 @@ public interface RecommendationMapper {
 
     List<RecommendationTarget> findActiveRecommendationTargetsByUserId(@Param("userId") Long userId);
 
+    RecommendationTarget findActiveRecommendationTargetByUserIdAndPortfolioItemId(
+            @Param("userId") Long userId,
+            @Param("portfolioItemId") Long portfolioItemId
+    );
+
     Long upsertRecommendation(@Param("command") RecommendationSaveCommand command);
 
     void deleteRecommendationEvidence(@Param("recommendationId") Long recommendationId);
@@ -28,6 +33,11 @@ public interface RecommendationMapper {
     void insertNewsAnalysisCache(@Param("command") NewsAnalysisSaveCommand command);
 
     List<RecommendationRecord> findLatestRecommendationsByUserId(@Param("userId") Long userId);
+
+    RecommendationRecord findLatestRecommendationByUserIdAndPortfolioItemId(
+            @Param("userId") Long userId,
+            @Param("portfolioItemId") Long portfolioItemId
+    );
 
     List<RecommendationEvidenceRecord> findRecommendationEvidenceByRecommendationId(
             @Param("recommendationId") Long recommendationId
