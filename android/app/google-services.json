@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "35410209271",
+    "project_id": "maemoji-c4302",
+    "storage_bucket": "maemoji-c4302.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:35410209271:android:2f749e5e06cb8f271426f2",
+        "android_client_info": {
+          "package_name": "com.maemoji.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtrk75LhZ2gHppRo-lnrmrwOAFL9gYc2A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
