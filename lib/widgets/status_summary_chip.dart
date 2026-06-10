@@ -8,16 +8,21 @@ class StatusSummaryChip extends StatelessWidget {
     required this.label,
     required this.count,
     required this.color,
+    this.compact = false,
   });
 
   final String label;
   final int count;
   final Color color;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 14,
+        vertical: compact ? 12 : 14,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -26,15 +31,15 @@ class StatusSummaryChip extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 10,
-            height: 10,
+            width: compact ? 8 : 10,
+            height: compact ? 8 : 10,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: compact ? 6 : 10),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 14,
+            style: TextStyle(
+              fontSize: compact ? 12 : 14,
               fontWeight: FontWeight.w600,
               color: MaeMojiColors.ink,
             ),
@@ -42,8 +47,8 @@ class StatusSummaryChip extends StatelessWidget {
           const Spacer(),
           Text(
             '$count',
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: compact ? 14 : 16,
               fontWeight: FontWeight.w700,
               color: MaeMojiColors.ink,
             ),

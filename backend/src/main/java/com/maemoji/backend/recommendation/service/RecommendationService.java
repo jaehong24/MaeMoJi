@@ -83,7 +83,11 @@ public class RecommendationService {
 
     @Transactional
     public List<RecommendationResponse> generateLatestRecommendations() {
-        final Long userId = ensureDevUserId();
+        return generateLatestRecommendations(ensureDevUserId());
+    }
+
+    @Transactional
+    public List<RecommendationResponse> generateLatestRecommendations(Long userId) {
         // Render는 UTC로 실행되므로 한국 날짜를 명시적으로 사용합니다.
         final LocalDate recommendationDate = LocalDate.now(HOME_ZONE);
         final List<RecommendationTarget> targets =
@@ -101,7 +105,11 @@ public class RecommendationService {
 
     @Transactional
     public List<RecommendationResponse> getLatestRecommendations() {
-        final Long userId = ensureDevUserId();
+        return getLatestRecommendations(ensureDevUserId());
+    }
+
+    @Transactional
+    public List<RecommendationResponse> getLatestRecommendations(Long userId) {
         final List<RecommendationTarget> targets =
                 recommendationMapper.findActiveRecommendationTargetsByUserId(userId);
 
@@ -112,7 +120,7 @@ public class RecommendationService {
         final List<RecommendationRecord> latestRecommendations =
                 recommendationMapper.findLatestRecommendationsByUserId(userId);
         if (needsRefresh(targets, latestRecommendations)) {
-            return generateLatestRecommendations();
+            return generateLatestRecommendations(userId);
         }
 
         final Map<Long, RecommendationRecord> recommendationByPortfolioItemId = new LinkedHashMap<>();
@@ -133,7 +141,12 @@ public class RecommendationService {
 
     @Transactional
     public RecommendationResponse getRecommendationDetail(Long portfolioItemId) {
-        return getLatestRecommendations().stream()
+        return getRecommendationDetail(ensureDevUserId(), portfolioItemId);
+    }
+
+    @Transactional
+    public RecommendationResponse getRecommendationDetail(Long userId, Long portfolioItemId) {
+        return getLatestRecommendations(userId).stream()
                 .filter(item -> portfolioItemId.equals(item.portfolioItemId()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("추천 상세 대상을 찾을 수 없습니다."));
@@ -141,7 +154,11 @@ public class RecommendationService {
 
     @Transactional
     public HomeRecommendationResponse getLightweightHomeRecommendations() {
-        final Long userId = ensureDevUserId();
+        return getLightweightHomeRecommendations(ensureDevUserId());
+    }
+
+    @Transactional
+    public HomeRecommendationResponse getLightweightHomeRecommendations(Long userId) {
         final List<RecommendationTarget> targets =
                 recommendationMapper.findActiveRecommendationTargetsByUserId(userId);
         final List<LightweightRecommendationResult> results = targets.stream()

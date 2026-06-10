@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
 import '../models/home_recommendation_summary.dart';
+import '../services/auth_service.dart';
+import '../services/auth_session_store.dart';
 import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -20,7 +22,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final RecommendationService _recommendationService =
       const RecommendationService();
+  final AuthService _authService = AuthService();
+  final AuthSessionStore _authSessionStore = AuthSessionStore.instance;
   late Future<HomeRecommendationSummary> _freshnessFuture;
+  bool _signingOut = false;
 
   @override
   void initState() {
@@ -35,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
+    final user = _authSessionStore.session?.user;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
@@ -42,7 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Text('설정', style: theme.textTheme.displaySmall),
         const SizedBox(height: 8),
         Text(
-          '앱 환경, 배치 상태, 연결된 API 정보를 확인하는 화면입니다.',
+          '앱 환경, 배치 상태, 로그인 정보를 확인하는 화면입니다.',
           style: theme.textTheme.bodyLarge,
         ),
         const SizedBox(height: 20),
@@ -62,6 +68,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         AppSectionCard(
           child: Column(
             children: [
+              _SettingsRow(
+                title: '로그인 계정',
+                value: user == null ? '-' : '${user.nickname}\n${user.email}',
+              ),
               const _SettingsRow(title: '자동 배치 시각', value: '매일 오전 6:47 (KST)'),
               _SettingsRow(title: '현재 API 주소', value: apiBaseUrl),
               const _SettingsRow(title: '기본 테마', value: '라이트'),
@@ -72,6 +82,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 isLast: true,
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _signingOut ? null : _signOut,
+            child: Text(_signingOut ? '로그아웃 중...' : '로그아웃'),
           ),
         ),
         const SizedBox(height: 16),
@@ -136,6 +154,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _freshnessFuture = _recommendationService.fetchHomeRecommendations();
     });
+  }
+
+  Future<void> _signOut() async {
+    setState(() {
+      _signingOut = true;
+    });
+    try {
+      await _authService.signOut();
+      await _authSessionStore.clear();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _signingOut = false;
+        });
+      }
+    }
   }
 }
 

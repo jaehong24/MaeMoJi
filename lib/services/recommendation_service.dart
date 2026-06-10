@@ -9,6 +9,7 @@ import '../models/home_recommendation_summary.dart';
 import '../models/recommendation_item.dart';
 import '../models/recommendation_news_item.dart';
 import '../models/recommendation_status.dart';
+import 'api_auth_headers.dart';
 
 class RecommendationService {
   const RecommendationService();
@@ -19,7 +20,7 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri);
+    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
 
     if (response.statusCode != 200) {
       throw Exception('홈 추천 조회에 실패했습니다. (${response.statusCode})');
@@ -49,7 +50,7 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri);
+    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
 
     if (response.statusCode != 200) {
       throw Exception('추천 조회에 실패했습니다. (${response.statusCode})');
@@ -64,7 +65,7 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri);
+    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
 
     if (response.statusCode != 200) {
       throw Exception('추천 상세 조회에 실패했습니다. (${response.statusCode})');
@@ -86,7 +87,7 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.post(uri);
+    final response = await http.post(uri, headers: ApiAuthHeaders.auth());
 
     if (response.statusCode != 200) {
       throw Exception('추천 생성에 실패했습니다. (${response.statusCode})');

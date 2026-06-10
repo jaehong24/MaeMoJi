@@ -11,6 +11,89 @@
         limit 1
     </select>
 
+    <select id="findByGoogleSubject"
+            resultType="com.maemoji.backend.user.domain.UserSessionRecord">
+        select
+            id,
+            email,
+            nickname,
+            profile_image_url,
+            google_subject,
+            auth_token,
+            auth_token_expires_at,
+            status
+        from users
+        where google_subject = #{googleSubject}
+        limit 1
+    </select>
+
+    <select id="upsertGoogleUserByEmail" resultType="long" affectData="true">
+        insert into users (
+            email,
+            password_hash,
+            nickname,
+            status,
+            google_subject,
+            profile_image_url,
+            last_login_at
+        ) values (
+            #{email},
+            'GOOGLE_AUTH',
+            #{nickname},
+            'ACTIVE',
+            #{googleSubject},
+            #{profileImageUrl},
+            #{lastLoginAt}
+        )
+        on conflict (email) do update
+        set
+            nickname = excluded.nickname,
+            status = 'ACTIVE',
+            google_subject = excluded.google_subject,
+            profile_image_url = excluded.profile_image_url,
+            last_login_at = excluded.last_login_at
+        returning id
+    </select>
+
+    <update id="updateGoogleUserProfileById">
+        update users
+        set
+            email = #{email},
+            nickname = #{nickname},
+            status = 'ACTIVE',
+            google_subject = #{googleSubject},
+            profile_image_url = #{profileImageUrl},
+            last_login_at = #{lastLoginAt}
+        where id = #{userId}
+    </update>
+
+    <update id="updateAuthSession">
+        update users
+        set
+            auth_token = #{authToken},
+            auth_token_expires_at = #{authTokenExpiresAt},
+            last_login_at = #{lastLoginAt}
+        where id = #{userId}
+    </update>
+
+    <select id="findSessionUserByAuthToken"
+            resultType="com.maemoji.backend.user.domain.UserSessionRecord">
+        select
+            id,
+            email,
+            nickname,
+            profile_image_url,
+            google_subject,
+            auth_token,
+            auth_token_expires_at,
+            status
+        from users
+        where auth_token = #{authToken}
+          and auth_token_expires_at > now()
+          and status = 'ACTIVE'
+        limit 1
+    </select>
+
     <insert id="insertDevUser">
         insert into users (
             email,
@@ -20,7 +103,7 @@
         ) values (
             'dev@maemoji.local',
             'LOCAL_DEV_ONLY',
-            'MaeMoJi 개발 사용자',
+            'MaeMoJi DEV USER',
             'ACTIVE'
         )
         on conflict (email) do nothing

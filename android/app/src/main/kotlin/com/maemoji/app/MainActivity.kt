@@ -1,4 +1,4 @@
-package com.example.maemoji
+package com.maemoji.app
 
 import io.flutter.embedding.android.FlutterActivity
 

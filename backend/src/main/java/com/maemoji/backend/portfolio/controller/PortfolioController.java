@@ -1,6 +1,7 @@
 package com.maemoji.backend.portfolio.controller;
 
 import com.maemoji.backend.common.api.ApiResponse;
+import com.maemoji.backend.common.auth.AuthenticatedUserResolver;
 import com.maemoji.backend.portfolio.dto.PortfolioCreateRequest;
 import com.maemoji.backend.portfolio.dto.PortfolioItemSummaryResponse;
 import com.maemoji.backend.portfolio.service.PortfolioService;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,27 +22,39 @@ import java.util.List;
 public class PortfolioController {
 
     private final PortfolioService portfolioService;
+    private final AuthenticatedUserResolver authenticatedUserResolver;
 
-    public PortfolioController(PortfolioService portfolioService) {
+    public PortfolioController(
+            PortfolioService portfolioService,
+            AuthenticatedUserResolver authenticatedUserResolver
+    ) {
         this.portfolioService = portfolioService;
+        this.authenticatedUserResolver = authenticatedUserResolver;
     }
 
     @GetMapping
-    public ApiResponse<List<PortfolioItemSummaryResponse>> getPortfolioItems() {
-        return ApiResponse.ok(portfolioService.getPortfolioItems());
+    public ApiResponse<List<PortfolioItemSummaryResponse>> getPortfolioItems(
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        return ApiResponse.ok(portfolioService.getPortfolioItems(userId));
     }
 
     @PostMapping
     public ApiResponse<List<PortfolioItemSummaryResponse>> createPortfolioItem(
+            @RequestHeader("Authorization") String authorizationHeader,
             @Valid @RequestBody PortfolioCreateRequest request
     ) {
-        return ApiResponse.ok(portfolioService.createOrUpdatePortfolioItem(request));
+        final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        return ApiResponse.ok(portfolioService.createOrUpdatePortfolioItem(userId, request));
     }
 
     @DeleteMapping("/{portfolioItemId}")
     public ApiResponse<List<PortfolioItemSummaryResponse>> deletePortfolioItem(
+            @RequestHeader("Authorization") String authorizationHeader,
             @PathVariable("portfolioItemId") Long portfolioItemId
     ) {
-        return ApiResponse.ok(portfolioService.deletePortfolioItem(portfolioItemId));
+        final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        return ApiResponse.ok(portfolioService.deletePortfolioItem(userId, portfolioItemId));
     }
 }

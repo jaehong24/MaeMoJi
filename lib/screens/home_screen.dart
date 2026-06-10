@@ -24,7 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final RecommendationService _recommendationService =
-  const RecommendationService();
+      const RecommendationService();
   late Future<HomeRecommendationSummary> _recommendationsFuture;
 
   @override
@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '🍀 오늘의 매모지',
+                    '오늘의 매모지',
                     maxLines: 1,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontSize: 18,
@@ -67,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '매일 모으기를 지원합니다. \n모든 투자선택은 본인의\n책임입니다.',
+                    '매일 모으기 흐름을 빠르게 확인합니다.\n모든 투자 선택과 책임은 본인에게 있습니다.',
                     style: theme.textTheme.bodyLarge,
                   ),
                 ],
@@ -158,6 +158,9 @@ class _HomeScreenState extends State<HomeScreen> {
             final reduceCount = recommendations
                 .where((item) => item.status == RecommendationStatus.reduce)
                 .length;
+            final stopCount = recommendations
+                .where((item) => item.status == RecommendationStatus.stop)
+                .length;
 
             return Column(
               children: [
@@ -165,32 +168,44 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: StatusSummaryChip(
-                        label: '증액',
+                        label: RecommendationStatus.increase.label,
                         count: increaseCount,
                         color: MaeMojiColors.increase,
+                        compact: true,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: StatusSummaryChip(
-                        label: '유지',
+                        label: RecommendationStatus.maintain.label,
                         count: maintainCount,
                         color: MaeMojiColors.maintain,
+                        compact: true,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: StatusSummaryChip(
-                        label: '축소',
+                        label: RecommendationStatus.reduce.label,
                         count: reduceCount,
                         color: MaeMojiColors.reduce,
+                        compact: true,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: StatusSummaryChip(
+                        label: RecommendationStatus.stop.label,
+                        count: stopCount,
+                        color: MaeMojiColors.stop,
+                        compact: true,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 18),
                 ...recommendations.map(
-                      (item) => Padding(
+                  (item) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: RecommendationCard(
                       item: item,
@@ -231,8 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _reloadRecommendations() {
     setState(() {
-      _recommendationsFuture = _recommendationService
-          .fetchHomeRecommendations();
+      _recommendationsFuture = _recommendationService.fetchHomeRecommendations();
     });
   }
 }

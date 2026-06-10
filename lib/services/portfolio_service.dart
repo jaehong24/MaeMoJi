@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../models/portfolio_item_summary.dart';
+import 'api_auth_headers.dart';
 
 class PortfolioService {
   const PortfolioService();
@@ -15,7 +16,7 @@ class PortfolioService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri);
+    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
 
     if (response.statusCode != 200) {
       throw Exception('포트폴리오 조회에 실패했습니다. (${response.statusCode})');
@@ -38,7 +39,7 @@ class PortfolioService {
     );
     final response = await http.post(
       uri,
-      headers: const {'Content-Type': 'application/json'},
+      headers: ApiAuthHeaders.json(),
       body: jsonEncode({
         'stockId': stockId,
         'dailyInvestAmount': dailyInvestAmount,
@@ -66,7 +67,7 @@ class PortfolioService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.delete(uri);
+    final response = await http.delete(uri, headers: ApiAuthHeaders.auth());
 
     if (response.statusCode != 200) {
       final body = utf8.decode(response.bodyBytes);
