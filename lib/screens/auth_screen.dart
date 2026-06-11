@@ -1,9 +1,14 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/auth_service.dart';
 import '../services/auth_session_store.dart';
 import '../theme/app_theme.dart';
+import '../widgets/google_web_sign_in_button.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -14,9 +19,29 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final AuthService _authService = AuthService();
+  StreamSubscription<GoogleSignInAccount?>? _googleUserSubscription;
 
   bool _submitting = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      _googleUserSubscription = _authService.onCurrentUserChanged.listen(
+        _handleWebGoogleAccountChanged,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _authService.restoreGoogleSessionIfPossible().catchError((_) {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _googleUserSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,10 +130,15 @@ class _AuthScreenState extends State<AuthScreen> {
                             ],
                           ),
                           const SizedBox(height: 24),
-                          _GoogleButton(
-                            busy: _submitting,
-                            onPressed: _submitting ? null : _signInWithGoogle,
-                          ),
+                          if (kIsWeb)
+                            GoogleWebSignInButton(
+                              googleSignIn: _authService.googleSignIn,
+                            )
+                          else
+                            _GoogleButton(
+                              busy: _submitting,
+                              onPressed: _submitting ? null : _signInWithGoogle,
+                            ),
                           if (_errorMessage != null) ...[
                             const SizedBox(height: 16),
                             Container(
@@ -184,6 +214,38 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       final session = await _authService.signInWithGoogle();
+      await AuthSessionStore.instance.save(session);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleWebGoogleAccountChanged(
+    GoogleSignInAccount? account,
+  ) async {
+    if (!kIsWeb || account == null || _submitting) {
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final session = await _authService.signInWithGoogleAccount(account);
       await AuthSessionStore.instance.save(session);
     } catch (error) {
       if (!mounted) {

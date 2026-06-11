@@ -12,23 +12,36 @@ import '../models/auth_user.dart';
 class AuthService {
   AuthService()
       : _googleSignIn = GoogleSignIn(
-          scopes: const ['email', 'profile', 'openid'],
+          scopes: const ['email', 'openid'],
           clientId: kIsWeb ? GoogleAuthConfig.webClientId : null,
           serverClientId: kIsWeb ? null : GoogleAuthConfig.webClientId,
         );
 
   final GoogleSignIn _googleSignIn;
 
+  GoogleSignIn get googleSignIn => _googleSignIn;
+
+  Stream<GoogleSignInAccount?> get onCurrentUserChanged =>
+      _googleSignIn.onCurrentUserChanged;
+
   Future<AuthSession> signInWithGoogle() async {
     final account = await _googleSignIn.signIn();
     if (account == null) {
-      throw Exception('Google 로그인이 취소되었습니다.');
+      throw Exception('Google 로그인이 취소되었어요.');
     }
 
+    return signInWithGoogleAccount(account);
+  }
+
+  Future<void> restoreGoogleSessionIfPossible() async {
+    await _googleSignIn.signInSilently();
+  }
+
+  Future<AuthSession> signInWithGoogleAccount(GoogleSignInAccount account) async {
     final authentication = await account.authentication;
     final idToken = authentication.idToken;
     if (idToken == null || idToken.isEmpty) {
-      throw Exception('Google ID 토큰을 가져오지 못했습니다.');
+      throw Exception('Google ID 토큰을 가져오지 못했어요.');
     }
 
     final uri = ApiConfig.buildUri(
@@ -43,7 +56,7 @@ class AuthService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Google 로그인 처리에 실패했습니다. (${response.statusCode})');
+      throw Exception('Google 로그인 처리에 실패했어요. (${response.statusCode})');
     }
 
     final decoded =
@@ -70,7 +83,7 @@ class AuthService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('세션이 만료되었거나 유효하지 않습니다. (${response.statusCode})');
+      throw Exception('세션이 만료되었거나 유효하지 않아요. (${response.statusCode})');
     }
 
     final decoded =
@@ -88,7 +101,7 @@ class AuthService {
     final response = await http.post(uri);
 
     if (response.statusCode != 200) {
-      throw Exception('로컬 개발 로그인에 실패했습니다. (${response.statusCode})');
+      throw Exception('로컬 개발 로그인에 실패했어요. (${response.statusCode})');
     }
 
     final decoded =
