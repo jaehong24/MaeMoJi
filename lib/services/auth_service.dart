@@ -44,6 +44,14 @@ class AuthService {
       throw Exception('Google ID 토큰을 가져오지 못했어요.');
     }
 
+    return signInWithIdToken(idToken);
+  }
+
+  Future<AuthSession> signInWithIdToken(String idToken) async {
+    if (idToken.isEmpty) {
+      throw Exception('Google ID 토큰을 가져오지 못했어요.');
+    }
+
     final uri = ApiConfig.buildUri(
       '/api/auth/google',
       isWeb: kIsWeb,

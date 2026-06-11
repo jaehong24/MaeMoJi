@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'app_shell.dart';
+import '../models/auth_session.dart';
 import '../services/auth_service.dart';
 import '../services/auth_session_store.dart';
 import '../theme/app_theme.dart';
@@ -19,7 +21,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final AuthService _authService = AuthService();
-  StreamSubscription<GoogleSignInAccount?>? _googleUserSubscription;
+  StreamSubscription<GoogleSignInUserData?>? _googleUserSubscription;
 
   bool _submitting = false;
   String? _errorMessage;
@@ -28,8 +30,9 @@ class _AuthScreenState extends State<AuthScreen> {
   void initState() {
     super.initState();
     if (kIsWeb) {
-      _googleUserSubscription = _authService.onCurrentUserChanged.listen(
-        _handleWebGoogleAccountChanged,
+      _googleUserSubscription =
+          GoogleSignInPlatform.instance.userDataEvents?.listen(
+        _handleWebGoogleUserDataChanged,
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _authService.restoreGoogleSessionIfPossible().catchError((_) {});
@@ -214,7 +217,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       final session = await _authService.signInWithGoogle();
-      await AuthSessionStore.instance.save(session);
+      await _completeSignIn(session);
     } catch (error) {
       if (!mounted) {
         return;
@@ -232,10 +235,21 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  Future<void> _handleWebGoogleAccountChanged(
-    GoogleSignInAccount? account,
+  Future<void> _handleWebGoogleUserDataChanged(
+    GoogleSignInUserData? userData,
   ) async {
-    if (!kIsWeb || account == null || _submitting) {
+    if (!kIsWeb || userData == null || _submitting) {
+      return;
+    }
+
+    final idToken = userData.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = 'Google ID 토큰을 아직 받지 못했어요. 다시 시도해주세요.';
+      });
       return;
     }
 
@@ -245,8 +259,8 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      final session = await _authService.signInWithGoogleAccount(account);
-      await AuthSessionStore.instance.save(session);
+      final session = await _authService.signInWithIdToken(idToken);
+      await _completeSignIn(session);
     } catch (error) {
       if (!mounted) {
         return;
@@ -262,6 +276,18 @@ class _AuthScreenState extends State<AuthScreen> {
         });
       }
     }
+  }
+
+  Future<void> _completeSignIn(AuthSession session) async {
+    await AuthSessionStore.instance.save(session);
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AppShell()),
+      (route) => false,
+    );
   }
 }
 
