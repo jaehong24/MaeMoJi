@@ -182,8 +182,17 @@ class RecommendationService {
         status: _parseStatus((item['recommendationType'] ?? '').toString()),
         evidence: evidenceItems,
         relatedNews: relatedNews,
+        newsAnalyzedAt: DateTime.tryParse(
+          (item['newsAnalyzedAt'] ?? '').toString(),
+        ),
+        relatedNewsStatusMessage: _nullableText(item['relatedNewsStatusMessage']),
       );
     }).toList();
+  }
+
+  String? _nullableText(dynamic value) {
+    final text = (value ?? '').toString().trim();
+    return text.isEmpty ? null : text;
   }
 
   RecommendationStatus _parseStatus(String raw) {

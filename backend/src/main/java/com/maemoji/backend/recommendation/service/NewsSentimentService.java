@@ -47,6 +47,7 @@ public class NewsSentimentService {
     private static final int MIN_PRE_ANALYSIS_RELEVANCE = 45;
     private static final int MIN_FINAL_RELEVANCE = 60;
     private static final ZoneId DAILY_NEWS_ZONE = ZoneId.of("Asia/Seoul");
+    private static final Pattern HANGUL_PATTERN = Pattern.compile("[가-힣]");
     private static final Logger log = LoggerFactory.getLogger(NewsSentimentService.class);
 
     private static final Set<String> POSITIVE_KEYWORDS = Set.of(
@@ -257,6 +258,7 @@ public class NewsSentimentService {
 
     private LocalDate resolveDisplayDate(Iterable<RawNewsItem> newsItems) {
         final LocalDate today = LocalDate.now(DAILY_NEWS_ZONE);
+        final LocalDate latestAllowedTradingDate = latestTradingDateOnOrBefore(today);
         LocalDate latestDate = null;
         for (RawNewsItem item : newsItems) {
             if (item.publishedAt() == null) {
@@ -272,10 +274,10 @@ public class NewsSentimentService {
         }
 
         // 평일에도 오늘 뉴스가 비어 있으면 가장 최근 발행일 기사로 자연스럽게 내려갑니다.
-        if (latestDate != null) {
-            return latestDate;
+        if (latestDate == null) {
+            return null;
         }
-        return latestDate;
+        return tradingDayGap(latestDate, latestAllowedTradingDate) <= 1 ? latestDate : null;
     }
 
     private boolean isPublishedOn(RawNewsItem item, LocalDate displayDate) {
@@ -284,6 +286,37 @@ public class NewsSentimentService {
                 .atZoneSameInstant(DAILY_NEWS_ZONE)
                 .toLocalDate()
                 .equals(displayDate);
+    }
+
+    private LocalDate latestTradingDateOnOrBefore(LocalDate date) {
+        LocalDate cursor = date;
+        while (isWeekend(cursor)) {
+            cursor = cursor.minusDays(1);
+        }
+        return cursor;
+    }
+
+    private int tradingDayGap(LocalDate olderDate, LocalDate newerDate) {
+        if (olderDate == null || newerDate == null || olderDate.isAfter(newerDate)) {
+            return Integer.MAX_VALUE;
+        }
+
+        int gap = 0;
+        LocalDate cursor = olderDate.plusDays(1);
+        while (!cursor.isAfter(newerDate)) {
+            if (!isWeekend(cursor)) {
+                gap++;
+            }
+            cursor = cursor.plusDays(1);
+        }
+        return gap;
+    }
+
+    private boolean isWeekend(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case SATURDAY, SUNDAY -> true;
+            default -> false;
+        };
     }
 
     private int calculateHeuristicRelevance(RawNewsItem item, String symbol, String companyName) {
@@ -609,12 +642,17 @@ public class NewsSentimentService {
             final double impactWeight = impactWeight(impactLevel);
             final double articleWeight = (relevanceScore / 100.0) * recencyWeight * impactWeight;
             final double weightedScore = sentimentScore * articleWeight;
+            final String summaryKo = ensureKoreanSummary(
+                    defaultIfBlank(decision.summaryKo(), fallbackSummary(item)),
+                    item
+            );
+            final String reasonKo = ensureKoreanReason(reason, item, relevanceScore);
 
             analyzedCandidates.add(new AnalyzedNewsItem(
                     item.newsId(),
                     symbol,
                     item.headline(),
-                    defaultIfBlank(decision.summaryKo(), fallbackSummary(item)),
+                    summaryKo,
                     item.sourceName(),
                     item.url(),
                     item.publishedAt(),
@@ -623,7 +661,7 @@ public class NewsSentimentService {
                     item.keywordScore(),
                     relevanceScore,
                     impactLevel,
-                    reason,
+                    reasonKo,
                     decimal(recencyWeight),
                     decimal(impactWeight),
                     decimal(weightedScore),
@@ -688,12 +726,14 @@ public class NewsSentimentService {
                     final double impactWeight = impactWeight(impactLevel);
                     final double articleWeight = (relevanceScore / 100.0) * recencyWeight * impactWeight;
                     final double weightedScore = sentimentScore * articleWeight;
+                    final String summaryKo = ensureKoreanSummary(fallbackSummary(item), item);
+                    final String reasonKo = ensureKoreanReason(reason, item, relevanceScore);
 
                     return new AnalyzedNewsItem(
                             item.newsId(),
                             symbol,
                             item.headline(),
-                            fallbackSummary(item),
+                            summaryKo,
                             item.sourceName(),
                             item.url(),
                             item.publishedAt(),
@@ -702,7 +742,7 @@ public class NewsSentimentService {
                             item.keywordScore(),
                             relevanceScore,
                             impactLevel,
-                            reason,
+                            reasonKo,
                             decimal(recencyWeight),
                             decimal(impactWeight),
                             decimal(weightedScore),
@@ -1017,6 +1057,109 @@ public class NewsSentimentService {
 
     private String fallbackSummary(RawNewsItem item) {
         return !item.summary().isBlank() ? item.summary() : item.headline();
+    }
+
+    private String ensureKoreanSummary(String candidate, RawNewsItem item) {
+        final String normalized = defaultIfBlank(candidate, "").trim();
+        if (normalized.isBlank()) {
+            return buildGenericKoreanSummary(item);
+        }
+        if (containsHangul(normalized)) {
+            return normalized;
+        }
+
+        final String translated = translateToKorean(
+                """
+                아래 미국 주식 뉴스 요약을 자연스러운 한국어 1~2문장으로만 바꿔주세요.
+                불필요한 영어 표현은 남기지 말고 핵심만 간단히 정리하세요.
+                
+                제목: %s
+                요약: %s
+                """.formatted(item.headline(), normalized)
+        );
+        if (!isBlank(translated) && containsHangul(translated)) {
+            return translated;
+        }
+        return buildGenericKoreanSummary(item);
+    }
+
+    private String ensureKoreanReason(String candidate, RawNewsItem item, int relevanceScore) {
+        final String normalized = defaultIfBlank(candidate, "").trim();
+        if (normalized.isBlank()) {
+            return fallbackReason(item.keywordScore(), relevanceScore);
+        }
+        if (containsHangul(normalized)) {
+            return normalized;
+        }
+
+        final String translated = translateToKorean(
+                """
+                아래 미국 주식 뉴스 판단 이유를 자연스러운 한국어 한 문장으로만 바꿔주세요.
+                투자 판단 근거 느낌으로 짧고 분명하게 작성하세요.
+                
+                제목: %s
+                판단 이유: %s
+                """.formatted(item.headline(), normalized)
+        );
+        if (!isBlank(translated) && containsHangul(translated)) {
+            return translated;
+        }
+        return fallbackReason(item.keywordScore(), relevanceScore);
+    }
+
+    private String buildGenericKoreanSummary(RawNewsItem item) {
+        return "해당 기사의 핵심 내용을 한국어로 다시 정리 중이며, 원문 기준으로 관련 뉴스 분석에 반영했습니다.";
+    }
+
+    private boolean containsHangul(String value) {
+        return !isBlank(value) && HANGUL_PATTERN.matcher(value).find();
+    }
+
+    private String translateToKorean(String prompt) {
+        final String geminiApiKey = System.getenv("GEMINI_API_KEY");
+        if (isBlank(geminiApiKey)) {
+            return null;
+        }
+
+        try {
+            final String uri = "https://generativelanguage.googleapis.com/v1beta/models/"
+                    + resolveGeminiModel()
+                    + ":generateContent?key="
+                    + encode(geminiApiKey);
+
+            final String requestBody = objectMapper.writeValueAsString(Map.of(
+                    "contents", List.of(
+                            Map.of("parts", List.of(
+                                    Map.of("text", prompt)
+                            ))
+                    )
+            ));
+
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(uri))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                    .build();
+
+            final HttpResponse<String> response = sendGeminiRequestWithRetry(request, "TRANSLATE");
+            if (response.statusCode() != 200 || response.body().isBlank()) {
+                return null;
+            }
+
+            final JsonNode responseRoot = objectMapper.readTree(response.body());
+            return responseRoot.path("candidates")
+                    .path(0)
+                    .path("content")
+                    .path("parts")
+                    .path(0)
+                    .path("text")
+                    .asText("")
+                    .trim();
+        } catch (Exception exception) {
+            log.warn("뉴스 한국어 보정에 실패했습니다.", exception);
+            return null;
+        }
     }
 
     private boolean containsWholeWord(String text, String keyword) {

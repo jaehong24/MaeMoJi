@@ -78,6 +78,14 @@ public class RecommendationService {
 
     @Transactional
     public List<RecommendationResponse> generateLatestRecommendations(Long userId) {
+        return generateLatestRecommendations(userId, Map.of());
+    }
+
+    @Transactional
+    public List<RecommendationResponse> generateLatestRecommendations(
+            Long userId,
+            Map<Long, NewsSentimentService.NewsSentimentResult> sharedNewsByStockId
+    ) {
         // Render는 UTC로 실행되므로 한국 날짜를 명시적으로 사용합니다.
         final LocalDate recommendationDate = LocalDate.now(HOME_ZONE);
         final List<RecommendationTarget> targets =
@@ -85,12 +93,55 @@ public class RecommendationService {
 
         final List<RecommendationResponse> responses = new ArrayList<>();
         for (RecommendationTarget target : targets) {
-            final EngineResult engineResult = evaluateTarget(target);
+            final EngineResult engineResult = evaluateTarget(
+                    target,
+                    sharedNewsByStockId.get(target.getStockId())
+            );
             final Long recommendationId = saveRecommendation(userId, target, recommendationDate, engineResult);
             responses.add(toResponse(target, recommendationId, engineResult));
         }
 
         return responses;
+    }
+
+    @Transactional
+    public SharedNewsAnalysisWarmupResult warmUpSharedNewsAnalysis() {
+        final List<RecommendationTarget> distinctTargets =
+                recommendationMapper.findDistinctActiveRecommendationTargets();
+        final Map<Long, NewsSentimentService.NewsSentimentResult> sharedResults = new LinkedHashMap<>();
+        int reusedCount = 0;
+        int refreshedCount = 0;
+        int unavailableCount = 0;
+
+        for (RecommendationTarget target : distinctTargets) {
+            final NewsSentimentService.NewsSentimentResult analyzed = newsSentimentService.analyze(
+                    target.getStockId(),
+                    resolveSymbol(target),
+                    target.getCompanyName()
+            );
+
+            if (analyzed.relatedNews().isEmpty()) {
+                unavailableCount++;
+            } else if (analyzed.cacheReused()) {
+                reusedCount++;
+            } else {
+                refreshedCount++;
+            }
+
+            if (analyzed.replaceCache()) {
+                replaceNewsAnalysisCache(target.getStockId(), analyzed.relatedNews(), analyzed.llmModel());
+            }
+
+            sharedResults.put(target.getStockId(), withoutCacheWrite(analyzed));
+        }
+
+        return new SharedNewsAnalysisWarmupResult(
+                sharedResults,
+                distinctTargets.size(),
+                reusedCount,
+                refreshedCount,
+                unavailableCount
+        );
     }
 
     @Transactional
@@ -205,17 +256,21 @@ public class RecommendationService {
         return toResponse(target, recommendationId, engineResult);
     }
 
-    private EngineResult evaluateTarget(RecommendationTarget target) {
+    private EngineResult evaluateTarget(
+            RecommendationTarget target,
+            NewsSentimentService.NewsSentimentResult sharedNewsSentiment
+    ) {
         final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
         final String memo = blankToEmpty(target.getMemo());
         final boolean hasHardRisk = containsHardRiskKeyword(memo);
 
         final PriceSnapshot priceSnapshot = fetchPriceSnapshot(target);
-        final NewsSentimentService.NewsSentimentResult newsSentiment =
-                newsSentimentService.analyze(
-                        target.getStockId(),
-                        resolveSymbol(target),
-                        target.getCompanyName()
+        final NewsSentimentService.NewsSentimentResult newsSentiment = sharedNewsSentiment != null
+                ? sharedNewsSentiment
+                : newsSentimentService.analyze(
+                    target.getStockId(),
+                    resolveSymbol(target),
+                    target.getCompanyName()
                 );
 
         final int confidenceScore = resolveConfidence(target, priceSnapshot, newsSentiment);
@@ -275,6 +330,10 @@ public class RecommendationService {
         );
     }
 
+    private EngineResult evaluateTarget(RecommendationTarget target) {
+        return evaluateTarget(target, null);
+    }
+
     private Long saveRecommendation(
             Long userId,
             RecommendationTarget target,
@@ -312,42 +371,68 @@ public class RecommendationService {
         }
 
         if (engineResult.replaceNewsCache()) {
-            recommendationMapper.deleteNewsAnalysisCacheByStockId(target.getStockId());
-            for (NewsSentimentService.AnalyzedNewsItem newsItem : engineResult.relatedNews()) {
-                final NewsAnalysisSaveCommand newsCommand = new NewsAnalysisSaveCommand();
-                newsCommand.setStockId(target.getStockId());
-                newsCommand.setNewsId(newsItem.newsId());
-                newsCommand.setSymbol(newsItem.symbol());
-                newsCommand.setNewsPublishedAt(newsItem.newsPublishedAt());
-                newsCommand.setHeadline(newsItem.headline());
-                newsCommand.setSummary(newsItem.summary());
-                newsCommand.setSourceName(newsItem.sourceName());
-                newsCommand.setNewsUrl(newsItem.newsUrl());
-                newsCommand.setSentimentLabel(newsItem.sentimentLabel());
-                newsCommand.setSentimentScore(newsItem.sentimentScore());
-                newsCommand.setKeywordScore(newsItem.keywordScore());
-                newsCommand.setRelevanceScore(newsItem.relevanceScore());
-                newsCommand.setImpactLevel(newsItem.impactLevel());
-                newsCommand.setReason(newsItem.reason());
-                newsCommand.setRecencyWeight(newsItem.recencyWeight());
-                newsCommand.setImpactWeight(newsItem.impactWeight());
-                newsCommand.setWeightedScore(newsItem.weightedScore());
-                newsCommand.setContentHash(newsItem.contentHash());
-                newsCommand.setAnalysisBatchHash(newsItem.analysisBatchHash());
-                newsCommand.setLlmModel(engineResult.llmModel());
-                newsCommand.setAnalyzedAt(OffsetDateTime.now(ZoneOffset.UTC));
-                recommendationMapper.insertNewsAnalysisCache(newsCommand);
-            }
+            replaceNewsAnalysisCache(target.getStockId(), engineResult.relatedNews(), engineResult.llmModel());
         }
 
         return recommendationId;
     }
 
+    private void replaceNewsAnalysisCache(
+            Long stockId,
+            List<NewsSentimentService.AnalyzedNewsItem> relatedNews,
+            String llmModel
+    ) {
+        recommendationMapper.deleteNewsAnalysisCacheByStockId(stockId);
+        for (NewsSentimentService.AnalyzedNewsItem newsItem : relatedNews) {
+            final NewsAnalysisSaveCommand newsCommand = new NewsAnalysisSaveCommand();
+            newsCommand.setStockId(stockId);
+            newsCommand.setNewsId(newsItem.newsId());
+            newsCommand.setSymbol(newsItem.symbol());
+            newsCommand.setNewsPublishedAt(newsItem.newsPublishedAt());
+            newsCommand.setHeadline(newsItem.headline());
+            newsCommand.setSummary(newsItem.summary());
+            newsCommand.setSourceName(newsItem.sourceName());
+            newsCommand.setNewsUrl(newsItem.newsUrl());
+            newsCommand.setSentimentLabel(newsItem.sentimentLabel());
+            newsCommand.setSentimentScore(newsItem.sentimentScore());
+            newsCommand.setKeywordScore(newsItem.keywordScore());
+            newsCommand.setRelevanceScore(newsItem.relevanceScore());
+            newsCommand.setImpactLevel(newsItem.impactLevel());
+            newsCommand.setReason(newsItem.reason());
+            newsCommand.setRecencyWeight(newsItem.recencyWeight());
+            newsCommand.setImpactWeight(newsItem.impactWeight());
+            newsCommand.setWeightedScore(newsItem.weightedScore());
+            newsCommand.setContentHash(newsItem.contentHash());
+            newsCommand.setAnalysisBatchHash(newsItem.analysisBatchHash());
+            newsCommand.setLlmModel(llmModel);
+            newsCommand.setAnalyzedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            recommendationMapper.insertNewsAnalysisCache(newsCommand);
+        }
+    }
+
+    private NewsSentimentService.NewsSentimentResult withoutCacheWrite(
+            NewsSentimentService.NewsSentimentResult source
+    ) {
+        return new NewsSentimentService.NewsSentimentResult(
+                source.score(),
+                source.label(),
+                source.summary(),
+                source.relatedNews(),
+                source.llmModel(),
+                source.weightedSentimentScore(),
+                source.hardNegativeOverride(),
+                source.analysisConfidence(),
+                source.cacheReused(),
+                false
+        );
+    }
+
     private LightweightRecommendationResult toLightweightHomeResponse(RecommendationTarget target) {
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
-        final List<NewsAnalysisCacheRecord> cachedNews =
-                recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId());
+        final List<NewsAnalysisCacheRecord> cachedNews = filterFreshNewsRecords(
+                recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId())
+        );
         final CachedNewsSummary newsSummary = summarizeCachedNews(cachedNews);
         final Double thirtyDayReturn = snapshot == null || snapshot.getChangeRate30d() == null
                 ? null
@@ -371,6 +456,11 @@ public class RecommendationService {
                 scoreResult,
                 newsSummary
         );
+        final OffsetDateTime newsAnalyzedAt = cachedNews.stream()
+                .map(NewsAnalysisCacheRecord::getAnalyzedAt)
+                .filter(analyzedAt -> analyzedAt != null)
+                .max(OffsetDateTime::compareTo)
+                .orElse(null);
 
         final RecommendationResponse response = new RecommendationResponse(
                 null,
@@ -389,6 +479,11 @@ public class RecommendationService {
                 blankToEmpty(target.getMemo()),
                 buildLightweightNote(target, scoreResult, newsSummary),
                 "HOME_LIGHT_V1",
+                newsAnalyzedAt,
+                resolveRelatedNewsStatusMessage(
+                        recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId()),
+                        cachedNews
+                ),
                 new RecommendationScoresResponse(
                         0,
                         0,
@@ -400,11 +495,6 @@ public class RecommendationService {
                 evidence,
                 cachedNews.stream().map(this::toRelatedNewsResponse).toList()
         );
-        final OffsetDateTime newsAnalyzedAt = cachedNews.stream()
-                .map(NewsAnalysisCacheRecord::getAnalyzedAt)
-                .filter(analyzedAt -> analyzedAt != null)
-                .min(OffsetDateTime::compareTo)
-                .orElse(null);
         return new LightweightRecommendationResult(
                 response,
                 snapshot == null ? null : snapshot.getSnapshotDate(),
@@ -415,12 +505,13 @@ public class RecommendationService {
     private LightweightRecommendationResult toLightweightHomeResponse(RecommendationResponse response) {
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(response.stockId());
-        final List<NewsAnalysisCacheRecord> cachedNews =
-                recommendationMapper.findLatestNewsAnalysisByStockId(response.stockId());
+        final List<NewsAnalysisCacheRecord> cachedNews = filterFreshNewsRecords(
+                recommendationMapper.findLatestNewsAnalysisByStockId(response.stockId())
+        );
         final OffsetDateTime newsAnalyzedAt = cachedNews.stream()
                 .map(NewsAnalysisCacheRecord::getAnalyzedAt)
                 .filter(analyzedAt -> analyzedAt != null)
-                .min(OffsetDateTime::compareTo)
+                .max(OffsetDateTime::compareTo)
                 .orElse(null);
         return new LightweightRecommendationResult(
                 response,
@@ -493,6 +584,70 @@ public class RecommendationService {
                 (int) Math.round(40 + cachedNews.size() * 10 + relevanceTotal / cachedNews.size() * 0.3)
         );
         return new CachedNewsSummary(sentimentScore, hardNegative, confidence);
+    }
+
+    private List<NewsAnalysisCacheRecord> filterFreshNewsRecords(List<NewsAnalysisCacheRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+
+        final LocalDate latestAllowedTradingDate = latestTradingDateOnOrBefore(LocalDate.now(HOME_ZONE));
+        return records.stream()
+                .filter(record -> isFreshNewsPublishedAt(record.getNewsPublishedAt(), latestAllowedTradingDate))
+                .toList();
+    }
+
+    private String resolveRelatedNewsStatusMessage(
+            List<NewsAnalysisCacheRecord> rawNewsRecords,
+            List<NewsAnalysisCacheRecord> freshNewsRecords
+    ) {
+        if (freshNewsRecords != null && !freshNewsRecords.isEmpty()) {
+            return null;
+        }
+        if (rawNewsRecords == null || rawNewsRecords.isEmpty()) {
+            return "오늘 관련 뉴스가 아직 없습니다.";
+        }
+        return "관련 뉴스가 있었지만 최신 기준에서 오래돼 숨겼습니다.";
+    }
+
+    private boolean isFreshNewsPublishedAt(OffsetDateTime publishedAt, LocalDate latestAllowedTradingDate) {
+        if (publishedAt == null || latestAllowedTradingDate == null) {
+            return false;
+        }
+
+        final LocalDate publishedDate = publishedAt.atZoneSameInstant(HOME_ZONE).toLocalDate();
+        return tradingDayGap(publishedDate, latestAllowedTradingDate) <= 1;
+    }
+
+    private LocalDate latestTradingDateOnOrBefore(LocalDate date) {
+        LocalDate cursor = date;
+        while (isWeekend(cursor)) {
+            cursor = cursor.minusDays(1);
+        }
+        return cursor;
+    }
+
+    private int tradingDayGap(LocalDate olderDate, LocalDate newerDate) {
+        if (olderDate == null || newerDate == null || olderDate.isAfter(newerDate)) {
+            return Integer.MAX_VALUE;
+        }
+
+        int gap = 0;
+        LocalDate cursor = olderDate.plusDays(1);
+        while (!cursor.isAfter(newerDate)) {
+            if (!isWeekend(cursor)) {
+                gap++;
+            }
+            cursor = cursor.plusDays(1);
+        }
+        return gap;
+    }
+
+    private boolean isWeekend(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case SATURDAY, SUNDAY -> true;
+            default -> false;
+        };
     }
 
     private int resolveLightweightConfidence(
@@ -587,6 +742,8 @@ public class RecommendationService {
                 blankToEmpty(target.getMemo()),
                 engineResult.finalNote(),
                 ENGINE_VERSION,
+                engineResult.relatedNews().isEmpty() ? null : OffsetDateTime.now(ZoneOffset.UTC),
+                engineResult.relatedNews().isEmpty() ? "오늘 관련 뉴스가 아직 없습니다." : null,
                 new RecommendationScoresResponse(
                         engineResult.businessHealthScore(),
                         engineResult.valuationScore(),
@@ -607,8 +764,14 @@ public class RecommendationService {
     private RecommendationResponse toResponse(RecommendationRecord record) {
         final List<RecommendationEvidenceRecord> evidenceRecords =
                 recommendationMapper.findRecommendationEvidenceByRecommendationId(record.getRecommendationId());
-        final List<NewsAnalysisCacheRecord> newsRecords =
+        final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(record.getStockId());
+        final List<NewsAnalysisCacheRecord> newsRecords = filterFreshNewsRecords(rawNewsRecords);
+        final OffsetDateTime newsAnalyzedAt = rawNewsRecords.stream()
+                .map(NewsAnalysisCacheRecord::getAnalyzedAt)
+                .filter(analyzedAt -> analyzedAt != null)
+                .max(OffsetDateTime::compareTo)
+                .orElse(null);
 
         return new RecommendationResponse(
                 record.getRecommendationId(),
@@ -627,6 +790,8 @@ public class RecommendationService {
                 blankToEmpty(record.getMemo()),
                 blankToEmpty(record.getFinalNote()),
                 blankToEmpty(record.getEngineVersion()),
+                newsAnalyzedAt,
+                resolveRelatedNewsStatusMessage(rawNewsRecords, newsRecords),
                 extractScores(evidenceRecords),
                 toCalculationResponse(record),
                 evidenceRecords.stream()
@@ -667,6 +832,8 @@ public class RecommendationService {
                 blankToEmpty(target.getMemo()),
                 "상세 분석 전까지는 현재 모으기 금액을 유지하는 기본 상태로 표시합니다.",
                 "PENDING",
+                null,
+                "관련 뉴스 분석을 아직 준비 중입니다.",
                 new RecommendationScoresResponse(0, 0, 0, 0, 0),
                 new RecommendationCalculationResponse(
                         "PENDING",
@@ -1274,6 +1441,15 @@ public class RecommendationService {
             Integer sentimentScore,
             boolean hardNegative,
             int confidence
+    ) {
+    }
+
+    public record SharedNewsAnalysisWarmupResult(
+            Map<Long, NewsSentimentService.NewsSentimentResult> newsByStockId,
+            int distinctStockCount,
+            int cacheReusedCount,
+            int refreshedCount,
+            int unavailableCount
     ) {
     }
 

@@ -20,6 +20,8 @@ class RecommendationItem {
     required this.status,
     required this.evidence,
     required this.relatedNews,
+    required this.newsAnalyzedAt,
+    required this.relatedNewsStatusMessage,
   });
 
   final int portfolioItemId;
@@ -38,4 +40,6 @@ class RecommendationItem {
   final RecommendationStatus status;
   final List<EvidenceItem> evidence;
   final List<RecommendationNewsItem> relatedNews;
+  final DateTime? newsAnalyzedAt;
+  final String? relatedNewsStatusMessage;
 }

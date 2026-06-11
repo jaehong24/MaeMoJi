@@ -34,6 +34,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       const RecommendationService();
   final StockQuoteService _stockQuoteService = const StockQuoteService();
   final DateFormat _quoteTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
+  final DateFormat _newsTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
 
   late Future<RecommendationItem> _detailFuture;
   RecommendationItem? _currentItem;
@@ -264,10 +265,23 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         const SizedBox(height: 8),
                         Text(
                           resolvedItem.relatedNews.isEmpty
-                              ? '아직 반영된 관련 뉴스가 없습니다.'
+                              ? (resolvedItem.relatedNewsStatusMessage ??
+                                  '오늘 관련 뉴스가 아직 없습니다.')
                               : '감성, 관련성, 영향도를 반영한 기사별 분석입니다.',
                           style: theme.textTheme.bodyMedium,
                         ),
+                        if (resolvedItem.newsAnalyzedAt != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            resolvedItem.relatedNews.isEmpty
+                                ? '마지막 뉴스 분석 ${_newsTimeFormat.format(resolvedItem.newsAnalyzedAt!.toLocal())}'
+                                : '뉴스 기준 ${_newsTimeFormat.format(resolvedItem.newsAnalyzedAt!.toLocal())}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: 12,
+                              color: MaeMojiColors.inkMuted,
+                            ),
+                          ),
+                        ],
                         if (resolvedItem.relatedNews.isNotEmpty) ...[
                           const SizedBox(height: 16),
                           ...resolvedItem.relatedNews.asMap().entries.map((entry) {

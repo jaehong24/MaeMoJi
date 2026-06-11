@@ -9,8 +9,11 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -31,8 +34,11 @@ class DailyIntegratedBatchServiceTest {
                 new PriceSnapshotBatchResult(LocalDate.now(), 500, 500, 0, true)
         );
         when(userMapper.findActiveUserIdsWithPortfolioItems()).thenReturn(List.of(1L, 2L));
-        when(recommendationService.generateLatestRecommendations(1L)).thenReturn(List.of());
-        when(recommendationService.generateLatestRecommendations(2L)).thenReturn(List.of());
+        when(recommendationService.warmUpSharedNewsAnalysis()).thenReturn(
+                new RecommendationService.SharedNewsAnalysisWarmupResult(Map.of(), 0, 0, 0, 0)
+        );
+        when(recommendationService.generateLatestRecommendations(eq(1L), anyMap())).thenReturn(List.of());
+        when(recommendationService.generateLatestRecommendations(eq(2L), anyMap())).thenReturn(List.of());
 
         final DailyBatchResult result = service.run(500);
 
@@ -40,8 +46,9 @@ class DailyIntegratedBatchServiceTest {
         assertThat(result.recommendationCount()).isZero();
         verify(priceService).syncSnapshots(500, true);
         verify(userMapper).findActiveUserIdsWithPortfolioItems();
-        verify(recommendationService).generateLatestRecommendations(1L);
-        verify(recommendationService).generateLatestRecommendations(2L);
+        verify(recommendationService).warmUpSharedNewsAnalysis();
+        verify(recommendationService).generateLatestRecommendations(eq(1L), anyMap());
+        verify(recommendationService).generateLatestRecommendations(eq(2L), anyMap());
     }
 
     @Test
@@ -50,15 +57,19 @@ class DailyIntegratedBatchServiceTest {
                 new PriceSnapshotBatchResult(LocalDate.now(), 500, 495, 5, true)
         );
         when(userMapper.findActiveUserIdsWithPortfolioItems()).thenReturn(List.of(1L, 2L));
-        when(recommendationService.generateLatestRecommendations(1L)).thenReturn(List.of());
-        when(recommendationService.generateLatestRecommendations(2L))
+        when(recommendationService.warmUpSharedNewsAnalysis()).thenReturn(
+                new RecommendationService.SharedNewsAnalysisWarmupResult(Map.of(), 0, 0, 0, 0)
+        );
+        when(recommendationService.generateLatestRecommendations(eq(1L), anyMap())).thenReturn(List.of());
+        when(recommendationService.generateLatestRecommendations(eq(2L), anyMap()))
                 .thenThrow(new IllegalStateException("boom"));
 
         final DailyBatchResult result = service.run(500);
 
         assertThat(result.status()).isEqualTo("PARTIAL_SUCCESS");
-        verify(recommendationService).generateLatestRecommendations(1L);
-        verify(recommendationService).generateLatestRecommendations(2L);
+        verify(recommendationService).warmUpSharedNewsAnalysis();
+        verify(recommendationService).generateLatestRecommendations(eq(1L), anyMap());
+        verify(recommendationService).generateLatestRecommendations(eq(2L), anyMap());
     }
 
     @Test

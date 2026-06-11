@@ -58,13 +58,26 @@ public class DailyIntegratedBatchService {
             }
 
             final List<Long> activeUserIds = userMapper.findActiveUserIdsWithPortfolioItems();
+            final RecommendationService.SharedNewsAnalysisWarmupResult sharedNewsWarmup =
+                    recommendationService.warmUpSharedNewsAnalysis();
             int recommendationCount = 0;
             int failedUserCount = 0;
+
+            log.info(
+                    "공용 뉴스 선분석을 완료했습니다. stocks={}, cacheReused={}, refreshed={}, unavailable={}",
+                    sharedNewsWarmup.distinctStockCount(),
+                    sharedNewsWarmup.cacheReusedCount(),
+                    sharedNewsWarmup.refreshedCount(),
+                    sharedNewsWarmup.unavailableCount()
+            );
 
             for (Long userId : activeUserIds) {
                 try {
                     final List<RecommendationResponse> recommendations =
-                            recommendationService.generateLatestRecommendations(userId);
+                            recommendationService.generateLatestRecommendations(
+                                    userId,
+                                    sharedNewsWarmup.newsByStockId()
+                            );
                     recommendationCount += recommendations.size();
                 } catch (Exception exception) {
                     failedUserCount++;

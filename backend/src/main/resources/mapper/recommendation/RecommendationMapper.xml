@@ -25,6 +25,28 @@
         order by pi.updated_at desc, pi.created_at desc
     </select>
 
+    <select id="findDistinctActiveRecommendationTargets"
+            resultType="com.maemoji.backend.recommendation.domain.RecommendationTarget">
+        select distinct on (pi.stock_id)
+            null as portfolio_item_id,
+            pi.user_id,
+            pi.stock_id,
+            coalesce(s.name_ko, s.name_en) as company_name,
+            s.ticker,
+            s.finnhub_symbol,
+            s.logo_url,
+            pi.daily_invest_amount,
+            pi.holding_quantity,
+            pi.investment_start_date,
+            pi.memo
+        from portfolio_items pi
+        join users u on u.id = pi.user_id
+        join stocks s on s.id = pi.stock_id
+        where pi.is_active = true
+          and u.status = 'ACTIVE'
+        order by pi.stock_id, pi.updated_at desc, pi.created_at desc
+    </select>
+
     <select id="findActiveRecommendationTargetByUserIdAndPortfolioItemId"
             resultType="com.maemoji.backend.recommendation.domain.RecommendationTarget">
         select

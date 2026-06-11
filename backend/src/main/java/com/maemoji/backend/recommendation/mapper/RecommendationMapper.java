@@ -17,6 +17,8 @@ public interface RecommendationMapper {
 
     List<RecommendationTarget> findActiveRecommendationTargetsByUserId(@Param("userId") Long userId);
 
+    List<RecommendationTarget> findDistinctActiveRecommendationTargets();
+
     RecommendationTarget findActiveRecommendationTargetByUserIdAndPortfolioItemId(
             @Param("userId") Long userId,
             @Param("portfolioItemId") Long portfolioItemId

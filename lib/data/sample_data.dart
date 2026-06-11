@@ -28,7 +28,9 @@ const sampleRecommendations = [
         body: '긍정 뉴스가 많지만 가격 부담을 상쇄할 정도는 아니라고 판단했습니다.',
       ),
     ],
-    relatedNews: const [],
+    relatedNews: [],
+    newsAnalyzedAt: null,
+    relatedNewsStatusMessage: null,
   ),
   RecommendationItem(
     portfolioItemId: 2,
@@ -55,6 +57,8 @@ const sampleRecommendations = [
         body: '최근 수익률은 중립 구간으로 유지 판단에 가깝습니다.',
       ),
     ],
-    relatedNews: const [],
+    relatedNews: [],
+    newsAnalyzedAt: null,
+    relatedNewsStatusMessage: null,
   ),
 ];
