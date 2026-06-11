@@ -13,7 +13,8 @@ class AuthService {
   AuthService()
       : _googleSignIn = GoogleSignIn(
           scopes: const ['email', 'profile', 'openid'],
-          serverClientId: GoogleAuthConfig.webClientId,
+          clientId: kIsWeb ? GoogleAuthConfig.webClientId : null,
+          serverClientId: kIsWeb ? null : GoogleAuthConfig.webClientId,
         );
 
   final GoogleSignIn _googleSignIn;
