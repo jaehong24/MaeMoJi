@@ -2,6 +2,7 @@ package com.maemoji.backend.recommendation.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 public class RecommendationRecord {
     private Long recommendationId;
@@ -18,6 +19,7 @@ public class RecommendationRecord {
     private BigDecimal recommendedAmount;
     private String finalNote;
     private String engineVersion;
+    private OffsetDateTime createdAt;
     private String formulaVersion;
     private Integer rawScore;
     private Integer riskAdjustment;
@@ -142,6 +144,14 @@ public class RecommendationRecord {
 
     public void setEngineVersion(String engineVersion) {
         this.engineVersion = engineVersion;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public String getFormulaVersion() {

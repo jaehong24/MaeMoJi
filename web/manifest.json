@@ -1,11 +1,11 @@
 {
-    "name": "maemoji",
-    "short_name": "maemoji",
+    "name": "MaeMoJi",
+    "short_name": "MaeMoJi",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F9E7C9",
+    "theme_color": "#F9E7C9",
+    "description": "MaeMoJi - stock recommendations and news analysis",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

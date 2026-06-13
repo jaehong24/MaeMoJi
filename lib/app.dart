@@ -6,6 +6,7 @@ import 'currency/currency_controller.dart';
 import 'currency/currency_scope.dart';
 import 'screens/app_shell.dart';
 import 'screens/auth_screen.dart';
+import 'screens/brand_launch_screen.dart';
 import 'services/auth_service.dart';
 import 'services/auth_session_store.dart';
 import 'theme/app_theme.dart';
@@ -23,11 +24,20 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
   final AuthSessionStore _authSessionStore = AuthSessionStore.instance;
   bool _checkingSavedSession = true;
   bool _localDevAutoLoginInFlight = false;
+  bool _showLaunchScreen = true;
 
   @override
   void initState() {
     super.initState();
     _currencyController = CurrencyController()..loadExchangeRate();
+    Future<void>.delayed(const Duration(milliseconds: 1600), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showLaunchScreen = false;
+      });
+    });
     _validateSavedSession();
   }
 
@@ -48,6 +58,10 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
         home: AnimatedBuilder(
           animation: _authSessionStore,
           builder: (context, _) {
+            if (_showLaunchScreen) {
+              return const BrandLaunchScreen();
+            }
+
             if (!_authSessionStore.initialized || _checkingSavedSession) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
@@ -112,9 +126,9 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
   }
 
   bool get _isLocalDevelopment => ApiConfig.isLocalDevelopment(
-        isWeb: kIsWeb,
-        platformName: defaultTargetPlatform.name,
-      );
+    isWeb: kIsWeb,
+    platformName: defaultTargetPlatform.name,
+  );
 
   Future<void> _signInAsLocalDev() async {
     if (_localDevAutoLoginInFlight) {

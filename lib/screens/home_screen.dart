@@ -9,6 +9,7 @@ import '../widgets/app_section_card.dart';
 import '../widgets/currency_toggle.dart';
 import '../widgets/navigation_preview_tile.dart';
 import '../widgets/recommendation_card.dart';
+import '../widgets/recommendation_freshness_card.dart';
 import '../widgets/status_summary_chip.dart';
 import 'screen_blueprint_screen.dart';
 import 'stock_detail_screen.dart';
@@ -164,6 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Column(
               children: [
+                RecommendationFreshnessCard(summary: summary),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
@@ -249,7 +252,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _reloadRecommendations() {
     setState(() {
-      _recommendationsFuture = _recommendationService.fetchHomeRecommendations();
+      _recommendationsFuture = _recommendationService
+          .fetchHomeRecommendations();
     });
   }
 }

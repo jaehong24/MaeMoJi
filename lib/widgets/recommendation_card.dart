@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import '../config/api_config.dart';
 import '../currency/currency_scope.dart';
@@ -23,6 +24,7 @@ class RecommendationCard extends StatelessWidget {
   final bool showMemo;
   final VoidCallback? onOpenDetail;
   final bool compact;
+  static final DateFormat _metaTimeFormat = DateFormat('M/d HH:mm');
 
   @override
   Widget build(BuildContext context) {
@@ -75,12 +77,11 @@ class RecommendationCard extends StatelessWidget {
                           item.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              compact
-                                  ? theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  )
-                                  : theme.textTheme.titleLarge,
+                          style: compact
+                              ? theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                )
+                              : theme.textTheme.titleLarge,
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -91,6 +92,17 @@ class RecommendationCard extends StatelessWidget {
                             color: MaeMojiColors.inkMuted,
                           ),
                         ),
+                        if (item.recommendationGeneratedAt != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            '추천 생성 ${_metaTimeFormat.format(item.recommendationGeneratedAt!.toLocal())}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: MaeMojiColors.inkMuted,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

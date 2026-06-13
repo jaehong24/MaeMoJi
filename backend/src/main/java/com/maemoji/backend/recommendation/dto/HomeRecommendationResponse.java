@@ -6,6 +6,7 @@ import java.util.List;
 
 public record HomeRecommendationResponse(
         OffsetDateTime calculatedAt,
+        OffsetDateTime recommendationGeneratedAt,
         LocalDate priceDataDate,
         OffsetDateTime newsAnalyzedAt,
         List<RecommendationResponse> items

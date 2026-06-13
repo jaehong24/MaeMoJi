@@ -54,6 +54,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -66,6 +67,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/branding/maemoji_icon.png
     - assets/logos/google_logo.svg
 
   # To add assets to your application, add an assets section, like this:
@@ -78,6 +80,18 @@ flutter:
 
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+    image_path: assets/branding/maemoji_icon.png
+    background_color: "#F9E7C9"
+    theme_color: "#F9E7C9"
+  image_path: assets/branding/maemoji_icon.png
+  min_sdk_android: 21
+  remove_alpha_ios: true
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

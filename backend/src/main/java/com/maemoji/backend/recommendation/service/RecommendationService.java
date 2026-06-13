@@ -155,9 +155,6 @@ public class RecommendationService {
 
         final List<RecommendationRecord> latestRecommendations =
                 recommendationMapper.findLatestRecommendationsByUserId(userId);
-        if (needsRefresh(targets, latestRecommendations)) {
-            return generateLatestRecommendations(userId);
-        }
 
         final Map<Long, RecommendationRecord> recommendationByPortfolioItemId = new LinkedHashMap<>();
         for (RecommendationRecord record : latestRecommendations) {
@@ -202,9 +199,15 @@ public class RecommendationService {
                 .filter(analyzedAt -> analyzedAt != null)
                 .min(OffsetDateTime::compareTo)
                 .orElse(null);
+        final OffsetDateTime recommendationGeneratedAt = results.stream()
+                .map(result -> result.response().recommendationGeneratedAt())
+                .filter(generatedAt -> generatedAt != null)
+                .max(OffsetDateTime::compareTo)
+                .orElse(null);
 
         return new HomeRecommendationResponse(
                 OffsetDateTime.now(HOME_ZONE),
+                recommendationGeneratedAt,
                 priceDataDate,
                 newsAnalyzedAt,
                 results.stream().map(LightweightRecommendationResult::response).toList()
@@ -222,15 +225,12 @@ public class RecommendationService {
         RecommendationRecord record = recommendationMapper
                 .findLatestRecommendationByUserIdAndPortfolioItemId(userId, portfolioItemId);
 
-        if (record == null || needsRefresh(record)) {
-            generateLatestRecommendations(userId);
-            record = recommendationMapper.findLatestRecommendationByUserIdAndPortfolioItemId(
-                    userId,
-                    portfolioItemId
-            );
-        }
-
         if (record == null) {
+            final RecommendationTarget target = recommendationMapper
+                    .findActiveRecommendationTargetByUserIdAndPortfolioItemId(userId, portfolioItemId);
+            if (target != null) {
+                return toPendingResponse(target);
+            }
             throw new IllegalArgumentException("추천 상세 대상을 찾을 수 없습니다.");
         }
 
@@ -479,6 +479,8 @@ public class RecommendationService {
                 blankToEmpty(target.getMemo()),
                 buildLightweightNote(target, scoreResult, newsSummary),
                 "HOME_LIGHT_V1",
+                null,
+                null,
                 newsAnalyzedAt,
                 resolveRelatedNewsStatusMessage(
                         recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId()),
@@ -538,9 +540,15 @@ public class RecommendationService {
                 .filter(analyzedAt -> analyzedAt != null)
                 .min(OffsetDateTime::compareTo)
                 .orElse(null);
+        final OffsetDateTime recommendationGeneratedAt = results.stream()
+                .map(result -> result.response().recommendationGeneratedAt())
+                .filter(generatedAt -> generatedAt != null)
+                .max(OffsetDateTime::compareTo)
+                .orElse(null);
 
         return new HomeRecommendationResponse(
                 OffsetDateTime.now(HOME_ZONE),
+                recommendationGeneratedAt,
                 priceDataDate,
                 newsAnalyzedAt,
                 results.stream().map(LightweightRecommendationResult::response).toList()
@@ -742,6 +750,8 @@ public class RecommendationService {
                 blankToEmpty(target.getMemo()),
                 engineResult.finalNote(),
                 ENGINE_VERSION,
+                LocalDate.now(HOME_ZONE),
+                OffsetDateTime.now(ZoneOffset.UTC),
                 engineResult.relatedNews().isEmpty() ? null : OffsetDateTime.now(ZoneOffset.UTC),
                 engineResult.relatedNews().isEmpty() ? "오늘 관련 뉴스가 아직 없습니다." : null,
                 new RecommendationScoresResponse(
@@ -790,6 +800,8 @@ public class RecommendationService {
                 blankToEmpty(record.getMemo()),
                 blankToEmpty(record.getFinalNote()),
                 blankToEmpty(record.getEngineVersion()),
+                record.getRecommendationDate(),
+                record.getCreatedAt(),
                 newsAnalyzedAt,
                 resolveRelatedNewsStatusMessage(rawNewsRecords, newsRecords),
                 extractScores(evidenceRecords),
@@ -804,6 +816,14 @@ public class RecommendationService {
     }
 
     private RecommendationResponse toPendingResponse(RecommendationTarget target) {
+        final List<NewsAnalysisCacheRecord> rawNewsRecords =
+                recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId());
+        final List<NewsAnalysisCacheRecord> newsRecords = filterFreshNewsRecords(rawNewsRecords);
+        final OffsetDateTime newsAnalyzedAt = rawNewsRecords.stream()
+                .map(NewsAnalysisCacheRecord::getAnalyzedAt)
+                .filter(analyzedAt -> analyzedAt != null)
+                .max(OffsetDateTime::compareTo)
+                .orElse(null);
         final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
         final List<RecommendationEvidenceResponse> evidence = List.of(
                 new RecommendationEvidenceResponse(
@@ -833,6 +853,8 @@ public class RecommendationService {
                 "상세 분석 전까지는 현재 모으기 금액을 유지하는 기본 상태로 표시합니다.",
                 "PENDING",
                 null,
+                null,
+                newsAnalyzedAt,
                 "관련 뉴스 분석을 아직 준비 중입니다.",
                 new RecommendationScoresResponse(0, 0, 0, 0, 0),
                 new RecommendationCalculationResponse(
@@ -849,37 +871,10 @@ public class RecommendationService {
                         false
                 ),
                 evidence,
-                List.of()
+                newsRecords.stream()
+                        .map(this::toRelatedNewsResponse)
+                        .toList()
         );
-    }
-
-    private boolean needsRefresh(
-            List<RecommendationTarget> targets,
-            List<RecommendationRecord> latestRecommendations
-    ) {
-        if (latestRecommendations.size() < targets.size()) {
-            return true;
-        }
-
-        final LocalDate today = LocalDate.now(HOME_ZONE);
-        for (RecommendationRecord record : latestRecommendations) {
-            if (!today.equals(record.getRecommendationDate())) {
-                return true;
-            }
-            if (!ENGINE_VERSION.equals(blankToEmpty(record.getEngineVersion()))) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean needsRefresh(RecommendationRecord record) {
-        final LocalDate today = LocalDate.now(HOME_ZONE);
-        if (!today.equals(record.getRecommendationDate())) {
-            return true;
-        }
-        return !ENGINE_VERSION.equals(blankToEmpty(record.getEngineVersion()));
     }
 
     private RecommendationScoresResponse extractScores(List<RecommendationEvidenceRecord> evidenceRecords) {

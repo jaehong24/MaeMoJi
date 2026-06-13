@@ -31,6 +31,9 @@ class RecommendationService {
     final data = decoded['data'] as Map<String, dynamic>? ?? const {};
     return HomeRecommendationSummary(
       calculatedAt: DateTime.tryParse((data['calculatedAt'] ?? '').toString()),
+      recommendationGeneratedAt: DateTime.tryParse(
+        (data['recommendationGeneratedAt'] ?? '').toString(),
+      ),
       priceDataDate: DateTime.tryParse(
         (data['priceDataDate'] ?? '').toString(),
       ),
@@ -59,7 +62,9 @@ class RecommendationService {
     return _decodeRecommendations(utf8.decode(response.bodyBytes));
   }
 
-  Future<RecommendationItem> fetchRecommendationDetail(int portfolioItemId) async {
+  Future<RecommendationItem> fetchRecommendationDetail(
+    int portfolioItemId,
+  ) async {
     final uri = ApiConfig.buildUri(
       '/api/recommendations/$portfolioItemId',
       isWeb: kIsWeb,
@@ -81,7 +86,9 @@ class RecommendationService {
     return decodedItems.first;
   }
 
-  Future<RecommendationItem> refreshRecommendationDetail(int portfolioItemId) async {
+  Future<RecommendationItem> refreshRecommendationDetail(
+    int portfolioItemId,
+  ) async {
     final uri = ApiConfig.buildUri(
       '/api/recommendations/$portfolioItemId/refresh',
       isWeb: kIsWeb,
@@ -182,10 +189,18 @@ class RecommendationService {
         status: _parseStatus((item['recommendationType'] ?? '').toString()),
         evidence: evidenceItems,
         relatedNews: relatedNews,
+        recommendationDate: DateTime.tryParse(
+          (item['recommendationDate'] ?? '').toString(),
+        ),
+        recommendationGeneratedAt: DateTime.tryParse(
+          (item['recommendationGeneratedAt'] ?? '').toString(),
+        ),
         newsAnalyzedAt: DateTime.tryParse(
           (item['newsAnalyzedAt'] ?? '').toString(),
         ),
-        relatedNewsStatusMessage: _nullableText(item['relatedNewsStatusMessage']),
+        relatedNewsStatusMessage: _nullableText(
+          item['relatedNewsStatusMessage'],
+        ),
       );
     }).toList();
   }

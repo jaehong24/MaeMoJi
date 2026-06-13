@@ -1,6 +1,7 @@
 package com.maemoji.backend.recommendation.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -21,6 +22,8 @@ public record RecommendationResponse(
         String memo,
         String aiFinalComment,
         String engineVersion,
+        LocalDate recommendationDate,
+        OffsetDateTime recommendationGeneratedAt,
         OffsetDateTime newsAnalyzedAt,
         String relatedNewsStatusMessage,
         RecommendationScoresResponse scores,

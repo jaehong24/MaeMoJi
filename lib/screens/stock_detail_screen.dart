@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,8 +35,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   final RecommendationService _recommendationService =
       const RecommendationService();
   final StockQuoteService _stockQuoteService = const StockQuoteService();
-  final DateFormat _quoteTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
-  final DateFormat _newsTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
+  final DateFormat _quoteTimeFormat = DateFormat('yyyy??M??d??HH:mm');
+  final DateFormat _newsTimeFormat = DateFormat('yyyy??M??d??HH:mm');
 
   late Future<RecommendationItem> _detailFuture;
   RecommendationItem? _currentItem;
@@ -71,7 +71,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('${widget.initialItem?.name ?? '종목'} 상세'),
+        title: Text('${widget.initialItem?.name ?? '醫낅ぉ'} ?곸꽭'),
       ),
       body: FutureBuilder<RecommendationItem>(
         future: _detailFuture,
@@ -93,18 +93,18 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '상세 추천을 불러오지 못했어요.',
+                      '?곸꽭 異붿쿇??遺덈윭?ㅼ? 紐삵뻽?댁슂.',
                       style: theme.textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '최신 상세 데이터를 가져오지 못했어요. 잠시 후 다시 시도해주세요.',
+                      '理쒖떊 ?곸꽭 ?곗씠?곕? 媛?몄삤吏 紐삵뻽?댁슂. ?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 14),
                     FilledButton.tonal(
                       onPressed: _reload,
-                      child: const Text('다시 불러오기'),
+                      child: const Text('?ㅼ떆 遺덈윭?ㅺ린'),
                     ),
                   ],
                 ),
@@ -195,6 +195,29 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                             style: theme.textTheme.bodyLarge,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (resolvedItem.recommendationGeneratedAt != null)
+                              _DetailMetaChip(
+                                label: _buildRecommendationMetaLabel(
+                                  resolvedItem.recommendationGeneratedAt!,
+                                ),
+                              ),
+                            if (resolvedItem.recommendationDate != null)
+                              _DetailMetaChip(
+                                label:
+                                    '추천 기준 ${resolvedItem.recommendationDate!.toLocal().year}.${resolvedItem.recommendationDate!.toLocal().month.toString().padLeft(2, '0')}.${resolvedItem.recommendationDate!.toLocal().day.toString().padLeft(2, '0')}',
+                              ),
+                            if (resolvedItem.newsAnalyzedAt != null)
+                              _DetailMetaChip(
+                                label:
+                                    '뉴스 확인 ${_newsTimeFormat.format(resolvedItem.newsAnalyzedAt!.toLocal())}',
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -210,7 +233,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MetricCard(
-                          label: '추천 금액',
+                          label: '異붿쿇 湲덉븸',
                           value: recommendedAmount,
                           accentColor: resolvedItem.status.color,
                         ),
@@ -229,14 +252,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MiniMetricCard(
-                          label: '점수',
+                          label: '?먯닔',
                           value: '${resolvedItem.score}',
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MiniMetricCard(
-                          label: '보유 수량',
+                          label: '蹂댁쑀 ?섎웾',
                           value: resolvedItem.currentHolding,
                         ),
                       ),
@@ -247,10 +270,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('추천 근거', style: theme.textTheme.titleLarge),
+                        Text('異붿쿇 洹쇨굅', style: theme.textTheme.titleLarge),
                         const SizedBox(height: 8),
                         Text(
-                          '이 종목의 매일 모으기 금액을 판단한 핵심 근거입니다.',
+                          '??醫낅ぉ??留ㅼ씪 紐⑥쑝湲?湲덉븸???먮떒???듭떖 洹쇨굅?낅땲??',
                           style: theme.textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 16),
@@ -263,21 +286,21 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('관련 뉴스 분석', style: theme.textTheme.titleLarge),
+                        Text('愿???댁뒪 遺꾩꽍', style: theme.textTheme.titleLarge),
                         const SizedBox(height: 8),
                         Text(
                           resolvedItem.relatedNews.isEmpty
                               ? (resolvedItem.relatedNewsStatusMessage ??
-                                  '오늘 관련 뉴스가 아직 없습니다.')
-                              : '감성, 관련성, 영향도를 반영한 기사별 분석입니다.',
+                                    '?ㅻ뒛 愿???댁뒪媛 ?꾩쭅 ?놁뒿?덈떎.')
+                              : '媛먯꽦, 愿?⑥꽦, ?곹뼢?꾨? 諛섏쁺??湲곗궗蹂?遺꾩꽍?낅땲??',
                           style: theme.textTheme.bodyMedium,
                         ),
                         if (resolvedItem.newsAnalyzedAt != null) ...[
                           const SizedBox(height: 6),
                           Text(
                             resolvedItem.relatedNews.isEmpty
-                                ? '마지막 뉴스 분석 ${_newsTimeFormat.format(resolvedItem.newsAnalyzedAt!.toLocal())}'
-                                : '뉴스 기준 ${_newsTimeFormat.format(resolvedItem.newsAnalyzedAt!.toLocal())}',
+                                ? '마지막 뉴스 확인 ${_newsTimeFormat.format(resolvedItem.newsAnalyzedAt!.toLocal())}'
+                                : '뉴스 확인 ${_newsTimeFormat.format(resolvedItem.newsAnalyzedAt!.toLocal())}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontSize: 12,
                               color: MaeMojiColors.inkMuted,
@@ -286,10 +309,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         ],
                         if (resolvedItem.relatedNews.isNotEmpty) ...[
                           const SizedBox(height: 16),
-                          ...resolvedItem.relatedNews.asMap().entries.map((entry) {
+                          ...resolvedItem.relatedNews.asMap().entries.map((
+                            entry,
+                          ) {
                             return Padding(
                               padding: EdgeInsets.only(
-                                bottom: entry.key == resolvedItem.relatedNews.length - 1
+                                bottom:
+                                    entry.key ==
+                                        resolvedItem.relatedNews.length - 1
                                     ? 0
                                     : 12,
                               ),
@@ -307,7 +334,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       children: [
                         Text('사용자 메모', style: theme.textTheme.titleLarge),
                         const SizedBox(height: 10),
-                        _MetaLine(label: '투자 시작일', value: resolvedItem.startedAt),
+                        _MetaLine(
+                          label: '투자 시작일',
+                          value: resolvedItem.startedAt,
+                        ),
                         const SizedBox(height: 8),
                         _MetaLine(
                           label: '메모',
@@ -345,25 +375,27 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
     setState(() {
       _isRefreshingLatest = true;
-      _statusMessage = '최근 저장된 분석 결과를 먼저 보여드리고 있어요.';
+      _statusMessage = _buildStoredRecommendationMessage(_currentItem);
     });
 
     try {
-      final refreshedItem = await _recommendationService.refreshRecommendationDetail(
-        widget.portfolioItemId,
-      );
+      final refreshedItem = await _recommendationService
+          .refreshRecommendationDetail(widget.portfolioItemId);
       if (!mounted) {
         return;
       }
 
-      final hasVisibleChange = _hasMeaningfulDifference(_currentItem, refreshedItem);
+      final hasVisibleChange = _hasMeaningfulDifference(
+        _currentItem,
+        refreshedItem,
+      );
       setState(() {
         if (hasVisibleChange) {
           _currentItem = refreshedItem;
-          _statusMessage = '최신 분석 결과를 바로 반영했어요.';
+          _statusMessage = '방금 최신 정보를 반영했어요.';
         } else {
           _currentItem = refreshedItem;
-          _statusMessage = '방금 최신 뉴스까지 확인했어요.';
+          _statusMessage = '방금 최신 뉴스와 가격까지 확인했어요.';
         }
       });
     } catch (_) {
@@ -371,7 +403,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         return;
       }
       setState(() {
-        _statusMessage = '최신 분석 반영이 조금 지연되고 있어요.';
+        _statusMessage = '최신 확인이 조금 지연되고 있어요.';
       });
     } finally {
       if (mounted) {
@@ -428,6 +460,46 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     }
   }
 
+  String _buildStoredRecommendationMessage(RecommendationItem? item) {
+    final generatedAt = item?.recommendationGeneratedAt?.toLocal();
+    if (generatedAt == null) {
+      return '저장된 추천을 먼저 보여드리고, 최신 정보를 다시 확인하고 있어요.';
+    }
+    if (_isToday(generatedAt)) {
+      return '오늘 저장된 추천을 먼저 보여드리고, 최신 정보를 다시 확인하고 있어요.';
+    }
+    if (_isYesterday(generatedAt)) {
+      return '어제 저장된 추천을 먼저 보여드리고, 최신 정보를 다시 확인하고 있어요.';
+    }
+    return '최근 저장된 추천을 먼저 보여드리고, 최신 정보를 다시 확인하고 있어요.';
+  }
+
+  String _buildRecommendationMetaLabel(DateTime generatedAt) {
+    final local = generatedAt.toLocal();
+    final formatted = _newsTimeFormat.format(local);
+    if (_isToday(local)) {
+      return '오늘 다시 확인한 추천 $formatted';
+    }
+    if (_isYesterday(local)) {
+      return '어제 저장된 추천 $formatted';
+    }
+    return '최근 저장된 추천 $formatted';
+  }
+
+  bool _isToday(DateTime value) {
+    final now = DateTime.now();
+    return value.year == now.year &&
+        value.month == now.month &&
+        value.day == now.day;
+  }
+
+  bool _isYesterday(DateTime value) {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    return value.year == yesterday.year &&
+        value.month == yesterday.month &&
+        value.day == yesterday.day;
+  }
+
   bool _hasMeaningfulDifference(
     RecommendationItem? current,
     RecommendationItem next,
@@ -459,10 +531,7 @@ class _DetailStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final chips = <Widget>[
       if (isRefreshingLatest)
-        const _StatusChip(
-          label: '최신 분석 중',
-          color: MaeMojiColors.reduce,
-        ),
+        const _StatusChip(label: '최신 분석 중', color: MaeMojiColors.reduce),
     ];
 
     return Container(
@@ -476,11 +545,7 @@ class _DetailStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (chips.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: chips,
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: chips),
           if (message != null) ...[
             SizedBox(height: chips.isNotEmpty ? 10 : 0),
             Text(
@@ -523,7 +588,7 @@ class _LivePriceCard extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              isLoading ? '현재가 불러오는 중...' : '현재가 정보를 아직 불러오지 못했어요.',
+              isLoading ? '?꾩옱媛 遺덈윭?ㅻ뒗 以?..' : '?꾩옱媛 ?뺣낫瑜??꾩쭅 遺덈윭?ㅼ? 紐삵뻽?댁슂.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: 12,
                 color: MaeMojiColors.inkMuted,
@@ -549,23 +614,23 @@ class _LivePriceCard extends StatelessWidget {
       currency: showKrw ? DisplayCurrency.krw : DisplayCurrency.usd,
       usdToKrwRate: usdToKrwRate,
     );
-    final convertedChange =
-        showKrw && usdToKrwRate != null
-            ? resolvedQuote.change * usdToKrwRate!
-            : resolvedQuote.change;
+    final convertedChange = showKrw && usdToKrwRate != null
+        ? resolvedQuote.change * usdToKrwRate!
+        : resolvedQuote.change;
     final changePrefix = convertedChange > 0 ? '+' : '';
     final percentPrefix = resolvedQuote.percentChange > 0 ? '+' : '';
-    final changeColor =
-        resolvedQuote.change > 0
-            ? MaeMojiColors.increase
-            : resolvedQuote.change < 0
-            ? MaeMojiColors.stop
-            : MaeMojiColors.inkMuted;
-    final changeText =
-        showKrw
-            ? '$changePrefix${convertedChange.toStringAsFixed(0)}원'
-            : '$changePrefix${convertedChange.toStringAsFixed(2)} USD';
-    final quotedAt = _formatQuoteTime(resolvedQuote.quoteTimestamp, quoteTimeFormat);
+    final changeColor = resolvedQuote.change > 0
+        ? MaeMojiColors.increase
+        : resolvedQuote.change < 0
+        ? MaeMojiColors.stop
+        : MaeMojiColors.inkMuted;
+    final changeText = showKrw
+        ? '$changePrefix${convertedChange.toStringAsFixed(0)}원'
+        : '$changePrefix${convertedChange.toStringAsFixed(2)} USD';
+    final quotedAt = _formatQuoteTime(
+      resolvedQuote.quoteTimestamp,
+      quoteTimeFormat,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,7 +656,7 @@ class _LivePriceCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                '$percentPrefix${resolvedQuote.percentChange.toStringAsFixed(2)}% · $changeText',
+                '$percentPrefix${resolvedQuote.percentChange.toStringAsFixed(2)}% 쨌 $changeText',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -639,10 +704,7 @@ class _LivePriceCard extends StatelessWidget {
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.label,
-    required this.color,
-  });
+  const _StatusChip({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -661,6 +723,31 @@ class _StatusChip extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w700,
           color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailMetaChip extends StatelessWidget {
+  const _DetailMetaChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: MaeMojiColors.paperSoft,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: MaeMojiColors.inkMuted,
         ),
       ),
     );
@@ -904,7 +991,7 @@ class _RelatedNewsCard extends StatelessWidget {
                 color: sentimentColor,
               ),
               _NewsChip(
-                label: '관련성 ${news.relevanceScore}',
+                label: '愿?⑥꽦 ${news.relevanceScore}',
                 color: MaeMojiColors.maintain,
               ),
               _NewsChip(label: impactText, color: MaeMojiColors.inkMuted),
@@ -934,7 +1021,7 @@ class _RelatedNewsCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '판단 이유',
+                    '?먮떒 ?댁쑀',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -971,7 +1058,7 @@ class _RelatedNewsCard extends StatelessWidget {
               if (news.newsUrl.isNotEmpty)
                 TextButton(
                   onPressed: () => _openNews(context, news.newsUrl),
-                  child: const Text('뉴스 보기'),
+                  child: const Text('?댁뒪 蹂닿린'),
                 ),
             ],
           ),
@@ -987,7 +1074,7 @@ class _RelatedNewsCard extends StatelessWidget {
     if (uri == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('뉴스 링크를 열 수 없어요.')));
+      ).showSnackBar(const SnackBar(content: Text('?댁뒪 留곹겕瑜??????놁뼱??')));
       return;
     }
 
@@ -995,7 +1082,7 @@ class _RelatedNewsCard extends StatelessWidget {
     if (!opened && context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('뉴스 링크를 여는 데 실패했어요.')));
+      ).showSnackBar(const SnackBar(content: Text('?댁뒪 留곹겕瑜??щ뒗 ???ㅽ뙣?덉뼱??')));
     }
   }
 }
@@ -1025,7 +1112,3 @@ class _NewsChip extends StatelessWidget {
     );
   }
 }
-
-
-
-

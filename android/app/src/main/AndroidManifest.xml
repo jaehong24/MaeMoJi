@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="maemoji"
+        android:label="매모지"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

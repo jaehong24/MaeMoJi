@@ -28,31 +28,48 @@ class RecommendationFreshnessCard extends StatelessWidget {
                 color: MaeMojiColors.maintain,
               ),
               const SizedBox(width: 7),
-              Text(
-                '${_formatDateTime(summary.calculatedAt)} 기준',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: MaeMojiColors.ink,
+              Expanded(
+                child: Text(
+                  _buildHeadline(summary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: MaeMojiColors.ink,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 6),
+          Text(
+            _buildDescription(summary),
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.45,
+              color: MaeMojiColors.inkMuted,
+            ),
+          ),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 7,
             children: [
               _DataStamp(
-                label: '가격 데이터',
-                value: summary.priceDataDate == null
-                    ? '아직 없음'
-                    : '${_formatDate(summary.priceDataDate)} 미국 장 마감',
+                label: '추천 확인',
+                value: summary.recommendationGeneratedAt == null
+                    ? '준비 중'
+                    : _formatDateTime(summary.recommendationGeneratedAt),
               ),
               _DataStamp(
-                label: '뉴스 분석',
+                label: '가격 기준',
+                value: summary.priceDataDate == null
+                    ? '준비 중'
+                    : '${_formatDate(summary.priceDataDate)} 미국장 마감',
+              ),
+              _DataStamp(
+                label: '뉴스 확인',
                 value: summary.newsAnalyzedAt == null
-                    ? '아직 없음'
+                    ? '준비 중'
                     : _formatDateTime(summary.newsAnalyzedAt),
               ),
             ],
@@ -62,23 +79,59 @@ class RecommendationFreshnessCard extends StatelessWidget {
     );
   }
 
+  static String _buildHeadline(HomeRecommendationSummary summary) {
+    final generatedAt = summary.recommendationGeneratedAt?.toLocal();
+    if (generatedAt == null) {
+      return '추천을 준비하고 있어요';
+    }
+    if (_isToday(generatedAt)) {
+      return '오늘 다시 확인한 추천이에요';
+    }
+    if (_isYesterday(generatedAt)) {
+      return '어제 저장된 추천을 보고 있어요';
+    }
+    return '최근 저장된 추천을 보고 있어요';
+  }
+
+  static String _buildDescription(HomeRecommendationSummary summary) {
+    final refreshedAt = summary.calculatedAt?.toLocal();
+    if (refreshedAt == null) {
+      return '화면에 보이는 추천과 기준 시각을 정리하고 있어요.';
+    }
+    return '화면은 ${_formatDateTime(refreshedAt)}에 새로 고침했어요.';
+  }
+
   static String _formatDate(DateTime? value) {
     if (value == null) {
       return '-';
     }
     final local = value.toLocal();
-    return '${local.year}년 ${local.month}월 ${local.day}일';
+    return '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
   }
 
   static String _formatDateTime(DateTime? value) {
     if (value == null) {
-      return '계산 전';
+      return '준비 중';
     }
     final local = value.toLocal();
     final period = local.hour < 12 ? '오전' : '오후';
     final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
     final minute = local.minute.toString().padLeft(2, '0');
-    return '${local.year}년 ${local.month}월 ${local.day}일 $period $hour:$minute';
+    return '${local.month}/${local.day} $period $hour:$minute';
+  }
+
+  static bool _isToday(DateTime value) {
+    final now = DateTime.now();
+    return value.year == now.year &&
+        value.month == now.month &&
+        value.day == now.day;
+  }
+
+  static bool _isYesterday(DateTime value) {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    return value.year == yesterday.year &&
+        value.month == yesterday.month &&
+        value.day == yesterday.day;
   }
 }
 
