@@ -19,7 +19,7 @@ class DatasourceEnvironmentPostProcessorTest {
         postProcessor.postProcessEnvironment(environment, new SpringApplication(Object.class));
 
         assertThat(environment.getProperty("spring.datasource.url"))
-                .isEqualTo("jdbc:postgresql://demo-user:demo-pass@render.example.com/demo_db");
+                .isEqualTo("jdbc:postgresql://render.example.com/demo_db");
         assertThat(environment.getProperty("spring.datasource.username"))
                 .isEqualTo("demo-user");
         assertThat(environment.getProperty("spring.datasource.password"))
@@ -29,9 +29,12 @@ class DatasourceEnvironmentPostProcessorTest {
     }
 
     @Test
-    void explicitSpringDatasourceValuesAreNotOverridden() {
+    void explicitSpringDatasourceEnvironmentValuesAreNotOverridden() {
         final MockEnvironment environment = new MockEnvironment()
                 .withProperty("DATABASE_URL", "postgresql://demo-user:demo-pass@render.example.com/demo_db")
+                .withProperty("SPRING_DATASOURCE_URL", "jdbc:postgresql://localhost:5432/local_db")
+                .withProperty("SPRING_DATASOURCE_USERNAME", "local-user")
+                .withProperty("SPRING_DATASOURCE_PASSWORD", "local-pass")
                 .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/local_db")
                 .withProperty("spring.datasource.username", "local-user")
                 .withProperty("spring.datasource.password", "local-pass");
@@ -44,5 +47,25 @@ class DatasourceEnvironmentPostProcessorTest {
                 .isEqualTo("local-user");
         assertThat(environment.getProperty("spring.datasource.password"))
                 .isEqualTo("local-pass");
+    }
+
+    @Test
+    void neonDatabaseUrlGetsRequiredSslModeAutomatically() {
+        final MockEnvironment environment = new MockEnvironment()
+                .withProperty(
+                        "NEON_DATABASE_URL",
+                        "postgresql://demo-user:demo-pass@ep-example-123456.us-east-1.aws.neon.tech/neondb"
+                );
+
+        postProcessor.postProcessEnvironment(environment, new SpringApplication(Object.class));
+
+        assertThat(environment.getProperty("spring.datasource.url"))
+                .isEqualTo(
+                        "jdbc:postgresql://ep-example-123456.us-east-1.aws.neon.tech/neondb?sslmode=require"
+                );
+        assertThat(environment.getProperty("spring.datasource.username"))
+                .isEqualTo("demo-user");
+        assertThat(environment.getProperty("spring.datasource.password"))
+                .isEqualTo("demo-pass");
     }
 }

@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Normalizes hosted Postgres environment variables such as Render's DATABASE_URL
+ * Normalizes hosted Postgres environment variables such as Render or Neon DATABASE_URL
  * into Spring Boot datasource properties before the DataSource is created.
  */
 public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -45,6 +45,7 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
 
         final HostedDatasource hostedDatasource = HostedDatasource.from(
                 firstNonBlank(
+                        environment.getProperty("NEON_DATABASE_URL"),
                         environment.getProperty("DATABASE_URL"),
                         environment.getProperty("POSTGRES_URL"),
                         environment.getProperty("RENDER_DATABASE_URL")
@@ -52,7 +53,7 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
         );
 
         if (hostedDatasource.url() != null
-                && (datasourceUrl == null || explicitDatasourceUrl == null)) {
+                && (datasourceUrl == null || isDefaultLocalDatasourceUrl(datasourceUrl, explicitDatasourceUrl))) {
             overrides.put("spring.datasource.url", hostedDatasource.url());
         }
 
@@ -107,6 +108,21 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
         }
         final String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static boolean isDefaultLocalDatasourceUrl(String datasourceUrl, String explicitDatasourceUrl) {
+        if (explicitDatasourceUrl != null) {
+            return false;
+        }
+
+        final String normalized = blankToNull(datasourceUrl);
+        if (normalized == null) {
+            return true;
+        }
+
+        return normalized.contains("jdbc:postgresql://localhost:")
+                || normalized.contains("jdbc:postgresql://127.0.0.1:")
+                || normalized.contains("jdbc:postgresql://10.0.2.2:");
     }
 
     record HostedDatasource(String url, String username, String password) {
@@ -167,10 +183,28 @@ public class DatasourceEnvironmentPostProcessor implements EnvironmentPostProces
                 jdbcUrl.append(':').append(uri.getPort());
             }
             jdbcUrl.append(uri.getPath());
-            if (uri.getQuery() != null && !uri.getQuery().isBlank()) {
-                jdbcUrl.append('?').append(uri.getQuery());
+            final String query = withRequiredSslMode(uri);
+            if (query != null && !query.isBlank()) {
+                jdbcUrl.append('?').append(query);
             }
             return jdbcUrl.toString();
+        }
+
+        private static String withRequiredSslMode(URI uri) {
+            final String query = blankToNull(uri.getQuery());
+            final String host = blankToNull(uri.getHost());
+            final boolean isNeonHost = host != null && host.contains(".neon.tech");
+
+            if (!isNeonHost) {
+                return query;
+            }
+            if (query == null) {
+                return "sslmode=require";
+            }
+            if (query.toLowerCase().contains("sslmode=")) {
+                return query;
+            }
+            return query + "&sslmode=require";
         }
     }
 }

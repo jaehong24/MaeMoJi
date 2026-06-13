@@ -24,6 +24,10 @@ Required GitHub repository secrets:
 - `FINNHUB_API_KEY`
 - `GEMINI_API_KEY`
 
+If you move to Neon, use the Neon pooled connection string for `DATABASE_URL`
+in GitHub Actions because the batch runs on a long-lived backend process and
+benefits from PgBouncer-based pooling.
+
 The workflow uses Java 17, starts Spring Boot in non-web mode, runs the
 integrated batch once, and then exits with code `0` on success and `1` on
 failure.
@@ -57,3 +61,6 @@ Actions is the single source of truth for the daily batch schedule.
 
 Protected admin APIs can still be used separately if you want to trigger
 price sync or stock master sync by hand.
+
+For data migration tools such as `pg_dump` and `pg_restore`, use a direct
+Neon connection instead of the `-pooler` host.

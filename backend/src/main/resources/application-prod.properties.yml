@@ -7,6 +7,13 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:${MAEMOJI_DB_USER:maemoji}}
     password: ${SPRING_DATASOURCE_PASSWORD:${MAEMOJI_DB_PASSWORD:maemoji1234}}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      validation-timeout: 5000
+      initialization-fail-timeout: 10000
+      max-lifetime: 600000
+      keepalive-time: 240000
+      idle-timeout: 300000
 
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml

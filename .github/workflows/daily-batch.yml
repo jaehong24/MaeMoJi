@@ -19,6 +19,7 @@ jobs:
   run-daily-batch:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: DATABASE_URL
     env:
       SPRING_PROFILES_ACTIVE: prod
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
