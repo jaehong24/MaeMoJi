@@ -7,11 +7,8 @@ import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/currency_toggle.dart';
-import '../widgets/navigation_preview_tile.dart';
 import '../widgets/recommendation_card.dart';
-import '../widgets/recommendation_freshness_card.dart';
 import '../widgets/status_summary_chip.dart';
-import 'screen_blueprint_screen.dart';
 import 'stock_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -66,10 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
-                    '매일 모으기 흐름을 빠르게 확인합니다.\n모든 투자 선택과 책임은 본인에게 있습니다.',
-                    style: theme.textTheme.bodyLarge,
+                    '매일 모으기 흐름을 빠르게 확인해요.',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: MaeMojiColors.inkMuted,
+                    ),
                   ),
                 ],
               ),
@@ -106,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '백엔드 서버 상태를 확인하거나 추천을 다시 생성해 주세요.',
+                      '잠시 후 다시 시도해 주세요.',
                       style: TextStyle(
                         fontSize: 14,
                         color: MaeMojiColors.inkMuted,
@@ -122,15 +123,14 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            final summary = snapshot.data!;
-            final recommendations = summary.items.take(5).toList();
+            final recommendations = snapshot.data!.items.take(5).toList();
             if (recommendations.isEmpty) {
               return const AppSectionCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '아직 생성된 추천이 없습니다.',
+                      '아직 표시할 종목이 없습니다.',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -139,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '포트폴리오 등록 후 추천 화면 또는 홈에서 추천을 불러오면 결과가 나타납니다.',
+                      '포트폴리오에 종목을 담으면 이곳에 최대 5개까지 보여드려요.',
                       style: TextStyle(
                         fontSize: 14,
                         color: MaeMojiColors.inkMuted,
@@ -165,8 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Column(
               children: [
-                RecommendationFreshnessCard(summary: summary),
-                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
@@ -230,19 +228,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ],
-            );
-          },
-        ),
-        const SizedBox(height: 20),
-        NavigationPreviewTile(
-          title: '화면 설계도 보기',
-          description: '기획서 기준 전체 화면 목록과 기초 골격 화면들을 한 번에 확인할 수 있습니다.',
-          icon: Icons.dashboard_customize_rounded,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ScreenBlueprintScreen(),
-              ),
             );
           },
         ),

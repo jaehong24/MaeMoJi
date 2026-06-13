@@ -56,7 +56,7 @@ public class PortfolioService {
             portfolioMapper.updatePortfolioItem(portfolioItemId, request);
         }
 
-        recommendationService.generateLatestRecommendations(userId);
+        recommendationService.generateLatestRecommendationsFromCachedData(userId);
         return portfolioMapper.findPortfolioItemsByUserId(userId);
     }
 
@@ -68,7 +68,6 @@ public class PortfolioService {
             throw new ResponseStatusException(NOT_FOUND, "삭제할 포트폴리오 종목을 찾을 수 없습니다.");
         }
 
-        recommendationService.generateLatestRecommendations(userId);
         return portfolioMapper.findPortfolioItemsByUserId(userId);
     }
 

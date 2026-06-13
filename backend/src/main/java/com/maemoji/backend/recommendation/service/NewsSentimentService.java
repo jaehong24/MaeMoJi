@@ -128,6 +128,71 @@ public class NewsSentimentService {
         }
     }
 
+    public NewsSentimentResult findCachedDisplayResult(Long stockId) {
+        if (stockId == null) {
+            return null;
+        }
+
+        final List<NewsAnalysisCacheRecord> cachedRecords =
+                recommendationMapper.findLatestNewsAnalysisByStockId(stockId);
+        if (cachedRecords.isEmpty()) {
+            return null;
+        }
+
+        final String model = cachedRecords.stream()
+                .map(NewsAnalysisCacheRecord::getLlmModel)
+                .filter(value -> !isBlank(value))
+                .findFirst()
+                .orElse(resolveGeminiModel());
+
+        final List<AnalyzedNewsItem> cachedNews = cachedRecords.stream()
+                .map(record -> {
+                    final double recencyWeight = calculateRecencyWeight(record.getNewsPublishedAt());
+                    final double impactWeight = impactWeight(record.getImpactLevel());
+                    final double weightedScore = zeroIfNull(record.getSentimentScore())
+                            * (zeroIfNull(record.getRelevanceScore()) / 100.0)
+                            * recencyWeight
+                            * impactWeight;
+
+                    return new AnalyzedNewsItem(
+                            record.getNewsId(),
+                            record.getSymbol(),
+                            record.getHeadline(),
+                            record.getSummary(),
+                            record.getSourceName(),
+                            record.getNewsUrl(),
+                            record.getNewsPublishedAt(),
+                            record.getSentimentLabel(),
+                            zeroIfNull(record.getSentimentScore()),
+                            zeroIfNull(record.getKeywordScore()),
+                            zeroIfNull(record.getRelevanceScore()),
+                            record.getImpactLevel(),
+                            record.getReason(),
+                            decimal(recencyWeight),
+                            decimal(impactWeight),
+                            decimal(weightedScore),
+                            record.getContentHash(),
+                            record.getAnalysisBatchHash()
+                    );
+                })
+                .toList();
+
+        final boolean hardNegativeOverride = cachedNews.stream().anyMatch(item ->
+                item.keywordScore() <= -85
+                        && item.relevanceScore() >= MIN_FINAL_RELEVANCE
+                        && "HIGH".equals(item.impactLevel())
+        );
+
+        return finalizeResult(
+                cachedNews,
+                hardNegativeOverride,
+                "",
+                model,
+                true,
+                false
+        );
+    }
+
     public NewsEngineStatusResponse getStatus() {
         return new NewsEngineStatusResponse(
                 !isBlank(System.getenv("FINNHUB_API_KEY")),

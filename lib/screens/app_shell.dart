@@ -4,10 +4,8 @@ import '../theme/app_theme.dart';
 import '../widgets/api_endpoint_banner.dart';
 import 'home_screen.dart';
 import 'portfolio_screen.dart';
-import 'recommendations_screen.dart';
 import 'settings_screen.dart';
 
-/// 하단 내비게이션을 담당하는 앱의 기본 껍데기입니다.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -22,7 +20,7 @@ class _AppShellState extends State<AppShell> {
   List<Widget> get _pages => [
     HomeScreen(refreshVersion: _homeRefreshVersion),
     const PortfolioScreen(),
-    const RecommendationsScreen(),
+    const SizedBox.shrink(),
     const SettingsScreen(),
   ];
 
@@ -52,6 +50,13 @@ class _AppShellState extends State<AppShell> {
         selectedIndex: _currentIndex,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: (index) {
+          if (index == 2) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('준비중입니다.')));
+            return;
+          }
+
           setState(() {
             _currentIndex = index;
             if (index == 0) {

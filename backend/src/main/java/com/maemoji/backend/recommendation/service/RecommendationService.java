@@ -82,6 +82,27 @@ public class RecommendationService {
     }
 
     @Transactional
+    public List<RecommendationResponse> generateLatestRecommendationsFromCachedData(Long userId) {
+        final LocalDate recommendationDate = LocalDate.now(HOME_ZONE);
+        final List<RecommendationTarget> targets =
+                recommendationMapper.findActiveRecommendationTargetsByUserId(userId);
+
+        final List<RecommendationResponse> responses = new ArrayList<>();
+        for (RecommendationTarget target : targets) {
+            final EngineResult engineResult = evaluateTarget(
+                    target,
+                    null,
+                    false,
+                    false
+            );
+            final Long recommendationId = saveRecommendation(userId, target, recommendationDate, engineResult);
+            responses.add(toResponse(target, recommendationId, engineResult));
+        }
+
+        return responses;
+    }
+
+    @Transactional
     public List<RecommendationResponse> generateLatestRecommendations(
             Long userId,
             Map<Long, NewsSentimentService.NewsSentimentResult> sharedNewsByStockId
@@ -239,6 +260,12 @@ public class RecommendationService {
 
     @Transactional
     public RecommendationResponse refreshRecommendationDetail(Long userId, Long portfolioItemId) {
+        final RecommendationRecord existingRecord = recommendationMapper
+                .findLatestRecommendationByUserIdAndPortfolioItemId(userId, portfolioItemId);
+        if (existingRecord != null && isSameRecommendationDay(existingRecord.getRecommendationDate())) {
+            return toResponse(existingRecord);
+        }
+
         final RecommendationTarget target = recommendationMapper
                 .findActiveRecommendationTargetByUserIdAndPortfolioItemId(userId, portfolioItemId);
         if (target == null) {
@@ -260,18 +287,22 @@ public class RecommendationService {
             RecommendationTarget target,
             NewsSentimentService.NewsSentimentResult sharedNewsSentiment
     ) {
+        return evaluateTarget(target, sharedNewsSentiment, true, true);
+    }
+
+    private EngineResult evaluateTarget(
+            RecommendationTarget target,
+            NewsSentimentService.NewsSentimentResult sharedNewsSentiment,
+            boolean allowExternalNewsFetch,
+            boolean allowExternalPriceFetch
+    ) {
         final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
         final String memo = blankToEmpty(target.getMemo());
         final boolean hasHardRisk = containsHardRiskKeyword(memo);
 
-        final PriceSnapshot priceSnapshot = fetchPriceSnapshot(target);
-        final NewsSentimentService.NewsSentimentResult newsSentiment = sharedNewsSentiment != null
-                ? sharedNewsSentiment
-                : newsSentimentService.analyze(
-                    target.getStockId(),
-                    resolveSymbol(target),
-                    target.getCompanyName()
-                );
+        final PriceSnapshot priceSnapshot = fetchPriceSnapshot(target, allowExternalPriceFetch);
+        final NewsSentimentService.NewsSentimentResult newsSentiment =
+                resolveNewsSentiment(target, sharedNewsSentiment, allowExternalNewsFetch);
 
         final int confidenceScore = resolveConfidence(target, priceSnapshot, newsSentiment);
         final Integer rawNewsSentiment = newsSentiment.relatedNews().isEmpty()
@@ -332,6 +363,32 @@ public class RecommendationService {
 
     private EngineResult evaluateTarget(RecommendationTarget target) {
         return evaluateTarget(target, null);
+    }
+
+    private NewsSentimentService.NewsSentimentResult resolveNewsSentiment(
+            RecommendationTarget target,
+            NewsSentimentService.NewsSentimentResult sharedNewsSentiment,
+            boolean allowExternalNewsFetch
+    ) {
+        if (sharedNewsSentiment != null) {
+            return sharedNewsSentiment;
+        }
+
+        final NewsSentimentService.NewsSentimentResult cachedResult =
+                newsSentimentService.findCachedDisplayResult(target.getStockId());
+        if (cachedResult != null) {
+            return cachedResult;
+        }
+
+        if (!allowExternalNewsFetch) {
+            return NewsSentimentService.NewsSentimentResult.unavailable();
+        }
+
+        return newsSentimentService.analyze(
+                target.getStockId(),
+                resolveSymbol(target),
+                target.getCompanyName()
+        );
     }
 
     private Long saveRecommendation(
@@ -430,7 +487,7 @@ public class RecommendationService {
     private LightweightRecommendationResult toLightweightHomeResponse(RecommendationTarget target) {
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
-        final List<NewsAnalysisCacheRecord> cachedNews = filterFreshNewsRecords(
+        final List<NewsAnalysisCacheRecord> cachedNews = selectDisplayNewsRecords(
                 recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId())
         );
         final CachedNewsSummary newsSummary = summarizeCachedNews(cachedNews);
@@ -507,7 +564,7 @@ public class RecommendationService {
     private LightweightRecommendationResult toLightweightHomeResponse(RecommendationResponse response) {
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(response.stockId());
-        final List<NewsAnalysisCacheRecord> cachedNews = filterFreshNewsRecords(
+        final List<NewsAnalysisCacheRecord> cachedNews = selectDisplayNewsRecords(
                 recommendationMapper.findLatestNewsAnalysisByStockId(response.stockId())
         );
         final OffsetDateTime newsAnalyzedAt = cachedNews.stream()
@@ -605,17 +662,55 @@ public class RecommendationService {
                 .toList();
     }
 
+    private List<NewsAnalysisCacheRecord> selectDisplayNewsRecords(List<NewsAnalysisCacheRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+
+        final List<NewsAnalysisCacheRecord> freshRecords = filterFreshNewsRecords(records);
+        if (!freshRecords.isEmpty()) {
+            return freshRecords;
+        }
+
+        OffsetDateTime latestPublishedAt = null;
+        for (NewsAnalysisCacheRecord record : records) {
+            if (record.getNewsPublishedAt() == null) {
+                continue;
+            }
+            if (latestPublishedAt == null || record.getNewsPublishedAt().isAfter(latestPublishedAt)) {
+                latestPublishedAt = record.getNewsPublishedAt();
+            }
+        }
+
+        if (latestPublishedAt == null) {
+            return List.of();
+        }
+
+        final LocalDate latestPublishedDate = latestPublishedAt.atZoneSameInstant(HOME_ZONE).toLocalDate();
+        return records.stream()
+                .filter(record -> record.getNewsPublishedAt() != null)
+                .filter(record -> record.getNewsPublishedAt()
+                        .atZoneSameInstant(HOME_ZONE)
+                        .toLocalDate()
+                        .equals(latestPublishedDate))
+                .toList();
+    }
+
     private String resolveRelatedNewsStatusMessage(
             List<NewsAnalysisCacheRecord> rawNewsRecords,
-            List<NewsAnalysisCacheRecord> freshNewsRecords
+            List<NewsAnalysisCacheRecord> displayNewsRecords
     ) {
-        if (freshNewsRecords != null && !freshNewsRecords.isEmpty()) {
-            return null;
+        if (displayNewsRecords != null && !displayNewsRecords.isEmpty()) {
+            final List<NewsAnalysisCacheRecord> freshNewsRecords = filterFreshNewsRecords(rawNewsRecords);
+            if (!freshNewsRecords.isEmpty()) {
+                return null;
+            }
+            return "오늘 새 관련 뉴스가 적어 최근 확인한 관련 뉴스를 보여드리고 있습니다.";
         }
         if (rawNewsRecords == null || rawNewsRecords.isEmpty()) {
             return "오늘 관련 뉴스가 아직 없습니다.";
         }
-        return "관련 뉴스가 있었지만 최신 기준에서 오래돼 숨겼습니다.";
+        return "관련 뉴스 분석을 준비하고 있습니다.";
     }
 
     private boolean isFreshNewsPublishedAt(OffsetDateTime publishedAt, LocalDate latestAllowedTradingDate) {
@@ -776,7 +871,7 @@ public class RecommendationService {
                 recommendationMapper.findRecommendationEvidenceByRecommendationId(record.getRecommendationId());
         final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(record.getStockId());
-        final List<NewsAnalysisCacheRecord> newsRecords = filterFreshNewsRecords(rawNewsRecords);
+        final List<NewsAnalysisCacheRecord> newsRecords = selectDisplayNewsRecords(rawNewsRecords);
         final OffsetDateTime newsAnalyzedAt = rawNewsRecords.stream()
                 .map(NewsAnalysisCacheRecord::getAnalyzedAt)
                 .filter(analyzedAt -> analyzedAt != null)
@@ -818,7 +913,7 @@ public class RecommendationService {
     private RecommendationResponse toPendingResponse(RecommendationTarget target) {
         final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId());
-        final List<NewsAnalysisCacheRecord> newsRecords = filterFreshNewsRecords(rawNewsRecords);
+        final List<NewsAnalysisCacheRecord> newsRecords = selectDisplayNewsRecords(rawNewsRecords);
         final OffsetDateTime newsAnalyzedAt = rawNewsRecords.stream()
                 .map(NewsAnalysisCacheRecord::getAnalyzedAt)
                 .filter(analyzedAt -> analyzedAt != null)
@@ -1244,7 +1339,7 @@ public class RecommendationService {
         return 5;
     }
 
-    private PriceSnapshot fetchPriceSnapshot(RecommendationTarget target) {
+    private PriceSnapshot fetchPriceSnapshot(RecommendationTarget target, boolean allowExternalPriceFetch) {
         final StockPriceSnapshotRecord latestSnapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
         if (latestSnapshot != null
@@ -1256,6 +1351,10 @@ public class RecommendationService {
                             ? null
                             : latestSnapshot.getChangeRate30d().doubleValue()
             );
+        }
+
+        if (!allowExternalPriceFetch) {
+            return PriceSnapshot.unavailable();
         }
 
         final String apiKey = System.getenv("FINNHUB_API_KEY");
@@ -1271,6 +1370,10 @@ public class RecommendationService {
         } catch (Exception ignored) {
             return PriceSnapshot.unavailable();
         }
+    }
+
+    private boolean isSameRecommendationDay(LocalDate recommendationDate) {
+        return recommendationDate != null && recommendationDate.equals(LocalDate.now(HOME_ZONE));
     }
 
     private String resolveSymbol(RecommendationTarget target) {
