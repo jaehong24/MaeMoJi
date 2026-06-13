@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../config/api_config.dart';
 import '../models/stock_search_item.dart';
 import '../services/maemoji_stock_search_service.dart';
 import '../theme/app_theme.dart';
@@ -329,15 +331,20 @@ class _TickerAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shortTicker = ticker.length > 3 ? ticker.substring(0, 3) : ticker;
+    final resolvedLogoUrl = ApiConfig.resolveLogoUrl(
+      logoUrl,
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
 
-    if (logoUrl != null && logoUrl!.isNotEmpty) {
+    if (resolvedLogoUrl.isNotEmpty) {
       return ClipOval(
         child: Container(
           width: 52,
           height: 52,
           color: Colors.white,
           child: Image.network(
-            logoUrl!,
+            resolvedLogoUrl,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return _TickerFallback(shortTicker: shortTicker);

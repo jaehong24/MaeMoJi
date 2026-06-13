@@ -1,7 +1,9 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/api_config.dart';
 import '../currency/currency_scope.dart';
 import '../models/display_currency.dart';
 import '../models/recommendation_item.dart';
@@ -674,15 +676,20 @@ class _DetailLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shortTicker = ticker.length > 3 ? ticker.substring(0, 3) : ticker;
+    final resolvedLogoUrl = ApiConfig.resolveLogoUrl(
+      logoUrl,
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
 
-    if (logoUrl != null && logoUrl!.isNotEmpty) {
+    if (resolvedLogoUrl.isNotEmpty) {
       return ClipOval(
         child: Container(
           width: 56,
           height: 56,
           color: Colors.white,
           child: Image.network(
-            logoUrl!,
+            resolvedLogoUrl,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return _DetailFallbackLogo(shortTicker: shortTicker);
@@ -1018,5 +1025,7 @@ class _NewsChip extends StatelessWidget {
     );
   }
 }
+
+
 
 

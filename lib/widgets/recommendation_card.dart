@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
+import '../config/api_config.dart';
 import '../currency/currency_scope.dart';
 import '../models/recommendation_item.dart';
 import '../screens/recommendation_detail_screen.dart';
@@ -180,15 +182,20 @@ class _RecommendationLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final shortTicker = ticker.length > 3 ? ticker.substring(0, 3) : ticker;
     final size = compact ? 44.0 : 52.0;
+    final resolvedLogoUrl = ApiConfig.resolveLogoUrl(
+      logoUrl,
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
 
-    if (logoUrl != null && logoUrl!.isNotEmpty) {
+    if (resolvedLogoUrl.isNotEmpty) {
       return ClipOval(
         child: Container(
           width: size,
           height: size,
           color: Colors.white,
           child: Image.network(
-            logoUrl!,
+            resolvedLogoUrl,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return _RecommendationFallback(

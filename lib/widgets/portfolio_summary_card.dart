@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
+import '../config/api_config.dart';
 import '../models/portfolio_item_summary.dart';
 import '../theme/app_theme.dart';
 import 'app_section_card.dart';
@@ -115,15 +117,20 @@ class _PortfolioLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shortTicker = ticker.length > 3 ? ticker.substring(0, 3) : ticker;
+    final resolvedLogoUrl = ApiConfig.resolveLogoUrl(
+      logoUrl,
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
 
-    if (logoUrl != null && logoUrl!.isNotEmpty) {
+    if (resolvedLogoUrl.isNotEmpty) {
       return ClipOval(
         child: Container(
           width: 52,
           height: 52,
           color: Colors.white,
           child: Image.network(
-            logoUrl!,
+            resolvedLogoUrl,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return _PortfolioFallback(shortTicker: shortTicker);

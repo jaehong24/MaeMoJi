@@ -15,12 +15,10 @@ class EvidenceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: items
-          .asMap()
-          .entries
           .map(
-            (entry) => _EvidenceLine(
-              item: entry.value,
-              isLast: entry.key == items.length - 1,
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _EvidenceCard(item: item),
             ),
           )
           .toList(),
@@ -28,44 +26,48 @@ class EvidenceSection extends StatelessWidget {
   }
 }
 
-class _EvidenceLine extends StatelessWidget {
-  const _EvidenceLine({
-    required this.item,
-    required this.isLast,
-  });
+class _EvidenceCard extends StatelessWidget {
+  const _EvidenceCard({required this.item});
 
   final EvidenceItem item;
-  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isLast ? Colors.transparent : const Color(0xFFF0E9DD),
-          ),
+        color: MaeMojiColors.paperSoft,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFF0E9DD),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            item.title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: MaeMojiColors.ink,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: MaeMojiColors.ink,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 10),
           Text(
             item.body,
             style: const TextStyle(
-              fontSize: 14,
-              height: 1.5,
+              fontSize: 13,
+              height: 1.55,
               color: MaeMojiColors.inkSoft,
             ),
           ),

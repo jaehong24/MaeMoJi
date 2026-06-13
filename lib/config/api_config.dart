@@ -61,10 +61,36 @@ class ApiConfig {
     );
   }
 
+  static String resolveLogoUrl(
+    String? remoteUrl, {
+    required bool isWeb,
+    required String platformName,
+  }) {
+    final trimmed = (remoteUrl ?? '').trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+
+    if (!isWeb) {
+      return trimmed;
+    }
+
+    return buildUri(
+      '/api/assets/logo-proxy',
+      isWeb: isWeb,
+      platformName: platformName,
+      queryParameters: {'url': trimmed},
+    ).toString();
+  }
+
   static String _normalizeBaseUrl(String value) {
-    final trimmed = value.trim();
+    var trimmed = value.trim();
+    // Guard against a common manual deployment typo.
+    if (trimmed == 'https://maemoji.onrender.co') {
+      trimmed = 'https://maemoji.onrender.com';
+    }
     if (trimmed.endsWith('/')) {
-      return trimmed.substring(0, trimmed.length - 1);
+      trimmed = trimmed.substring(0, trimmed.length - 1);
     }
     return trimmed;
   }
