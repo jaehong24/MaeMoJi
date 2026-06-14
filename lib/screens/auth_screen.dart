@@ -6,6 +6,7 @@ import 'package:google_sign_in_platform_interface/google_sign_in_platform_interf
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'app_shell.dart';
+import 'investment_dna_survey_screen.dart';
 import '../models/auth_session.dart';
 import '../services/auth_service.dart';
 import '../services/auth_session_store.dart';
@@ -30,10 +31,8 @@ class _AuthScreenState extends State<AuthScreen> {
   void initState() {
     super.initState();
     if (kIsWeb) {
-      _googleUserSubscription =
-          GoogleSignInPlatform.instance.userDataEvents?.listen(
-        _handleWebGoogleUserDataChanged,
-      );
+      _googleUserSubscription = GoogleSignInPlatform.instance.userDataEvents
+          ?.listen(_handleWebGoogleUserDataChanged);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _authService.restoreGoogleSessionIfPossible().catchError((_) {});
       });
@@ -56,11 +55,7 @@ class _AuthScreenState extends State<AuthScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFCF4),
-              MaeMojiColors.paper,
-              Color(0xFFF7F1E5),
-            ],
+            colors: [Color(0xFFFFFCF4), MaeMojiColors.paper, Color(0xFFF7F1E5)],
           ),
         ),
         child: Stack(
@@ -68,18 +63,12 @@ class _AuthScreenState extends State<AuthScreen> {
             const Positioned(
               top: -120,
               right: -40,
-              child: _BackdropCircle(
-                size: 260,
-                color: Color(0x1AF59E0B),
-              ),
+              child: _BackdropCircle(size: 260, color: Color(0x1AF59E0B)),
             ),
             const Positioned(
               left: -70,
               bottom: 120,
-              child: _BackdropCircle(
-                size: 190,
-                color: Color(0x143B82F6),
-              ),
+              child: _BackdropCircle(size: 190, color: Color(0x143B82F6)),
             ),
             SafeArea(
               child: Center(
@@ -112,7 +101,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                 decoration: BoxDecoration(
                                   color: MaeMojiColors.paperSoft,
                                   borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: MaeMojiColors.stroke),
+                                  border: Border.all(
+                                    color: MaeMojiColors.stroke,
+                                  ),
                                 ),
                                 alignment: Alignment.center,
                                 child: const Icon(
@@ -284,18 +275,18 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
+    final destination = session.user.hasRiskProfile
+        ? const AppShell()
+        : const InvestmentDnaSurveyScreen();
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const AppShell()),
+      MaterialPageRoute(builder: (_) => destination),
       (route) => false,
     );
   }
 }
 
 class _BackdropCircle extends StatelessWidget {
-  const _BackdropCircle({
-    required this.size,
-    required this.color,
-  });
+  const _BackdropCircle({required this.size, required this.color});
 
   final double size;
   final Color color;
@@ -305,19 +296,13 @@ class _BackdropCircle extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }
 
 class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({
-    required this.busy,
-    required this.onPressed,
-  });
+  const _GoogleButton({required this.busy, required this.onPressed});
 
   final bool busy;
   final VoidCallback? onPressed;

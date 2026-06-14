@@ -141,8 +141,11 @@ class RecommendationService {
           .cast<Map<String, dynamic>>()
           .map(
             (evidence) => EvidenceItem(
+              evidenceType: (evidence['evidenceType'] ?? '').toString(),
               title: (evidence['title'] ?? '').toString(),
               body: (evidence['body'] ?? '').toString(),
+              scoreImpact: (evidence['scoreImpact'] as num?)?.toInt(),
+              displayOrder: (evidence['displayOrder'] as num?)?.toInt(),
             ),
           )
           .toList();
@@ -170,6 +173,9 @@ class RecommendationService {
             ),
           )
           .toList();
+
+      final calculation =
+          (item['calculation'] as Map<String, dynamic>?) ?? const {};
 
       return RecommendationItem(
         portfolioItemId: (item['portfolioItemId'] as num?)?.toInt() ?? 0,
@@ -200,6 +206,22 @@ class RecommendationService {
         ),
         relatedNewsStatusMessage: _nullableText(
           item['relatedNewsStatusMessage'],
+        ),
+        formulaVersion: (calculation['formulaVersion'] ?? '').toString(),
+        priceMomentumScore:
+            (calculation['priceMomentumScore'] as num?)?.toInt(),
+        priceStabilityScore:
+            (calculation['priceStabilityScore'] as num?)?.toInt(),
+        fundamentalQualityScore:
+            (calculation['fundamentalQualityScore'] as num?)?.toInt(),
+        newsScore: (calculation['newsScore'] as num?)?.toInt(),
+        userFitScore: (calculation['userFitScore'] as num?)?.toInt(),
+        crossFactorAdjustment:
+            (calculation['crossFactorAdjustment'] as num?)?.toInt(),
+        userAdjustment: (calculation['userAdjustment'] as num?)?.toInt(),
+        riskProfileApplied: _nullableText(calculation['riskProfileApplied']),
+        confidenceBreakdownJson: _nullableText(
+          calculation['confidenceBreakdownJson'],
         ),
       );
     }).toList();

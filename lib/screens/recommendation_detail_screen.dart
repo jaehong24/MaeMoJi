@@ -104,6 +104,12 @@ class RecommendationDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (item.isV4Calculation) ...[
+                    const SizedBox(height: 16),
+                    AppSectionCard(
+                      child: _V4CalculationSection(item: item),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   AppSectionCard(
                     child: Column(
@@ -129,6 +135,7 @@ class RecommendationDetailScreen extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
+                                '관련 뉴스',
                                 '관련 뉴스',
                                 style: theme.textTheme.titleLarge,
                               ),
@@ -292,6 +299,154 @@ class _MetricBox extends StatelessWidget {
       ),
     );
   }
+}
+
+class _V4CalculationSection extends StatelessWidget {
+  const _V4CalculationSection({required this.item});
+
+  final RecommendationItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final factorTiles = <_FactorTileData>[
+      _FactorTileData('가격 흐름', item.priceMomentumScore),
+      _FactorTileData('가격 안정성', item.priceStabilityScore),
+      _FactorTileData('기업 체력', item.fundamentalQualityScore),
+      _FactorTileData('뉴스', item.newsScore),
+      _FactorTileData('내 투자 상황', item.userFitScore),
+    ].where((tile) => tile.score != null).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '계산 방식',
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+            if ((item.riskProfileApplied ?? '').isNotEmpty)
+              _MetaBadge(label: item.riskProfileApplied!),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '현재 추천은 여러 근거를 함께 보는 V4 방식으로 계산했어요.',
+          style: theme.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: factorTiles
+              .map((tile) => _FactorScoreChip(data: tile))
+              .toList(),
+        ),
+        if ((item.crossFactorAdjustment ?? 0) != 0 ||
+            (item.userAdjustment ?? 0) != 0) ...[
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if ((item.crossFactorAdjustment ?? 0) != 0)
+                _MetaBadge(
+                  label:
+                      '조합 보정 ${_formatSigned(item.crossFactorAdjustment ?? 0)}',
+                ),
+              if ((item.userAdjustment ?? 0) != 0)
+                _MetaBadge(
+                  label: '개인 보정 ${_formatSigned(item.userAdjustment ?? 0)}',
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatSigned(int value) {
+    if (value > 0) {
+      return '+$value';
+    }
+    return '$value';
+  }
+}
+
+class _FactorScoreChip extends StatelessWidget {
+  const _FactorScoreChip({required this.data});
+
+  final _FactorTileData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 132),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: MaeMojiColors.paperSoft,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            data.label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: MaeMojiColors.inkMuted,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${data.score}점',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: MaeMojiColors.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaBadge extends StatelessWidget {
+  const _MetaBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: MaeMojiColors.paperSoft,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: MaeMojiColors.stroke),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: MaeMojiColors.inkMuted,
+        ),
+      ),
+    );
+  }
+}
+
+class _FactorTileData {
+  const _FactorTileData(this.label, this.score);
+
+  final String label;
+  final int? score;
 }
 
 class _RelatedNewsCard extends StatelessWidget {

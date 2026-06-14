@@ -24,6 +24,16 @@ class RecommendationItem {
     required this.recommendationGeneratedAt,
     required this.newsAnalyzedAt,
     required this.relatedNewsStatusMessage,
+    required this.formulaVersion,
+    required this.priceMomentumScore,
+    required this.priceStabilityScore,
+    required this.fundamentalQualityScore,
+    required this.newsScore,
+    required this.userFitScore,
+    required this.crossFactorAdjustment,
+    required this.userAdjustment,
+    required this.riskProfileApplied,
+    required this.confidenceBreakdownJson,
   });
 
   final int portfolioItemId;
@@ -46,4 +56,16 @@ class RecommendationItem {
   final DateTime? recommendationGeneratedAt;
   final DateTime? newsAnalyzedAt;
   final String? relatedNewsStatusMessage;
+  final String formulaVersion;
+  final int? priceMomentumScore;
+  final int? priceStabilityScore;
+  final int? fundamentalQualityScore;
+  final int? newsScore;
+  final int? userFitScore;
+  final int? crossFactorAdjustment;
+  final int? userAdjustment;
+  final String? riskProfileApplied;
+  final String? confidenceBreakdownJson;
+
+  bool get isV4Calculation => formulaVersion.startsWith('SCORE_V4');
 }

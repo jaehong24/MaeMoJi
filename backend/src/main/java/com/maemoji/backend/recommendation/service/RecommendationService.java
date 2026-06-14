@@ -6,9 +6,12 @@ import com.maemoji.backend.recommendation.domain.NewsAnalysisCacheRecord;
 import com.maemoji.backend.recommendation.domain.NewsAnalysisSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationEvidenceRecord;
 import com.maemoji.backend.recommendation.domain.RecommendationEvidenceSaveCommand;
+import com.maemoji.backend.recommendation.domain.RecommendationFactorDetailRecord;
+import com.maemoji.backend.recommendation.domain.RecommendationFactorDetailSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationRecord;
 import com.maemoji.backend.recommendation.domain.RecommendationSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationTarget;
+import com.maemoji.backend.recommendation.config.RecommendationTuningProperties;
 import com.maemoji.backend.recommendation.dto.RecommendationCalculationResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationEvidenceResponse;
 import com.maemoji.backend.recommendation.dto.HomeRecommendationResponse;
@@ -47,6 +50,13 @@ public class RecommendationService {
 
     private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE_V2";
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
+    private static final Set<String> LEGACY_V4_EVIDENCE_TYPES = Set.of(
+            "PRICE",
+            "NEWS",
+            "EARNINGS",
+            "INSTITUTION",
+            "FORMULA"
+    );
     private static final Set<String> HARD_RISK_KEYWORDS = Set.of(
             "fraud", "delist", "bankruptcy", "lawsuit", "investigation",
             "분식", "상장폐지", "파산", "소송", "회계부정", "조사"
@@ -57,6 +67,7 @@ public class RecommendationService {
     private final NewsSentimentService newsSentimentService;
     private final RecommendationScoreCalculator scoreCalculator;
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
+    private final RecommendationTuningProperties tuningProperties;
     private final HttpClient httpClient;
 
     public RecommendationService(
@@ -64,13 +75,15 @@ public class RecommendationService {
             ObjectMapper objectMapper,
             NewsSentimentService newsSentimentService,
             RecommendationScoreCalculator scoreCalculator,
-            StockPriceSnapshotMapper stockPriceSnapshotMapper
+            StockPriceSnapshotMapper stockPriceSnapshotMapper,
+            RecommendationTuningProperties tuningProperties
     ) {
         this.recommendationMapper = recommendationMapper;
         this.objectMapper = objectMapper;
         this.newsSentimentService = newsSentimentService;
         this.scoreCalculator = scoreCalculator;
         this.stockPriceSnapshotMapper = stockPriceSnapshotMapper;
+        this.tuningProperties = tuningProperties;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -255,6 +268,14 @@ public class RecommendationService {
             throw new IllegalArgumentException("추천 상세 대상을 찾을 수 없습니다.");
         }
 
+        if (shouldRebuildRecommendationForDetail(record)) {
+            final RecommendationTarget target = recommendationMapper
+                    .findActiveRecommendationTargetByUserIdAndPortfolioItemId(userId, portfolioItemId);
+            if (target != null) {
+                return rebuildRecommendationFromCachedData(userId, target);
+            }
+        }
+
         return toResponse(record);
     }
 
@@ -262,7 +283,9 @@ public class RecommendationService {
     public RecommendationResponse refreshRecommendationDetail(Long userId, Long portfolioItemId) {
         final RecommendationRecord existingRecord = recommendationMapper
                 .findLatestRecommendationByUserIdAndPortfolioItemId(userId, portfolioItemId);
-        if (existingRecord != null && isSameRecommendationDay(existingRecord.getRecommendationDate())) {
+        if (existingRecord != null
+                && isSameRecommendationDay(existingRecord.getRecommendationDate())
+                && !shouldRebuildRecommendationForDetail(existingRecord)) {
             return toResponse(existingRecord);
         }
 
@@ -274,6 +297,37 @@ public class RecommendationService {
 
         final LocalDate recommendationDate = LocalDate.now(HOME_ZONE);
         final EngineResult engineResult = evaluateTarget(target);
+        final Long recommendationId = saveRecommendation(
+                userId,
+                target,
+                recommendationDate,
+                engineResult
+        );
+        return toResponse(target, recommendationId, engineResult);
+    }
+
+    private boolean shouldRebuildRecommendationForDetail(RecommendationRecord record) {
+        if (record == null) {
+            return false;
+        }
+        if (!isSameRecommendationDay(record.getRecommendationDate())) {
+            return false;
+        }
+        return blankToEmpty(record.getRiskProfileApplied()).isBlank()
+                || blankToEmpty(record.getFormulaVersion()).isBlank();
+    }
+
+    private RecommendationResponse rebuildRecommendationFromCachedData(
+            Long userId,
+            RecommendationTarget target
+    ) {
+        final LocalDate recommendationDate = LocalDate.now(HOME_ZONE);
+        final EngineResult engineResult = evaluateTarget(
+                target,
+                null,
+                false,
+                false
+        );
         final Long recommendationId = saveRecommendation(
                 userId,
                 target,
@@ -308,13 +362,21 @@ public class RecommendationService {
         final Integer rawNewsSentiment = newsSentiment.relatedNews().isEmpty()
                 ? null
                 : newsSentiment.weightedSentimentScore();
-        final RecommendationScoreCalculator.ScoreResult scoreResult = scoreCalculator.calculate(
-                priceSnapshot.thirtyDayReturn(),
-                rawNewsSentiment,
-                priceSnapshot.hasSevereDrop() || hasHardRisk,
-                newsSentiment.hardNegativeOverride(),
-                confidenceScore
+        final V4ScoringContext v4Context = buildV4ScoringContext(
+                target,
+                priceSnapshot,
+                newsSentiment,
+                confidenceScore,
+                hasHardRisk
         );
+        final RecommendationScoreCalculator.V4ScoreResult v4ScoreResult =
+                scoreCalculator.calculateV4(v4Context.input());
+        final RecommendationScoreCalculator.ScoreResult scoreResult =
+                scoreCalculator.toLegacyScoreResult(
+                        v4ScoreResult,
+                        priceSnapshot.thirtyDayReturn(),
+                        rawNewsSentiment
+                );
         final int finalScore = scoreResult.finalScore();
         final String recommendationStatus = scoreResult.recommendationStatus();
         final int priceContribution = weightedContribution(
@@ -329,10 +391,11 @@ public class RecommendationService {
         );
 
         final BigDecimal recommendedAmount = resolveRecommendedAmount(currentAmount, recommendationStatus);
-        final List<RecommendationEvidenceSaveCommand> evidence = buildV3Evidence(
+        final List<RecommendationEvidenceSaveCommand> evidence = buildV4Evidence(
                 target,
                 priceSnapshot,
                 newsSentiment,
+                v4Context,
                 scoreResult,
                 priceContribution,
                 newsContribution
@@ -346,18 +409,20 @@ public class RecommendationService {
                 currentAmount,
                 recommendedAmount,
                 finalNote,
-                0,
-                0,
-                priceContribution,
-                newsContribution,
-                0,
+                v4Context.fundamentalQualityScoreOrZero(),
+                v4Context.priceStabilityScoreOrZero(),
+                v4Context.priceMomentumScoreOrZero(),
+                v4Context.newsScoreOrZero(),
+                v4Context.userFitScoreOrZero(),
                 evidence,
                 newsSentiment.relatedNews(),
                 newsSentiment.llmModel(),
                 newsSentiment.analysisConfidence(),
                 newsSentiment.cacheReused(),
                 newsSentiment.replaceCache(),
-                scoreResult
+                scoreResult,
+                v4ScoreResult,
+                v4Context
         );
     }
 
@@ -408,7 +473,7 @@ public class RecommendationService {
         command.setRecommendedAmount(engineResult.recommendedAmount());
         command.setFinalNote(engineResult.finalNote());
         command.setEngineVersion(ENGINE_VERSION);
-        command.setFormulaVersion(RecommendationScoreCalculator.FORMULA_VERSION);
+        command.setFormulaVersion(engineResult.scoreResult().formulaVersion());
         command.setRawScore(engineResult.scoreResult().rawScore());
         command.setRiskAdjustment(engineResult.scoreResult().riskAdjustment());
         command.setPriceScore(engineResult.scoreResult().priceScore());
@@ -417,14 +482,32 @@ public class RecommendationService {
         command.setNewsWeight(engineResult.scoreResult().newsWeight());
         command.setPriceReturn30d(decimalOrNull(engineResult.scoreResult().thirtyDayReturn()));
         command.setNewsSentimentScore(engineResult.scoreResult().newsSentimentScore());
+        command.setPriceMomentumScore(engineResult.priceOverheatingScore());
+        command.setPriceStabilityScore(engineResult.valuationScore());
+        command.setFundamentalQualityScore(engineResult.businessHealthScore());
+        command.setUserFitScore(engineResult.institutionalConfidenceScore());
+        command.setCrossFactorAdjustment(resolveCrossFactorAdjustmentFromScoreResult(engineResult.scoreResult()));
+        command.setUserAdjustment(engineResult.v4ScoreResult() == null ? 0 : engineResult.v4ScoreResult().userAdjustment());
+        command.setRiskProfileApplied(
+                engineResult.v4ScoreResult() == null
+                        ? "BALANCED"
+                        : engineResult.v4ScoreResult().effectiveRiskProfile()
+        );
+        command.setConfidenceBreakdownJson(buildConfidenceBreakdownJson(engineResult, target));
         command.setIncreaseEligible(engineResult.scoreResult().increaseEligible());
 
         final Long recommendationId = recommendationMapper.upsertRecommendation(command);
         command.setRecommendationId(recommendationId);
         recommendationMapper.deleteRecommendationEvidence(recommendationId);
+        recommendationMapper.deleteRecommendationFactorDetails(recommendationId);
         for (RecommendationEvidenceSaveCommand evidenceCommand : engineResult.evidence()) {
             evidenceCommand.setRecommendationId(recommendationId);
             recommendationMapper.insertRecommendationEvidence(evidenceCommand);
+        }
+        for (RecommendationFactorDetailSaveCommand factorDetailCommand
+                : buildRecommendationFactorDetails(engineResult.v4ScoreResult(), engineResult.v4Context())) {
+            factorDetailCommand.setRecommendationId(recommendationId);
+            recommendationMapper.insertRecommendationFactorDetail(factorDetailCommand);
         }
 
         if (engineResult.replaceNewsCache()) {
@@ -497,12 +580,28 @@ public class RecommendationService {
         final boolean hardStopRisk = (thirtyDayReturn != null && thirtyDayReturn <= -35)
                 || containsHardRiskKeyword(blankToEmpty(target.getMemo()));
         final int confidence = resolveLightweightConfidence(target, snapshot, newsSummary);
-        final RecommendationScoreCalculator.ScoreResult scoreResult = scoreCalculator.calculate(
+        final PriceSnapshot lightweightPriceSnapshot = snapshot == null
+                ? PriceSnapshot.unavailable()
+                : new PriceSnapshot(
+                        snapshot.getCurrentPrice() == null ? null : snapshot.getCurrentPrice().doubleValue(),
+                        snapshot.getChangeRate7d() == null ? null : snapshot.getChangeRate7d().doubleValue(),
+                        snapshot.getChangeRate30d() == null ? null : snapshot.getChangeRate30d().doubleValue(),
+                        snapshot.getMarketCap(),
+                        snapshot.getPerValue()
+                );
+        final NewsSentimentService.NewsSentimentResult lightweightNewsSentiment =
+                buildLightweightNewsSentiment(newsSummary);
+        final V4ScoringContext v4Context = buildV4ScoringContext(
+                target,
+                lightweightPriceSnapshot,
+                lightweightNewsSentiment,
+                confidence,
+                containsHardRiskKeyword(blankToEmpty(target.getMemo()))
+        );
+        final RecommendationScoreCalculator.ScoreResult scoreResult = scoreCalculator.calculateV4Legacy(
+                v4Context.input(),
                 thirtyDayReturn,
-                newsSummary.sentimentScore(),
-                hardStopRisk,
-                newsSummary.hardNegative(),
-                confidence
+                newsSummary.sentimentScore()
         );
         final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
         final BigDecimal recommendedAmount = resolveRecommendedAmount(
@@ -511,7 +610,8 @@ public class RecommendationService {
         );
         final List<RecommendationEvidenceResponse> evidence = buildLightweightEvidence(
                 scoreResult,
-                newsSummary
+                newsSummary,
+                v4Context
         );
         final OffsetDateTime newsAnalyzedAt = cachedNews.stream()
                 .map(NewsAnalysisCacheRecord::getAnalyzedAt)
@@ -544,11 +644,11 @@ public class RecommendationService {
                         cachedNews
                 ),
                 new RecommendationScoresResponse(
-                        0,
-                        0,
-                        scoreResult.priceScore() == null ? 0 : scoreResult.priceScore(),
-                        scoreResult.newsScore() == null ? 0 : scoreResult.newsScore(),
-                        0
+                        v4Context.fundamentalQualityScoreOrZero(),
+                        v4Context.priceStabilityScoreOrZero(),
+                        v4Context.priceMomentumScoreOrZero(),
+                        v4Context.newsScoreOrZero(),
+                        v4Context.userFitScoreOrZero()
                 ),
                 toCalculationResponse(scoreResult),
                 evidence,
@@ -823,6 +923,46 @@ public class RecommendationService {
                 + "입니다.";
     }
 
+    private List<RecommendationEvidenceResponse> buildLightweightEvidence(
+            RecommendationScoreCalculator.ScoreResult scoreResult,
+            CachedNewsSummary newsSummary,
+            V4ScoringContext v4Context
+    ) {
+        final List<RecommendationEvidenceResponse> evidence = new ArrayList<>();
+        evidence.add(new RecommendationEvidenceResponse(
+                "PRICE_MOMENTUM",
+                "가격 흐름",
+                scoreResult.thirtyDayReturn() == null
+                        ? "아직 30일 가격 데이터가 충분하지 않아 가격 흐름 평가는 보수적으로 반영했어요."
+                        : "최근 30일 수익률 "
+                        + formatSignedPercent(scoreResult.thirtyDayReturn())
+                        + "와 가격 안정성을 함께 반영했어요.",
+                v4Context.priceMomentumScore(),
+                1
+        ));
+        evidence.add(new RecommendationEvidenceResponse(
+                "NEWS_CACHE",
+                "뉴스 분석",
+                newsSummary.sentimentScore() == null
+                        ? "최근 저장된 관련 뉴스 분석이 아직 없어 뉴스 점수는 제외했어요."
+                        : "최근 저장된 뉴스 감성 점수 "
+                        + formatSignedNumber(newsSummary.sentimentScore())
+                        + "를 추천에 반영했어요.",
+                v4Context.newsScore(),
+                2
+        ));
+        if (v4Context.userFitScore() != null) {
+            evidence.add(new RecommendationEvidenceResponse(
+                    "USER_FIT",
+                    "내 투자 상황",
+                    "현재 매일 모으기 금액과 보유 정보를 함께 반영했어요.",
+                    v4Context.userFitScore(),
+                    3
+            ));
+        }
+        return evidence;
+    }
+
     private RecommendationResponse toResponse(
             RecommendationTarget target,
             Long recommendationId,
@@ -856,10 +996,8 @@ public class RecommendationService {
                         engineResult.newsSentimentScore(),
                         engineResult.institutionalConfidenceScore()
                 ),
-                toCalculationResponse(engineResult.scoreResult()),
-                engineResult.evidence().stream()
-                        .map(this::toEvidenceResponse)
-                        .toList(),
+                toCalculationResponse(engineResult, target),
+                buildGeneratedEvidenceResponses(engineResult),
                 engineResult.relatedNews().stream()
                         .map(this::toRelatedNewsResponse)
                         .toList()
@@ -869,6 +1007,8 @@ public class RecommendationService {
     private RecommendationResponse toResponse(RecommendationRecord record) {
         final List<RecommendationEvidenceRecord> evidenceRecords =
                 recommendationMapper.findRecommendationEvidenceByRecommendationId(record.getRecommendationId());
+        final List<RecommendationFactorDetailRecord> factorDetailRecords =
+                recommendationMapper.findRecommendationFactorDetailsByRecommendationId(record.getRecommendationId());
         final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(record.getStockId());
         final List<NewsAnalysisCacheRecord> newsRecords = selectDisplayNewsRecords(rawNewsRecords);
@@ -899,11 +1039,9 @@ public class RecommendationService {
                 record.getCreatedAt(),
                 newsAnalyzedAt,
                 resolveRelatedNewsStatusMessage(rawNewsRecords, newsRecords),
-                extractScores(evidenceRecords),
+                extractScores(record, evidenceRecords),
                 toCalculationResponse(record),
-                evidenceRecords.stream()
-                        .map(this::toEvidenceResponse)
-                        .toList(),
+                mergeEvidenceResponses(record, factorDetailRecords, evidenceRecords),
                 newsRecords.stream()
                         .map(this::toRelatedNewsResponse)
                         .toList()
@@ -963,6 +1101,14 @@ public class RecommendationService {
                         0,
                         null,
                         null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         false
                 ),
                 evidence,
@@ -972,9 +1118,22 @@ public class RecommendationService {
         );
     }
 
-    private RecommendationScoresResponse extractScores(List<RecommendationEvidenceRecord> evidenceRecords) {
+    private RecommendationScoresResponse extractScores(
+            RecommendationRecord record,
+            List<RecommendationEvidenceRecord> evidenceRecords
+    ) {
+        if (blankToEmpty(record.getFormulaVersion()).startsWith("SCORE_V4")) {
+            return new RecommendationScoresResponse(
+                    zeroIfNull(record.getFundamentalQualityScore()),
+                    zeroIfNull(record.getPriceStabilityScore()),
+                    zeroIfNull(record.getPriceMomentumScore()),
+                    zeroIfNull(record.getNewsScore()),
+                    zeroIfNull(record.getUserFitScore())
+            );
+        }
+
         final Map<String, Integer> scoreMap = evidenceRecords.stream()
-                .filter(record -> record.getScoreImpact() != null)
+                .filter(evidenceRecord -> evidenceRecord.getScoreImpact() != null)
                 .collect(Collectors.toMap(
                         RecommendationEvidenceRecord::getEvidenceType,
                         RecommendationEvidenceRecord::getScoreImpact,
@@ -1007,6 +1166,94 @@ public class RecommendationService {
                 record.getBody(),
                 record.getScoreImpact(),
                 record.getDisplayOrder()
+        );
+    }
+
+    private List<RecommendationEvidenceResponse> mergeEvidenceResponses(
+            RecommendationRecord record,
+            List<RecommendationFactorDetailRecord> factorDetailRecords,
+            List<RecommendationEvidenceRecord> evidenceRecords
+    ) {
+        if (!blankToEmpty(record.getFormulaVersion()).startsWith("SCORE_V4")) {
+            return evidenceRecords.stream()
+                    .map(this::toEvidenceResponse)
+                    .toList();
+        }
+
+        final List<RecommendationEvidenceResponse> responses = new ArrayList<>();
+        responses.addAll(
+                factorDetailRecords.stream()
+                        .map(this::toEvidenceResponse)
+                        .toList()
+        );
+        responses.addAll(
+                evidenceRecords.stream()
+                        .filter(evidenceRecord -> !LEGACY_V4_EVIDENCE_TYPES.contains(
+                                blankToEmpty(evidenceRecord.getEvidenceType())
+                        ))
+                        .map(this::toEvidenceResponse)
+                        .toList()
+        );
+        return responses;
+    }
+
+    private List<RecommendationEvidenceResponse> buildGeneratedEvidenceResponses(
+            EngineResult engineResult
+    ) {
+        if (!blankToEmpty(engineResult.scoreResult().formulaVersion()).startsWith("SCORE_V4")) {
+            return engineResult.evidence().stream()
+                    .map(this::toEvidenceResponse)
+                    .toList();
+        }
+
+        final List<RecommendationEvidenceResponse> responses = new ArrayList<>();
+        responses.addAll(
+                buildRecommendationFactorDetails(engineResult.v4ScoreResult(), engineResult.v4Context()).stream()
+                        .map(this::toEvidenceResponse)
+                        .toList()
+        );
+        responses.addAll(
+                engineResult.evidence().stream()
+                        .filter(evidenceCommand -> !LEGACY_V4_EVIDENCE_TYPES.contains(
+                                blankToEmpty(evidenceCommand.getEvidenceType())
+                        ))
+                        .map(this::toEvidenceResponse)
+                        .toList()
+        );
+        return responses;
+    }
+
+    private RecommendationEvidenceResponse toEvidenceResponse(RecommendationFactorDetailRecord record) {
+        return new RecommendationEvidenceResponse(
+                "FACTOR_" + blankToEmpty(record.getFactorCode()),
+                resolveFactorTitle(record.getFactorCode()),
+                buildFactorEvidenceBody(
+                        record.getFactorCode(),
+                        record.getFactorSummary(),
+                        record.getFactorScore(),
+                        record.getFactorWeight(),
+                        record.getFactorRawJson()
+                ),
+                record.getFactorScore(),
+                resolveFactorDisplayOrder(record.getFactorCode())
+        );
+    }
+
+    private RecommendationEvidenceResponse toEvidenceResponse(
+            RecommendationFactorDetailSaveCommand command
+    ) {
+        return new RecommendationEvidenceResponse(
+                "FACTOR_" + blankToEmpty(command.getFactorCode()),
+                resolveFactorTitle(command.getFactorCode()),
+                buildFactorEvidenceBody(
+                        command.getFactorCode(),
+                        command.getFactorSummary(),
+                        command.getFactorScore(),
+                        command.getFactorWeight(),
+                        command.getFactorRawJson()
+                ),
+                command.getFactorScore(),
+                resolveFactorDisplayOrder(command.getFactorCode())
         );
     }
 
@@ -1044,7 +1291,7 @@ public class RecommendationService {
             RecommendationScoreCalculator.ScoreResult result
     ) {
         return new RecommendationCalculationResponse(
-                RecommendationScoreCalculator.FORMULA_VERSION,
+                result.formulaVersion(),
                 result.rawScore(),
                 result.finalScore(),
                 result.riskAdjustment(),
@@ -1054,7 +1301,44 @@ public class RecommendationService {
                 result.newsWeight(),
                 result.thirtyDayReturn(),
                 result.newsSentimentScore(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 result.increaseEligible()
+        );
+    }
+
+    private RecommendationCalculationResponse toCalculationResponse(
+            EngineResult engineResult,
+            RecommendationTarget target
+    ) {
+        final RecommendationScoreCalculator.ScoreResult scoreResult = engineResult.scoreResult();
+        final RecommendationScoreCalculator.V4ScoreResult v4ScoreResult = engineResult.v4ScoreResult();
+        return new RecommendationCalculationResponse(
+                scoreResult.formulaVersion(),
+                scoreResult.rawScore(),
+                scoreResult.finalScore(),
+                scoreResult.riskAdjustment(),
+                scoreResult.priceScore(),
+                scoreResult.newsScore(),
+                scoreResult.priceWeight(),
+                scoreResult.newsWeight(),
+                scoreResult.thirtyDayReturn(),
+                scoreResult.newsSentimentScore(),
+                engineResult.priceOverheatingScore(),
+                engineResult.valuationScore(),
+                engineResult.businessHealthScore(),
+                engineResult.institutionalConfidenceScore(),
+                v4ScoreResult == null ? null : v4ScoreResult.crossFactorAdjustment(),
+                v4ScoreResult == null ? null : v4ScoreResult.userAdjustment(),
+                v4ScoreResult == null ? null : v4ScoreResult.effectiveRiskProfile(),
+                buildConfidenceBreakdownJson(engineResult, target),
+                scoreResult.increaseEligible()
         );
     }
 
@@ -1072,8 +1356,109 @@ public class RecommendationService {
                         ? null
                         : record.getPriceReturn30d().doubleValue(),
                 record.getNewsSentimentScore(),
+                record.getPriceMomentumScore(),
+                record.getPriceStabilityScore(),
+                record.getFundamentalQualityScore(),
+                record.getUserFitScore(),
+                record.getCrossFactorAdjustment(),
+                record.getUserAdjustment(),
+                blankToEmpty(record.getRiskProfileApplied()),
+                blankToEmpty(record.getConfidenceBreakdownJson()),
                 Boolean.TRUE.equals(record.getIncreaseEligible())
         );
+    }
+
+    private List<RecommendationEvidenceSaveCommand> buildV4Evidence(
+            RecommendationTarget target,
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment,
+            V4ScoringContext v4Context,
+            RecommendationScoreCalculator.ScoreResult scoreResult,
+            int priceContribution,
+            int newsContribution
+    ) {
+        final List<RecommendationEvidenceSaveCommand> evidence = new ArrayList<>();
+        evidence.add(evidence(
+                "PRICE",
+                "가격 흐름",
+                priceSnapshot.hasThirtyDayReturn()
+                        ? "최근 30일 수익률 "
+                                + formatSignedPercent(priceSnapshot.thirtyDayReturn())
+                                + ", 가격 흐름 점수 "
+                                + safeScoreText(v4Context.priceMomentumScore())
+                                + ", 안정성 점수 "
+                                + safeScoreText(v4Context.priceStabilityScore())
+                                + "를 함께 반영했어요."
+                        : "가격 데이터가 충분하지 않아 가격 흐름 평가는 보수적으로 반영했어요.",
+                scoreResult.priceScore() == null ? null : priceContribution,
+                1
+        ));
+        evidence.add(evidence(
+                "NEWS",
+                "관련 뉴스 분석",
+                scoreResult.newsScore() == null
+                        ? "관련성 높은 최신 뉴스가 부족해 뉴스 점수는 이번 추천에서 제외했어요."
+                        : newsSentiment.summary()
+                                + " 종합 뉴스 점수 "
+                                + safeScoreText(v4Context.newsScore())
+                                + "를 반영했어요.",
+                scoreResult.newsScore() == null ? null : newsContribution,
+                2
+        ));
+        if (v4Context.fundamentalQualityScore() != null) {
+            evidence.add(evidence(
+                    "EARNINGS",
+                    "기업 체력",
+                    v4Context.fundamentalQualityAssessment() != null
+                            ? v4Context.fundamentalQualityAssessment().summary()
+                                    + " 기업 체력 점수 "
+                                    + safeScoreText(v4Context.fundamentalQualityScore())
+                                    + "점을 반영했어요."
+                            : "시총과 밸류에이션 기반의 1차 기초체력 점수 "
+                                    + safeScoreText(v4Context.fundamentalQualityScore())
+                                    + "를 함께 반영했어요.",
+                    v4Context.fundamentalQualityScore(),
+                    3
+            ));
+        }
+        if (v4Context.userFitScore() != null) {
+            evidence.add(evidence(
+                    "INSTITUTION",
+                    "내 투자 상황",
+                    "현재 매일 모으기 금액과 보유 상황을 반영한 적합도 점수 "
+                            + safeScoreText(v4Context.userFitScore())
+                            + "를 적용했어요.",
+                    v4Context.userFitScore(),
+                    4
+            ));
+        }
+        evidence.add(evidence(
+                "FORMULA",
+                "최종 점수 계산",
+                "V4 멀티 팩터 모델로 계산했어요. 원점수 "
+                        + scoreResult.rawScore()
+                        + "점에 위험 조정 "
+                        + formatSignedNumber(scoreResult.riskAdjustment())
+                        + "점을 반영해 최종 "
+                        + scoreResult.finalScore()
+                        + "점이 되었어요.",
+                scoreResult.riskAdjustment(),
+                5
+        ));
+        evidence.add(evidence(
+                "AI_NOTE",
+                "최종 해석",
+                buildAiComment(
+                        target,
+                        scoreResult.recommendationStatus(),
+                        scoreResult.finalScore(),
+                        priceSnapshot,
+                        newsSentiment
+                ),
+                null,
+                6
+        ));
+        return evidence;
     }
 
     private List<RecommendationEvidenceSaveCommand> buildV3Evidence(
@@ -1224,6 +1609,745 @@ public class RecommendationService {
         return command;
     }
 
+    private List<RecommendationFactorDetailSaveCommand> buildRecommendationFactorDetails(
+            RecommendationScoreCalculator.V4ScoreResult v4ScoreResult,
+            V4ScoringContext v4Context
+    ) {
+        if (v4ScoreResult == null || v4ScoreResult.factors() == null) {
+            return List.of();
+        }
+
+        final List<RecommendationFactorDetailSaveCommand> commands = new ArrayList<>();
+        for (RecommendationScoreCalculator.FactorResult factor : v4ScoreResult.factors()) {
+            final RecommendationFactorDetailSaveCommand command =
+                    new RecommendationFactorDetailSaveCommand();
+            command.setFactorCode(factor.factorCode().name());
+            command.setFactorScore(factor.score());
+            command.setFactorWeight(factor.appliedWeight());
+            command.setFactorSummary(factor.summary());
+            command.setFactorRawJson(buildFactorRawJson(factor, v4ScoreResult, v4Context));
+            commands.add(command);
+        }
+        return commands;
+    }
+
+    private String buildFactorRawJson(
+            RecommendationScoreCalculator.FactorResult factor,
+            RecommendationScoreCalculator.V4ScoreResult v4ScoreResult,
+            V4ScoringContext v4Context
+    ) {
+        try {
+            final var node = objectMapper.createObjectNode();
+            node.put("factorCode", factor.factorCode().name());
+            node.put("score", factor.score());
+            node.put("weight", factor.appliedWeight());
+            node.put("summary", factor.summary());
+            node.put("formulaVersion", v4ScoreResult.formulaVersion());
+            node.put("finalScore", v4ScoreResult.finalScore());
+            switch (factor.factorCode()) {
+                case PRICE_MOMENTUM -> {
+                    node.put("scoreKind", "PRICE_MOMENTUM_V1");
+                    if (v4Context != null && v4Context.priceSnapshot() != null) {
+                        putNullable(node, "changeRate7d", v4Context.priceSnapshot().changeRate7d());
+                        putNullable(node, "changeRate30d", v4Context.priceSnapshot().thirtyDayReturn());
+                    }
+                }
+                case PRICE_STABILITY -> {
+                    node.put("scoreKind", "PRICE_STABILITY_V1");
+                    if (v4Context != null && v4Context.priceSnapshot() != null) {
+                        putNullable(node, "absChangeRate7d",
+                                absoluteOrNull(v4Context.priceSnapshot().changeRate7d()));
+                        putNullable(node, "absChangeRate30d",
+                                absoluteOrNull(v4Context.priceSnapshot().thirtyDayReturn()));
+                        node.put("hasSevereDrop", v4Context.priceSnapshot().hasSevereDrop());
+                    }
+                }
+                case NEWS_SENTIMENT -> {
+                    node.put("scoreKind", "NEWS_SENTIMENT_V1");
+                    if (v4Context != null) {
+                        putNullable(node, "weightedSentimentScore", v4Context.rawNewsSentimentScore());
+                        node.put("hasNews", v4Context.rawNewsSentimentScore() != null);
+                    }
+                }
+                case FUNDAMENTAL_QUALITY -> {
+                    node.put("scoreKind", "FUNDAMENTAL_QUALITY_V2");
+                    appendFundamentalQualityJson(
+                            node,
+                            v4Context == null ? null : v4Context.fundamentalQualityAssessment()
+                    );
+                }
+                case USER_FIT -> {
+                    node.put("scoreKind", "USER_FIT_V1");
+                    if (v4Context != null && v4Context.target() != null) {
+                        putNullable(
+                                node,
+                                "dailyInvestAmountUsd",
+                                safeAmount(v4Context.target().getDailyInvestAmount()).doubleValue()
+                        );
+                        putNullable(
+                                node,
+                                "holdingQuantity",
+                                v4Context.target().getHoldingQuantity() == null
+                                        ? null
+                                        : v4Context.target().getHoldingQuantity().doubleValue()
+                        );
+                        node.put("hasInvestmentStartDate", v4Context.target().getInvestmentStartDate() != null);
+                        node.put("hasMemo", !blankToEmpty(v4Context.target().getMemo()).isBlank());
+                    }
+                    if (v4Context != null && v4Context.userFitAssessment() != null) {
+                        final UserFitAssessment assessment = v4Context.userFitAssessment();
+                        node.put("effectiveRiskProfile", assessment.effectiveRiskProfile());
+                        node.put("riskProfileLabel", resolveRiskProfileDisplayName(assessment.effectiveRiskProfile()));
+                        node.put("investmentDnaType", assessment.investmentDnaType());
+                        putNullable(node, "daysHeld", assessment.daysHeld());
+                        putNullable(node, "dailyInvestScoreAdjustment", assessment.dailyInvestScoreAdjustment());
+                        putNullable(node, "holdingScoreAdjustment", assessment.holdingScoreAdjustment());
+                        putNullable(node, "investmentStartScoreAdjustment", assessment.investmentStartScoreAdjustment());
+                        putNullable(node, "memoScoreAdjustment", assessment.memoScoreAdjustment());
+                        putNullable(node, "riskProfileAdjustment", assessment.riskProfileAdjustment());
+                        putNullable(node, "budgetPressureAdjustment", assessment.budgetPressureAdjustment());
+                        putNullable(node, "severeDropAdjustment", assessment.severeDropAdjustment());
+                        putNullable(node, "finalUserAdjustment", assessment.finalUserAdjustment());
+                        node.put("userFitSummary", assessment.summary());
+                    }
+                }
+                default -> {
+                }
+            }
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception exception) {
+            return "{\"factorCode\":\"" + factor.factorCode().name() + "\"}";
+        }
+    }
+
+    private void appendFundamentalQualityJson(
+            com.fasterxml.jackson.databind.node.ObjectNode node,
+            FundamentalQualityAssessment assessment
+    ) {
+        if (assessment == null) {
+            return;
+        }
+        putNullable(node, "marketCapUsdMillion",
+                assessment.marketCap() == null ? null : assessment.marketCap().doubleValue());
+        putNullable(node, "perValue",
+                assessment.perValue() == null ? null : assessment.perValue().doubleValue());
+        putNullable(node, "marketCapAdjustment", assessment.marketCapAdjustment());
+        putNullable(node, "perAdjustment", assessment.perAdjustment());
+        putNullable(node, "combinationAdjustment", assessment.combinationAdjustment());
+        if (assessment.marketCapTier() != null) {
+            node.put("marketCapTier", assessment.marketCapTier());
+        }
+        if (assessment.perBand() != null) {
+            node.put("perBand", assessment.perBand());
+        }
+    }
+
+    private void putNullable(
+            com.fasterxml.jackson.databind.node.ObjectNode node,
+            String fieldName,
+            Double value
+    ) {
+        if (value == null) {
+            node.putNull(fieldName);
+            return;
+        }
+        node.put(fieldName, value);
+    }
+
+    private void putNullable(
+            com.fasterxml.jackson.databind.node.ObjectNode node,
+            String fieldName,
+            Integer value
+    ) {
+        if (value == null) {
+            node.putNull(fieldName);
+            return;
+        }
+        node.put(fieldName, value);
+    }
+
+    private Double absoluteOrNull(Double value) {
+        return value == null ? null : Math.abs(value);
+    }
+
+    private String resolveFactorTitle(String factorCode) {
+        return switch (blankToEmpty(factorCode)) {
+            case "PRICE_MOMENTUM" -> "가격 흐름";
+            case "PRICE_STABILITY" -> "가격 안정성";
+            case "NEWS_SENTIMENT" -> "관련 뉴스 분석";
+            case "FUNDAMENTAL_QUALITY" -> "기업 체력";
+            case "USER_FIT" -> "내 투자 상황";
+            default -> "추천 팩터";
+        };
+    }
+
+    private int resolveFactorDisplayOrder(String factorCode) {
+        return switch (blankToEmpty(factorCode)) {
+            case "PRICE_MOMENTUM" -> 1;
+            case "PRICE_STABILITY" -> 2;
+            case "NEWS_SENTIMENT" -> 3;
+            case "FUNDAMENTAL_QUALITY" -> 4;
+            case "USER_FIT" -> 5;
+            default -> 99;
+        };
+    }
+
+    private V4ScoringContext buildV4ScoringContext(
+            RecommendationTarget target,
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment,
+            int confidence,
+            boolean hasHardRisk
+    ) {
+        final Integer priceMomentumScore = resolvePriceMomentumScore(priceSnapshot);
+        final Integer priceStabilityScore = resolvePriceStabilityScore(priceSnapshot);
+        final Integer newsScore = newsSentiment.relatedNews().isEmpty()
+                ? null
+                : normalizeToScore(newsSentiment.weightedSentimentScore());
+        final FundamentalQualityAssessment fundamentalQualityAssessment =
+                resolveFundamentalQualityAssessment(priceSnapshot);
+        final Integer fundamentalQualityScore = fundamentalQualityAssessment == null
+                ? null
+                : fundamentalQualityAssessment.score();
+        final String effectiveRiskProfile = resolveEffectiveRiskProfile(target);
+        final UserFitAssessment userFitAssessment = resolveUserFitAssessment(
+                target,
+                priceSnapshot,
+                effectiveRiskProfile
+        );
+        final Integer userFitScore = userFitAssessment.score();
+        final int crossFactorAdjustment = resolveCrossFactorAdjustment(
+                priceSnapshot,
+                newsSentiment,
+                priceMomentumScore,
+                fundamentalQualityScore
+        );
+        final int userAdjustment = userFitAssessment.finalUserAdjustment();
+
+        return new V4ScoringContext(
+                new RecommendationScoreCalculator.V4Input(
+                        priceMomentumScore,
+                        priceMomentumScore == null ? 0 : tuningProperties.getFactorWeights().getPriceMomentum(),
+                        priceStabilityScore,
+                        priceStabilityScore == null ? 0 : tuningProperties.getFactorWeights().getPriceStability(),
+                        newsSentiment.relatedNews().isEmpty() ? null : newsSentiment.weightedSentimentScore(),
+                        newsScore == null ? 0 : tuningProperties.getFactorWeights().getNewsSentiment(),
+                        fundamentalQualityScore,
+                        fundamentalQualityScore == null ? 0 : tuningProperties.getFactorWeights().getFundamentalQuality(),
+                        userFitScore,
+                        userFitScore == null ? 0 : tuningProperties.getFactorWeights().getUserFit(),
+                        crossFactorAdjustment,
+                        userAdjustment,
+                        effectiveRiskProfile,
+                        priceSnapshot.hasSevereDrop() || hasHardRisk,
+                        newsSentiment.hardNegativeOverride(),
+                        confidence
+                ),
+                target,
+                priceSnapshot,
+                newsSentiment.relatedNews().isEmpty() ? null : newsSentiment.weightedSentimentScore(),
+                priceMomentumScore,
+                priceStabilityScore,
+                newsScore,
+                fundamentalQualityScore,
+                userFitScore,
+                fundamentalQualityAssessment,
+                userFitAssessment
+        );
+    }
+
+    private Integer resolvePriceMomentumScore(PriceSnapshot priceSnapshot) {
+        return priceSnapshot.hasThirtyDayReturn()
+                ? scoreCalculator.calculatePriceScore(priceSnapshot.thirtyDayReturn())
+                : null;
+    }
+
+    private Integer resolvePriceStabilityScore(PriceSnapshot priceSnapshot) {
+        if (priceSnapshot.changeRate7d() == null && priceSnapshot.thirtyDayReturn() == null) {
+            return null;
+        }
+
+        final double day7 = priceSnapshot.changeRate7d() == null ? 0 : Math.abs(priceSnapshot.changeRate7d());
+        final double day30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.abs(priceSnapshot.thirtyDayReturn());
+        final double stress = (day7 * 0.6) + (day30 * 0.4);
+        final RecommendationTuningProperties.PriceStability stability = tuningProperties.getPriceStability();
+        if (stress <= 5) {
+            return stability.getStress5Score();
+        }
+        if (stress <= 10) {
+            return stability.getStress10Score();
+        }
+        if (stress <= 20) {
+            return stability.getStress20Score();
+        }
+        if (stress <= 30) {
+            return stability.getStress30Score();
+        }
+        return stability.getFallbackScore();
+    }
+
+    private FundamentalQualityAssessment resolveFundamentalQualityAssessment(PriceSnapshot priceSnapshot) {
+        if (priceSnapshot.marketCap() == null && priceSnapshot.perValue() == null) {
+            return null;
+        }
+
+        final RecommendationTuningProperties.Fundamental fundamental = tuningProperties.getFundamental();
+        final RecommendationTuningProperties.MarketCap marketCapRule = fundamental.getMarketCap();
+        final RecommendationTuningProperties.Per perRule = fundamental.getPer();
+        final RecommendationTuningProperties.Combination combinationRule = fundamental.getCombination();
+
+        int score = fundamental.getBaseScore();
+        int marketCapAdjustment = 0;
+        int perAdjustment = 0;
+        int combinationAdjustment = 0;
+        String marketCapTier = null;
+        String perBand = null;
+
+        if (priceSnapshot.marketCap() != null) {
+            final double marketCap = priceSnapshot.marketCap().doubleValue();
+            if (marketCap >= marketCapRule.getMegaCapMin()) {
+                marketCapAdjustment = marketCapRule.getMegaCapAdjustment();
+                marketCapTier = "MEGA_CAP";
+            } else if (marketCap >= marketCapRule.getLargeCapMin()) {
+                marketCapAdjustment = marketCapRule.getLargeCapAdjustment();
+                marketCapTier = "LARGE_CAP";
+            } else if (marketCap >= marketCapRule.getUpperMidCapMin()) {
+                marketCapAdjustment = marketCapRule.getUpperMidCapAdjustment();
+                marketCapTier = "UPPER_MID_CAP";
+            } else if (marketCap >= marketCapRule.getMidCapMin()) {
+                marketCapAdjustment = marketCapRule.getMidCapAdjustment();
+                marketCapTier = "MID_CAP";
+            } else {
+                marketCapAdjustment = marketCapRule.getSmallCapAdjustment();
+                marketCapTier = "SMALL_CAP";
+            }
+            score += marketCapAdjustment;
+        }
+        if (priceSnapshot.perValue() != null) {
+            final double per = priceSnapshot.perValue().doubleValue();
+            if (per > 0 && per <= perRule.getAttractiveMax()) {
+                perAdjustment = perRule.getAttractiveAdjustment();
+                perBand = "ATTRACTIVE";
+            } else if (per <= perRule.getFairMax()) {
+                perAdjustment = perRule.getFairAdjustment();
+                perBand = "FAIR";
+            } else if (per <= perRule.getExpensiveMax()) {
+                perAdjustment = perRule.getExpensiveAdjustment();
+                perBand = "EXPENSIVE";
+            } else if (per > perRule.getExpensiveMax()) {
+                perAdjustment = perRule.getVeryExpensiveAdjustment();
+                perBand = "VERY_EXPENSIVE";
+            } else {
+                perAdjustment = perRule.getNegativeOrUnclearAdjustment();
+                perBand = "NEGATIVE_OR_UNCLEAR";
+            }
+            score += perAdjustment;
+        }
+
+        if (priceSnapshot.marketCap() != null
+                && priceSnapshot.marketCap().doubleValue() >= combinationRule.getPositiveMarketCapMin()
+                && priceSnapshot.perValue() != null
+                && priceSnapshot.perValue().doubleValue() > 0
+                && priceSnapshot.perValue().doubleValue() <= combinationRule.getPositivePerMax()) {
+            combinationAdjustment += combinationRule.getPositiveAdjustment();
+        }
+
+        if (priceSnapshot.marketCap() != null
+                && priceSnapshot.marketCap().doubleValue() < combinationRule.getNegativeMarketCapMax()
+                && priceSnapshot.perValue() != null
+                && priceSnapshot.perValue().doubleValue() > combinationRule.getNegativePerMin()) {
+            combinationAdjustment += combinationRule.getNegativeAdjustment();
+        }
+
+        score += combinationAdjustment;
+        score = Math.max(0, Math.min(score, 100));
+        return new FundamentalQualityAssessment(
+                score,
+                priceSnapshot.marketCap(),
+                priceSnapshot.perValue(),
+                marketCapAdjustment,
+                perAdjustment,
+                combinationAdjustment,
+                marketCapTier,
+                perBand,
+                buildFundamentalQualitySummary(marketCapTier, perBand, combinationAdjustment)
+        );
+    }
+
+    private String buildFundamentalQualitySummary(
+            String marketCapTier,
+            String perBand,
+            int combinationAdjustment
+    ) {
+        final List<String> parts = new ArrayList<>();
+        if (marketCapTier != null) {
+            parts.add(switch (marketCapTier) {
+                case "MEGA_CAP" -> "초대형주 안정성이 반영됐어요.";
+                case "LARGE_CAP" -> "대형주 안정성이 반영됐어요.";
+                case "UPPER_MID_CAP" -> "중대형주 체급이 반영됐어요.";
+                case "MID_CAP" -> "중형주 수준의 체급을 반영했어요.";
+                case "SMALL_CAP" -> "소형주 특성상 보수적으로 반영했어요.";
+                default -> "시가총액 정보를 반영했어요.";
+            });
+        }
+        if (perBand != null) {
+            parts.add(switch (perBand) {
+                case "ATTRACTIVE" -> "밸류에이션 부담이 비교적 낮아요.";
+                case "FAIR" -> "밸류에이션이 과도하진 않아요.";
+                case "EXPENSIVE" -> "밸류에이션 부담을 중립적으로 봤어요.";
+                case "VERY_EXPENSIVE" -> "밸류에이션 부담이 높아 감점했어요.";
+                case "NEGATIVE_OR_UNCLEAR" -> "PER 해석이 어려워 보수적으로 봤어요.";
+                default -> "PER 정보를 반영했어요.";
+            });
+        }
+        if (combinationAdjustment > 0) {
+            parts.add("체급과 밸류 균형이 좋아 추가 가점을 줬어요.");
+        } else if (combinationAdjustment < 0) {
+            parts.add("체급 대비 밸류 부담이 커 추가 감점을 줬어요.");
+        }
+        if (parts.isEmpty()) {
+            return "시총과 밸류에이션 정보를 종합해 기업 체력을 계산했어요.";
+        }
+        return String.join(" ", parts);
+    }
+
+    private UserFitAssessment resolveUserFitAssessment(
+            RecommendationTarget target,
+            PriceSnapshot priceSnapshot,
+            String effectiveRiskProfile
+    ) {
+        int score = 60;
+        final BigDecimal dailyInvestAmount = safeAmount(target.getDailyInvestAmount());
+        int dailyInvestScoreAdjustment = 0;
+        if (dailyInvestAmount.compareTo(BigDecimal.valueOf(80)) >= 0) {
+            dailyInvestScoreAdjustment = -12;
+        } else if (dailyInvestAmount.compareTo(BigDecimal.valueOf(40)) >= 0) {
+            dailyInvestScoreAdjustment = -5;
+        } else if (dailyInvestAmount.compareTo(BigDecimal.valueOf(15)) <= 0) {
+            dailyInvestScoreAdjustment = 6;
+        }
+        score += dailyInvestScoreAdjustment;
+
+        int holdingScoreAdjustment = 0;
+        if (target.getHoldingQuantity() != null && target.getHoldingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            holdingScoreAdjustment = 6;
+        }
+        score += holdingScoreAdjustment;
+
+        Integer daysHeld = null;
+        int investmentStartScoreAdjustment = 0;
+        if (target.getInvestmentStartDate() != null) {
+            daysHeld = (int) java.time.temporal.ChronoUnit.DAYS.between(
+                    target.getInvestmentStartDate(),
+                    LocalDate.now(HOME_ZONE)
+            );
+            if (daysHeld < 14) {
+                investmentStartScoreAdjustment = -8;
+            } else if (daysHeld >= 90) {
+                investmentStartScoreAdjustment = 6;
+            }
+        }
+        score += investmentStartScoreAdjustment;
+
+        int memoScoreAdjustment = 0;
+        if (!blankToEmpty(target.getMemo()).isBlank()) {
+            memoScoreAdjustment = 4;
+        }
+        score += memoScoreAdjustment;
+
+        int riskProfileAdjustment = tuningProperties
+                .ruleFor(effectiveRiskProfile)
+                .getUserAdjustment();
+        int severeDropAdjustment = priceSnapshot.hasSevereDrop() ? -4 : 0;
+        int budgetPressureAdjustment = dailyInvestAmount.compareTo(BigDecimal.valueOf(90)) >= 0 ? -5 : 0;
+        int finalUserAdjustment = riskProfileAdjustment + severeDropAdjustment + budgetPressureAdjustment;
+
+        return new UserFitAssessment(
+                Math.max(0, Math.min(score, 100)),
+                dailyInvestAmount,
+                target.getHoldingQuantity(),
+                daysHeld,
+                dailyInvestScoreAdjustment,
+                holdingScoreAdjustment,
+                investmentStartScoreAdjustment,
+                memoScoreAdjustment,
+                riskProfileAdjustment,
+                budgetPressureAdjustment,
+                severeDropAdjustment,
+                finalUserAdjustment,
+                effectiveRiskProfile,
+                blankToEmpty(target.getInvestmentDnaType()),
+                buildUserFitSummary(
+                        dailyInvestAmount,
+                        target.getHoldingQuantity(),
+                        daysHeld,
+                        effectiveRiskProfile,
+                        riskProfileAdjustment,
+                        budgetPressureAdjustment,
+                        severeDropAdjustment,
+                        finalUserAdjustment
+                )
+        );
+    }
+
+    private int resolveCrossFactorAdjustment(
+            PriceSnapshot priceSnapshot,
+            NewsSentimentService.NewsSentimentResult newsSentiment,
+            Integer priceMomentumScore,
+            Integer fundamentalQualityScore
+    ) {
+        int adjustment = 0;
+        if (priceSnapshot.hasThirtyDayReturn() && priceSnapshot.thirtyDayReturn() >= 20 && newsSentiment.weightedSentimentScore() < 0) {
+            adjustment -= 8;
+        }
+        if (priceMomentumScore != null
+                && priceMomentumScore >= 65
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 65
+                && newsSentiment.weightedSentimentScore() >= 10) {
+            adjustment += 5;
+        }
+        return adjustment;
+    }
+
+    private String resolveEffectiveRiskProfile(RecommendationTarget target) {
+        final String investmentDnaType = blankToEmpty(target.getInvestmentDnaType());
+        if ("SAFE_FIRST".equals(investmentDnaType)) {
+            return "SAFE_FIRST";
+        }
+        if ("GROWTH_SEEKER".equals(investmentDnaType)) {
+            return "GROWTH_SEEKER";
+        }
+        if ("AGGRESSIVE_INVESTOR".equals(investmentDnaType)
+                || "WEALTH_MASTER".equals(investmentDnaType)) {
+            return "AGGRESSIVE";
+        }
+
+        final String storedRiskProfile = blankToEmpty(target.getRiskProfile());
+        if ("CONSERVATIVE".equals(storedRiskProfile)) {
+            return "SAFE_FIRST";
+        }
+        if ("AGGRESSIVE".equals(storedRiskProfile)) {
+            return "AGGRESSIVE";
+        }
+        return "BALANCED";
+    }
+
+    private String buildUserFitSummary(
+            BigDecimal dailyInvestAmount,
+            BigDecimal holdingQuantity,
+            Integer daysHeld,
+            String effectiveRiskProfile,
+            int riskProfileAdjustment,
+            int budgetPressureAdjustment,
+            int severeDropAdjustment,
+            int finalUserAdjustment
+    ) {
+        final List<String> parts = new ArrayList<>();
+        parts.add(resolveRiskProfileDisplayName(effectiveRiskProfile) + " 기준을 적용했어요.");
+
+        if (dailyInvestAmount.compareTo(BigDecimal.valueOf(90)) >= 0) {
+            parts.add("매일 모으기 금액이 커 부담을 낮추는 쪽으로 봤어요.");
+        } else if (dailyInvestAmount.compareTo(BigDecimal.valueOf(15)) <= 0) {
+            parts.add("현재 모으기 금액이 크지 않아 비교적 유연하게 반영했어요.");
+        }
+
+        if (holdingQuantity != null && holdingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+            parts.add("이미 보유 중인 수량이 있어 추격 매수보다 관리 관점도 함께 반영했어요.");
+        }
+
+        if (daysHeld != null) {
+            if (daysHeld < 14) {
+                parts.add("투자 시작 직후라 아직 흐름 확인이 더 필요하다고 봤어요.");
+            } else if (daysHeld >= 90) {
+                parts.add("장기적으로 모아온 이력이 있어 일관성을 긍정적으로 반영했어요.");
+            }
+        }
+
+        if (riskProfileAdjustment != 0 || budgetPressureAdjustment != 0 || severeDropAdjustment != 0) {
+            parts.add(
+                    "사용자 보정은 "
+                            + formatSignedNumber(finalUserAdjustment)
+                            + "점으로 반영했어요."
+            );
+        }
+
+        return String.join(" ", parts);
+    }
+
+    private String resolveRiskProfileDisplayName(String effectiveRiskProfile) {
+        return switch (blankToEmpty(effectiveRiskProfile)) {
+            case "SAFE_FIRST" -> "안전 우선형";
+            case "GROWTH_SEEKER" -> "성장 추구형";
+            case "AGGRESSIVE" -> "공격 투자형";
+            default -> "균형형";
+        };
+    }
+
+    private int normalizeToScore(int value) {
+        if (value >= -100 && value <= 100) {
+            return Math.max(0, Math.min((int) Math.round((value + 100) / 2.0), 100));
+        }
+        return Math.max(0, Math.min(value, 100));
+    }
+
+    private int resolveCrossFactorAdjustmentFromScoreResult(
+            RecommendationScoreCalculator.ScoreResult scoreResult
+    ) {
+        if (!blankToEmpty(scoreResult.formulaVersion()).startsWith("SCORE_V4")) {
+            return 0;
+        }
+        return scoreResult.riskAdjustment() < 0 ? scoreResult.riskAdjustment() : 0;
+    }
+
+    private String buildConfidenceBreakdownJson(
+            EngineResult engineResult,
+            RecommendationTarget target
+    ) {
+        try {
+            final var node = objectMapper.createObjectNode();
+            node.put("finalConfidence", engineResult.confidenceScore());
+            node.put("hasInvestmentStartDate", target != null && target.getInvestmentStartDate() != null);
+            node.put("hasMemo", target != null && !blankToEmpty(target.getMemo()).isBlank());
+            node.put("hasRelatedNews", !engineResult.relatedNews().isEmpty());
+            node.put("newsAnalysisConfidence", engineResult.newsAnalysisConfidence());
+            node.put("newsCacheReused", engineResult.newsCacheReused());
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception exception) {
+            return "{\"finalConfidence\":" + engineResult.confidenceScore() + "}";
+        }
+    }
+
+    private NewsSentimentService.NewsSentimentResult buildLightweightNewsSentiment(CachedNewsSummary newsSummary) {
+        if (newsSummary.sentimentScore() == null) {
+            return NewsSentimentService.NewsSentimentResult.empty();
+        }
+        return new NewsSentimentService.NewsSentimentResult(
+                0,
+                newsSummary.sentimentScore() >= 15 ? "POSITIVE"
+                        : newsSummary.sentimentScore() <= -15 ? "NEGATIVE" : "NEUTRAL",
+                "저장된 관련 뉴스 분석을 먼저 반영했어요.",
+                List.of(new NewsSentimentService.AnalyzedNewsItem(
+                        "cached-lightweight",
+                        "",
+                        "저장된 뉴스 분석",
+                        "저장된 뉴스 분석",
+                        "",
+                        "",
+                        OffsetDateTime.now(ZoneOffset.UTC),
+                        newsSummary.sentimentScore() >= 15 ? "POSITIVE"
+                                : newsSummary.sentimentScore() <= -15 ? "NEGATIVE" : "NEUTRAL",
+                        newsSummary.sentimentScore(),
+                        0,
+                        100,
+                        "MEDIUM",
+                        "저장된 뉴스 분석 결과를 홈 화면에 재사용했어요.",
+                        BigDecimal.ONE,
+                        BigDecimal.ONE,
+                        BigDecimal.ZERO,
+                        "cached-lightweight",
+                        "cached-lightweight"
+                )),
+                null,
+                newsSummary.sentimentScore(),
+                newsSummary.hardNegative(),
+                newsSummary.confidence(),
+                true,
+                false
+        );
+    }
+
+    private String safeScoreText(Integer score) {
+        return score == null ? "-" : String.valueOf(score);
+    }
+
+    private String buildFactorEvidenceBody(
+            String factorCode,
+            String factorSummary,
+            Integer factorScore,
+            Integer factorWeight,
+            String factorRawJson
+    ) {
+        if ("USER_FIT".equals(blankToEmpty(factorCode))) {
+            return buildUserFitEvidenceBody(
+                    factorSummary,
+                    factorScore,
+                    factorWeight,
+                    factorRawJson
+            );
+        }
+
+        return blankToEmpty(factorSummary)
+                + " 점수 "
+                + zeroIfNull(factorScore)
+                + "점, 가중치 "
+                + zeroIfNull(factorWeight)
+                + "을 반영했어요.";
+    }
+
+    private String buildUserFitEvidenceBody(
+            String factorSummary,
+            Integer factorScore,
+            Integer factorWeight,
+            String factorRawJson
+    ) {
+        try {
+            final JsonNode node = objectMapper.readTree(blankToEmpty(factorRawJson));
+            final List<String> parts = new ArrayList<>();
+            final String riskProfileLabel = node.path("riskProfileLabel").asText("");
+            if (!riskProfileLabel.isBlank()) {
+                parts.add(riskProfileLabel + " 기준으로 같은 종목이라도 추천 경계를 다르게 봤어요.");
+            }
+
+            if (node.path("dailyInvestAmountUsd").isNumber()) {
+                final double dailyInvestAmount = node.path("dailyInvestAmountUsd").asDouble();
+                parts.add("현재 매일 모으기 금액은 " + formatUsdAmount(dailyInvestAmount) + "예요.");
+            }
+
+            if (node.path("daysHeld").isInt()) {
+                final int daysHeld = node.path("daysHeld").asInt();
+                if (daysHeld < 14) {
+                    parts.add("투자를 시작한 지 얼마 되지 않아 조금 더 보수적으로 봤어요.");
+                } else if (daysHeld >= 90) {
+                    parts.add("오래 모아온 이력이 있어 일관성을 긍정적으로 반영했어요.");
+                }
+            }
+
+            appendSignedAdjustment(parts, "성향 보정", node.path("riskProfileAdjustment"));
+            appendSignedAdjustment(parts, "금액 부담 보정", node.path("budgetPressureAdjustment"));
+            appendSignedAdjustment(parts, "급락 구간 보정", node.path("severeDropAdjustment"));
+            appendSignedAdjustment(parts, "최종 사용자 보정", node.path("finalUserAdjustment"));
+
+            parts.add("내 투자 상황 점수 " + zeroIfNull(factorScore) + "점, 가중치 " + zeroIfNull(factorWeight) + "을 반영했어요.");
+            return String.join(" ", parts);
+        } catch (Exception exception) {
+            return blankToEmpty(factorSummary)
+                    + " 점수 "
+                    + zeroIfNull(factorScore)
+                    + "점, 가중치 "
+                    + zeroIfNull(factorWeight)
+                    + "을 반영했어요.";
+        }
+    }
+
+    private void appendSignedAdjustment(List<String> parts, String label, JsonNode node) {
+        if (node == null || !node.isInt()) {
+            return;
+        }
+        final int value = node.asInt();
+        if (value == 0) {
+            return;
+        }
+        parts.add(label + "은 " + formatSignedNumber(value) + "점이에요.");
+    }
+
+    private String formatUsdAmount(double value) {
+        return BigDecimal.valueOf(value)
+                .setScale(2, RoundingMode.HALF_UP)
+                .stripTrailingZeros()
+                .toPlainString() + "달러";
+    }
+
     private String buildPriceEvidence(PriceSnapshot priceSnapshot) {
         if (!priceSnapshot.hasThirtyDayReturn()) {
             return "최근 30일 가격 데이터가 아직 충분하지 않아 가격 과열도는 중립 점수 10/15로 반영했습니다.";
@@ -1347,9 +2471,14 @@ public class RecommendationService {
                 && latestSnapshot.getCurrentPrice().doubleValue() > 0) {
             return new PriceSnapshot(
                     latestSnapshot.getCurrentPrice().doubleValue(),
+                    latestSnapshot.getChangeRate7d() == null
+                            ? null
+                            : latestSnapshot.getChangeRate7d().doubleValue(),
                     latestSnapshot.getChangeRate30d() == null
                             ? null
-                            : latestSnapshot.getChangeRate30d().doubleValue()
+                            : latestSnapshot.getChangeRate30d().doubleValue(),
+                    latestSnapshot.getMarketCap(),
+                    latestSnapshot.getPerValue()
             );
         }
 
@@ -1366,7 +2495,7 @@ public class RecommendationService {
 
         try {
             final Double currentPrice = fetchCurrentPrice(symbol, apiKey);
-            return new PriceSnapshot(currentPrice, null);
+            return new PriceSnapshot(currentPrice, null, null, null, null);
         } catch (Exception ignored) {
             return PriceSnapshot.unavailable();
         }
@@ -1510,16 +2639,21 @@ public class RecommendationService {
             int newsAnalysisConfidence,
             boolean newsCacheReused,
             boolean replaceNewsCache,
-            RecommendationScoreCalculator.ScoreResult scoreResult
+            RecommendationScoreCalculator.ScoreResult scoreResult,
+            RecommendationScoreCalculator.V4ScoreResult v4ScoreResult,
+            V4ScoringContext v4Context
     ) {
     }
 
     private record PriceSnapshot(
             Double currentPrice,
-            Double thirtyDayReturn
+            Double changeRate7d,
+            Double thirtyDayReturn,
+            BigDecimal marketCap,
+            BigDecimal perValue
     ) {
         static PriceSnapshot unavailable() {
-            return new PriceSnapshot(null, null);
+            return new PriceSnapshot(null, null, null, null, null);
         }
 
         boolean hasCurrentPrice() {
@@ -1539,6 +2673,72 @@ public class RecommendationService {
             Integer sentimentScore,
             boolean hardNegative,
             int confidence
+    ) {
+    }
+
+    private record V4ScoringContext(
+            RecommendationScoreCalculator.V4Input input,
+            RecommendationTarget target,
+            PriceSnapshot priceSnapshot,
+            Integer rawNewsSentimentScore,
+            Integer priceMomentumScore,
+            Integer priceStabilityScore,
+            Integer newsScore,
+            Integer fundamentalQualityScore,
+            Integer userFitScore,
+            FundamentalQualityAssessment fundamentalQualityAssessment,
+            UserFitAssessment userFitAssessment
+    ) {
+        int priceMomentumScoreOrZero() {
+            return priceMomentumScore == null ? 0 : priceMomentumScore;
+        }
+
+        int priceStabilityScoreOrZero() {
+            return priceStabilityScore == null ? 0 : priceStabilityScore;
+        }
+
+        int newsScoreOrZero() {
+            return newsScore == null ? 0 : newsScore;
+        }
+
+        int fundamentalQualityScoreOrZero() {
+            return fundamentalQualityScore == null ? 0 : fundamentalQualityScore;
+        }
+
+        int userFitScoreOrZero() {
+            return userFitScore == null ? 0 : userFitScore;
+        }
+    }
+
+    private record FundamentalQualityAssessment(
+            int score,
+            BigDecimal marketCap,
+            BigDecimal perValue,
+            int marketCapAdjustment,
+            int perAdjustment,
+            int combinationAdjustment,
+            String marketCapTier,
+            String perBand,
+            String summary
+    ) {
+    }
+
+    private record UserFitAssessment(
+            int score,
+            BigDecimal dailyInvestAmountUsd,
+            BigDecimal holdingQuantity,
+            Integer daysHeld,
+            int dailyInvestScoreAdjustment,
+            int holdingScoreAdjustment,
+            int investmentStartScoreAdjustment,
+            int memoScoreAdjustment,
+            int riskProfileAdjustment,
+            int budgetPressureAdjustment,
+            int severeDropAdjustment,
+            int finalUserAdjustment,
+            String effectiveRiskProfile,
+            String investmentDnaType,
+            String summary
     ) {
     }
 

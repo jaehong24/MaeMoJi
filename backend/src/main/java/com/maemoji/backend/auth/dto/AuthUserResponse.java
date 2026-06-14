@@ -4,6 +4,11 @@ public record AuthUserResponse(
         Long userId,
         String email,
         String nickname,
-        String profileImageUrl
+        String profileImageUrl,
+        String riskProfile,
+        String investmentDnaType,
+        Integer riskProfileScore,
+        Integer riskProfileConfidence,
+        String riskProfileSource
 ) {
 }

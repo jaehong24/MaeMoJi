@@ -42,6 +42,16 @@ public interface UserMapper {
 
     UserSessionRecord findSessionUserByAuthToken(@Param("authToken") String authToken);
 
+    void updateRiskProfile(
+            @Param("userId") Long userId,
+            @Param("riskProfile") String riskProfile,
+            @Param("investmentDnaType") String investmentDnaType,
+            @Param("riskProfileScore") Integer riskProfileScore,
+            @Param("riskProfileConfidence") Integer riskProfileConfidence,
+            @Param("riskProfileSource") String riskProfileSource,
+            @Param("riskProfileUpdatedAt") OffsetDateTime riskProfileUpdatedAt
+    );
+
     List<Long> findActiveUserIdsWithPortfolioItems();
 
     void insertDevUser();

@@ -7,8 +7,45 @@ create table users (
     password_hash varchar(255) not null,
     nickname varchar(100) not null,
     status varchar(30) not null default 'ACTIVE',
+    risk_profile varchar(30),
+    investment_dna_type varchar(40),
+    risk_profile_score integer,
+    risk_profile_confidence integer,
+    risk_profile_source varchar(30),
+    risk_profile_updated_at timestamptz,
     created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
+    updated_at timestamptz not null default now(),
+    constraint ck_users_risk_profile
+        check (
+            risk_profile is null
+            or risk_profile in ('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE')
+        ),
+    constraint ck_users_risk_profile_confidence
+        check (
+            risk_profile_confidence is null
+            or risk_profile_confidence between 0 and 100
+        ),
+    constraint ck_users_risk_profile_score
+        check (
+            risk_profile_score is null
+            or risk_profile_score between 12 and 60
+        ),
+    constraint ck_users_investment_dna_type
+        check (
+            investment_dna_type is null
+            or investment_dna_type in (
+                'SAFE_FIRST',
+                'BALANCE_SEEKER',
+                'GROWTH_SEEKER',
+                'AGGRESSIVE_INVESTOR',
+                'WEALTH_MASTER'
+            )
+        ),
+    constraint ck_users_risk_profile_source
+        check (
+            risk_profile_source is null
+            or risk_profile_source in ('ONBOARDING_SURVEY', 'MANUAL_UPDATE', 'SYSTEM_DEFAULT')
+        )
 );
 
 create unique index uk_users_email on users (email);
@@ -77,6 +114,14 @@ create table recommendations (
     news_weight integer,
     price_return_30d numeric(10, 4),
     news_sentiment_score integer,
+    price_momentum_score integer,
+    price_stability_score integer,
+    fundamental_quality_score integer,
+    user_fit_score integer,
+    cross_factor_adjustment integer,
+    user_adjustment integer,
+    risk_profile_applied varchar(30),
+    confidence_breakdown_json jsonb,
     increase_eligible boolean,
     created_at timestamptz not null default now(),
     constraint ck_recommendations_raw_score
@@ -91,6 +136,14 @@ create table recommendations (
         check (news_weight between 0 and 100),
     constraint ck_recommendations_news_sentiment_score
         check (news_sentiment_score between -100 and 100),
+    constraint ck_recommendations_price_momentum_score
+        check (price_momentum_score between 0 and 100),
+    constraint ck_recommendations_price_stability_score
+        check (price_stability_score between 0 and 100),
+    constraint ck_recommendations_fundamental_quality_score
+        check (fundamental_quality_score between 0 and 100),
+    constraint ck_recommendations_user_fit_score
+        check (user_fit_score between 0 and 100),
     constraint fk_recommendations_user
         foreign key (user_id) references users (id),
     constraint fk_recommendations_portfolio_item
@@ -105,6 +158,29 @@ create index idx_recommendations_user_id_date
 
 create index idx_recommendations_portfolio_item_id
     on recommendations (portfolio_item_id);
+
+create table recommendation_factor_details (
+    id bigserial primary key,
+    recommendation_id bigint not null,
+    factor_code varchar(40) not null,
+    factor_score integer not null,
+    factor_weight integer not null,
+    factor_summary varchar(255),
+    factor_raw_json jsonb,
+    created_at timestamptz not null default now(),
+    constraint ck_recommendation_factor_details_score
+        check (factor_score between 0 and 100),
+    constraint ck_recommendation_factor_details_weight
+        check (factor_weight between 0 and 100),
+    constraint fk_recommendation_factor_details_recommendation
+        foreign key (recommendation_id) references recommendations (id)
+);
+
+create index idx_recommendation_factor_details_recommendation_id
+    on recommendation_factor_details (recommendation_id);
+
+create index idx_recommendation_factor_details_factor_code
+    on recommendation_factor_details (factor_code);
 
 create table recommendation_evidence (
     id bigserial primary key,

@@ -29,6 +29,14 @@ public class RecommendationRecord {
     private Integer newsWeight;
     private BigDecimal priceReturn30d;
     private Integer newsSentimentScore;
+    private Integer priceMomentumScore;
+    private Integer priceStabilityScore;
+    private Integer fundamentalQualityScore;
+    private Integer userFitScore;
+    private Integer crossFactorAdjustment;
+    private Integer userAdjustment;
+    private String riskProfileApplied;
+    private String confidenceBreakdownJson;
     private Boolean increaseEligible;
     private BigDecimal holdingQuantity;
     private LocalDate investmentStartDate;
@@ -224,6 +232,70 @@ public class RecommendationRecord {
 
     public void setNewsSentimentScore(Integer newsSentimentScore) {
         this.newsSentimentScore = newsSentimentScore;
+    }
+
+    public Integer getPriceMomentumScore() {
+        return priceMomentumScore;
+    }
+
+    public void setPriceMomentumScore(Integer priceMomentumScore) {
+        this.priceMomentumScore = priceMomentumScore;
+    }
+
+    public Integer getPriceStabilityScore() {
+        return priceStabilityScore;
+    }
+
+    public void setPriceStabilityScore(Integer priceStabilityScore) {
+        this.priceStabilityScore = priceStabilityScore;
+    }
+
+    public Integer getFundamentalQualityScore() {
+        return fundamentalQualityScore;
+    }
+
+    public void setFundamentalQualityScore(Integer fundamentalQualityScore) {
+        this.fundamentalQualityScore = fundamentalQualityScore;
+    }
+
+    public Integer getUserFitScore() {
+        return userFitScore;
+    }
+
+    public void setUserFitScore(Integer userFitScore) {
+        this.userFitScore = userFitScore;
+    }
+
+    public Integer getCrossFactorAdjustment() {
+        return crossFactorAdjustment;
+    }
+
+    public void setCrossFactorAdjustment(Integer crossFactorAdjustment) {
+        this.crossFactorAdjustment = crossFactorAdjustment;
+    }
+
+    public Integer getUserAdjustment() {
+        return userAdjustment;
+    }
+
+    public void setUserAdjustment(Integer userAdjustment) {
+        this.userAdjustment = userAdjustment;
+    }
+
+    public String getRiskProfileApplied() {
+        return riskProfileApplied;
+    }
+
+    public void setRiskProfileApplied(String riskProfileApplied) {
+        this.riskProfileApplied = riskProfileApplied;
+    }
+
+    public String getConfidenceBreakdownJson() {
+        return confidenceBreakdownJson;
+    }
+
+    public void setConfidenceBreakdownJson(String confidenceBreakdownJson) {
+        this.confidenceBreakdownJson = confidenceBreakdownJson;
     }
 
     public Boolean getIncreaseEligible() {

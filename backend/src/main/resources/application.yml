@@ -2,6 +2,10 @@ server:
   port: ${PORT:8081}
 
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   application:
     name: maemoji-backend
   datasource:
@@ -44,3 +48,66 @@ maemoji:
       default-limit: 500
     daily:
       price-limit: 500
+  recommendation:
+    v4:
+      factor-weights:
+        price-momentum: 25
+        price-stability: 15
+        news-sentiment: 25
+        fundamental-quality: 20
+        user-fit: 15
+      risk-profiles:
+        safe-first:
+          increase-threshold: 90
+          maintain-threshold: 68
+          reduce-threshold: 42
+          user-adjustment: -5
+        balanced:
+          increase-threshold: 85
+          maintain-threshold: 60
+          reduce-threshold: 35
+          user-adjustment: 0
+        growth-seeker:
+          increase-threshold: 82
+          maintain-threshold: 56
+          reduce-threshold: 32
+          user-adjustment: 2
+        aggressive:
+          increase-threshold: 78
+          maintain-threshold: 52
+          reduce-threshold: 28
+          user-adjustment: 5
+      price-stability:
+        stress5-score: 85
+        stress10-score: 75
+        stress20-score: 60
+        stress30-score: 40
+        fallback-score: 20
+      fundamental:
+        base-score: 50
+        market-cap:
+          mega-cap-min: 500000
+          mega-cap-adjustment: 20
+          large-cap-min: 200000
+          large-cap-adjustment: 16
+          upper-mid-cap-min: 50000
+          upper-mid-cap-adjustment: 10
+          mid-cap-min: 10000
+          mid-cap-adjustment: 4
+          small-cap-adjustment: -4
+        per:
+          attractive-max: 20
+          attractive-adjustment: 12
+          fair-max: 35
+          fair-adjustment: 6
+          expensive-max: 60
+          expensive-adjustment: 0
+          very-expensive-adjustment: -10
+          negative-or-unclear-adjustment: -8
+        combination:
+          positive-market-cap-min: 50000
+          positive-per-max: 35
+          positive-adjustment: 4
+          negative-market-cap-max: 10000
+          negative-per-min: 60
+          negative-adjustment: -4

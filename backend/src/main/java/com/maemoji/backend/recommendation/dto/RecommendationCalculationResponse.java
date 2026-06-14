@@ -11,6 +11,14 @@ public record RecommendationCalculationResponse(
         int newsWeight,
         Double thirtyDayReturn,
         Integer newsSentimentScore,
+        Integer priceMomentumScore,
+        Integer priceStabilityScore,
+        Integer fundamentalQualityScore,
+        Integer userFitScore,
+        Integer crossFactorAdjustment,
+        Integer userAdjustment,
+        String riskProfileApplied,
+        String confidenceBreakdownJson,
         boolean increaseEligible
 ) {
 }

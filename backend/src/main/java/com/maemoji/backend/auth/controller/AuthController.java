@@ -52,7 +52,12 @@ public class AuthController {
                         user.getId(),
                         user.getEmail(),
                         user.getNickname(),
-                        user.getProfileImageUrl()
+                        user.getProfileImageUrl(),
+                        user.getRiskProfile(),
+                        user.getInvestmentDnaType(),
+                        user.getRiskProfileScore(),
+                        user.getRiskProfileConfidence(),
+                        user.getRiskProfileSource()
                 )
         );
     }

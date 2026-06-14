@@ -17,8 +17,11 @@
             pi.daily_invest_amount,
             pi.holding_quantity,
             pi.investment_start_date,
-            pi.memo
+            pi.memo,
+            u.risk_profile,
+            u.investment_dna_type
         from portfolio_items pi
+        join users u on u.id = pi.user_id
         join stocks s on s.id = pi.stock_id
         where pi.user_id = #{userId}
           and pi.is_active = true
@@ -38,7 +41,9 @@
             pi.daily_invest_amount,
             pi.holding_quantity,
             pi.investment_start_date,
-            pi.memo
+            pi.memo,
+            u.risk_profile,
+            u.investment_dna_type
         from portfolio_items pi
         join users u on u.id = pi.user_id
         join stocks s on s.id = pi.stock_id
@@ -60,8 +65,11 @@
             pi.daily_invest_amount,
             pi.holding_quantity,
             pi.investment_start_date,
-            pi.memo
+            pi.memo,
+            u.risk_profile,
+            u.investment_dna_type
         from portfolio_items pi
+        join users u on u.id = pi.user_id
         join stocks s on s.id = pi.stock_id
         where pi.user_id = #{userId}
           and pi.id = #{portfolioItemId}
@@ -93,6 +101,14 @@
             news_weight,
             price_return_30d,
             news_sentiment_score,
+            price_momentum_score,
+            price_stability_score,
+            fundamental_quality_score,
+            user_fit_score,
+            cross_factor_adjustment,
+            user_adjustment,
+            risk_profile_applied,
+            confidence_breakdown_json,
             increase_eligible
         ) values (
             #{command.userId},
@@ -114,6 +130,14 @@
             #{command.newsWeight},
             #{command.priceReturn30d},
             #{command.newsSentimentScore},
+            #{command.priceMomentumScore},
+            #{command.priceStabilityScore},
+            #{command.fundamentalQualityScore},
+            #{command.userFitScore},
+            #{command.crossFactorAdjustment},
+            #{command.userAdjustment},
+            #{command.riskProfileApplied},
+            cast(#{command.confidenceBreakdownJson} as jsonb),
             #{command.increaseEligible}
         )
         on conflict (portfolio_item_id, recommendation_date) do update
@@ -134,6 +158,14 @@
             news_weight = excluded.news_weight,
             price_return_30d = excluded.price_return_30d,
             news_sentiment_score = excluded.news_sentiment_score,
+            price_momentum_score = excluded.price_momentum_score,
+            price_stability_score = excluded.price_stability_score,
+            fundamental_quality_score = excluded.fundamental_quality_score,
+            user_fit_score = excluded.user_fit_score,
+            cross_factor_adjustment = excluded.cross_factor_adjustment,
+            user_adjustment = excluded.user_adjustment,
+            risk_profile_applied = excluded.risk_profile_applied,
+            confidence_breakdown_json = excluded.confidence_breakdown_json,
             increase_eligible = excluded.increase_eligible
         returning id
     </select>
@@ -159,6 +191,30 @@
             #{command.body},
             #{command.scoreImpact},
             #{command.displayOrder}
+        )
+    </insert>
+
+    <delete id="deleteRecommendationFactorDetails">
+        delete from recommendation_factor_details
+        where recommendation_id = #{recommendationId}
+    </delete>
+
+    <insert id="insertRecommendationFactorDetail"
+            parameterType="com.maemoji.backend.recommendation.domain.RecommendationFactorDetailSaveCommand">
+        insert into recommendation_factor_details (
+            recommendation_id,
+            factor_code,
+            factor_score,
+            factor_weight,
+            factor_summary,
+            factor_raw_json
+        ) values (
+            #{command.recommendationId},
+            #{command.factorCode},
+            #{command.factorScore},
+            #{command.factorWeight},
+            #{command.factorSummary},
+            cast(#{command.factorRawJson} as jsonb)
         )
     </insert>
 
@@ -257,6 +313,14 @@
             r.news_weight,
             r.price_return_30d,
             r.news_sentiment_score,
+            r.price_momentum_score,
+            r.price_stability_score,
+            r.fundamental_quality_score,
+            r.user_fit_score,
+            r.cross_factor_adjustment,
+            r.user_adjustment,
+            r.risk_profile_applied,
+            cast(r.confidence_breakdown_json as text) as confidence_breakdown_json,
             r.increase_eligible,
             pi.holding_quantity,
             pi.investment_start_date,
@@ -296,6 +360,14 @@
             r.news_weight,
             r.price_return_30d,
             r.news_sentiment_score,
+            r.price_momentum_score,
+            r.price_stability_score,
+            r.fundamental_quality_score,
+            r.user_fit_score,
+            r.cross_factor_adjustment,
+            r.user_adjustment,
+            r.risk_profile_applied,
+            cast(r.confidence_breakdown_json as text) as confidence_breakdown_json,
             r.increase_eligible,
             pi.holding_quantity,
             pi.investment_start_date,
@@ -322,6 +394,20 @@
         from recommendation_evidence
         where recommendation_id = #{recommendationId}
         order by display_order asc, id asc
+    </select>
+
+    <select id="findRecommendationFactorDetailsByRecommendationId"
+            resultType="com.maemoji.backend.recommendation.domain.RecommendationFactorDetailRecord">
+        select
+            recommendation_id,
+            factor_code,
+            factor_score,
+            factor_weight,
+            factor_summary,
+            cast(factor_raw_json as text) as factor_raw_json
+        from recommendation_factor_details
+        where recommendation_id = #{recommendationId}
+        order by id asc
     </select>
 
     <select id="findLatestNewsAnalysisByStockId"

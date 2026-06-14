@@ -27,11 +27,13 @@ class ExchangeRateService {
     final response = await http.get(uri);
 
     if (response.statusCode != 200) {
-      throw Exception('MaeMoji exchange rate fetch failed: ${response.statusCode}');
+      throw Exception(
+        'MaeMoji exchange rate fetch failed: ${response.statusCode}',
+      );
     }
 
-    final decoded = jsonDecode(utf8.decode(response.bodyBytes))
-        as Map<String, dynamic>;
+    final decoded =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     final data = (decoded['data'] as Map<String, dynamic>? ?? const {});
     final rate = (data['rate'] as num?)?.toDouble() ?? 0;
 
@@ -47,26 +49,36 @@ class ExchangeRateService {
   }
 
   Future<ExchangeRate> _fetchFromFrankfurter() async {
-    final uri = Uri.parse('https://api.frankfurter.dev/v2/rates?base=USD&quotes=KRW');
+    final uri = Uri.parse(
+      'https://api.frankfurter.dev/v2/rates?base=USD&quotes=KRW',
+    );
     final response = await http.get(uri);
 
     if (response.statusCode != 200) {
-      throw Exception('Frankfurter exchange rate fetch failed: ${response.statusCode}');
+      throw Exception(
+        'Frankfurter exchange rate fetch failed: ${response.statusCode}',
+      );
     }
 
-    final decoded = jsonDecode(utf8.decode(response.bodyBytes))
-        as Map<String, dynamic>;
-    final rates = (decoded['rates'] as Map<String, dynamic>? ?? const {});
-    final rate = (rates['KRW'] as num?)?.toDouble() ?? 0;
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    final double rate;
+    if (decoded is List && decoded.isNotEmpty && decoded.first is Map) {
+      final item = Map<String, dynamic>.from(decoded.first as Map);
+      rate = (item['rate'] as num?)?.toDouble() ?? 0;
+    } else if (decoded is Map) {
+      final body = Map<String, dynamic>.from(decoded);
+      final rates = body['rates'] is Map
+          ? Map<String, dynamic>.from(body['rates'] as Map)
+          : const <String, dynamic>{};
+      rate = (rates['KRW'] as num?)?.toDouble() ?? 0;
+    } else {
+      rate = 0;
+    }
 
     if (rate <= 0) {
       throw Exception('Frankfurter exchange rate is invalid.');
     }
 
-    return ExchangeRate(
-      baseCurrency: 'USD',
-      quoteCurrency: 'KRW',
-      rate: rate,
-    );
+    return ExchangeRate(baseCurrency: 'USD', quoteCurrency: 'KRW', rate: rate);
   }
 }

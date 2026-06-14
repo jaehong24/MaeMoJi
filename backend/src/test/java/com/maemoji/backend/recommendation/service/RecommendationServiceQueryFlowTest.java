@@ -1,6 +1,7 @@
 package com.maemoji.backend.recommendation.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.maemoji.backend.recommendation.config.RecommendationTuningProperties;
 import com.maemoji.backend.recommendation.domain.RecommendationRecord;
 import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
@@ -25,12 +26,14 @@ class RecommendationServiceQueryFlowTest {
     private final NewsSentimentService newsSentimentService = mock(NewsSentimentService.class);
     private final RecommendationScoreCalculator scoreCalculator = mock(RecommendationScoreCalculator.class);
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper = mock(StockPriceSnapshotMapper.class);
+    private final RecommendationTuningProperties tuningProperties = new RecommendationTuningProperties();
     private final RecommendationService recommendationService = new RecommendationService(
             recommendationMapper,
             new ObjectMapper(),
             newsSentimentService,
             scoreCalculator,
-            stockPriceSnapshotMapper
+            stockPriceSnapshotMapper,
+            tuningProperties
     );
 
     @Test

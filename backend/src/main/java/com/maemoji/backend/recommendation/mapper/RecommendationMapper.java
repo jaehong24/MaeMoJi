@@ -2,6 +2,8 @@ package com.maemoji.backend.recommendation.mapper;
 
 import com.maemoji.backend.recommendation.domain.RecommendationEvidenceRecord;
 import com.maemoji.backend.recommendation.domain.RecommendationEvidenceSaveCommand;
+import com.maemoji.backend.recommendation.domain.RecommendationFactorDetailRecord;
+import com.maemoji.backend.recommendation.domain.RecommendationFactorDetailSaveCommand;
 import com.maemoji.backend.recommendation.domain.NewsAnalysisCacheRecord;
 import com.maemoji.backend.recommendation.domain.NewsAnalysisSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationRecord;
@@ -30,6 +32,10 @@ public interface RecommendationMapper {
 
     void insertRecommendationEvidence(@Param("command") RecommendationEvidenceSaveCommand command);
 
+    void deleteRecommendationFactorDetails(@Param("recommendationId") Long recommendationId);
+
+    void insertRecommendationFactorDetail(@Param("command") RecommendationFactorDetailSaveCommand command);
+
     void deleteNewsAnalysisCacheByStockId(@Param("stockId") Long stockId);
 
     void insertNewsAnalysisCache(@Param("command") NewsAnalysisSaveCommand command);
@@ -42,6 +48,10 @@ public interface RecommendationMapper {
     );
 
     List<RecommendationEvidenceRecord> findRecommendationEvidenceByRecommendationId(
+            @Param("recommendationId") Long recommendationId
+    );
+
+    List<RecommendationFactorDetailRecord> findRecommendationFactorDetailsByRecommendationId(
             @Param("recommendationId") Long recommendationId
     );
 

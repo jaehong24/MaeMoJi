@@ -83,7 +83,12 @@ public class GoogleAuthService {
                         authenticatedUser.getId(),
                         authenticatedUser.getEmail(),
                         authenticatedUser.getNickname(),
-                        authenticatedUser.getProfileImageUrl()
+                        authenticatedUser.getProfileImageUrl(),
+                        authenticatedUser.getRiskProfile(),
+                        authenticatedUser.getInvestmentDnaType(),
+                        authenticatedUser.getRiskProfileScore(),
+                        authenticatedUser.getRiskProfileConfidence(),
+                        authenticatedUser.getRiskProfileSource()
                 )
         );
     }
@@ -114,7 +119,12 @@ public class GoogleAuthService {
                         authenticatedUser.getId(),
                         authenticatedUser.getEmail(),
                         authenticatedUser.getNickname(),
-                        authenticatedUser.getProfileImageUrl()
+                        authenticatedUser.getProfileImageUrl(),
+                        authenticatedUser.getRiskProfile(),
+                        authenticatedUser.getInvestmentDnaType(),
+                        authenticatedUser.getRiskProfileScore(),
+                        authenticatedUser.getRiskProfileConfidence(),
+                        authenticatedUser.getRiskProfileSource()
                 )
         );
     }

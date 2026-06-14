@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../currency/currency_scope.dart';
 import '../models/recommendation_item.dart';
-import '../screens/recommendation_detail_screen.dart';
+import '../screens/stock_detail_screen.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import 'app_section_card.dart';
@@ -48,7 +48,10 @@ class RecommendationCard extends StatelessWidget {
             () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => RecommendationDetailScreen(item: item),
+                  builder: (_) => StockDetailScreen(
+                    portfolioItemId: item.portfolioItemId,
+                    initialItem: item,
+                  ),
                 ),
               );
             };

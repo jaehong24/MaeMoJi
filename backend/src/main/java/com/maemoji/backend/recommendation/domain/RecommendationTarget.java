@@ -15,6 +15,8 @@ public class RecommendationTarget {
     private BigDecimal holdingQuantity;
     private LocalDate investmentStartDate;
     private String memo;
+    private String riskProfile;
+    private String investmentDnaType;
 
     public Long getPortfolioItemId() {
         return portfolioItemId;
@@ -102,5 +104,21 @@ public class RecommendationTarget {
 
     public void setMemo(String memo) {
         this.memo = memo;
+    }
+
+    public String getRiskProfile() {
+        return riskProfile;
+    }
+
+    public void setRiskProfile(String riskProfile) {
+        this.riskProfile = riskProfile;
+    }
+
+    public String getInvestmentDnaType() {
+        return investmentDnaType;
+    }
+
+    public void setInvestmentDnaType(String investmentDnaType) {
+        this.investmentDnaType = investmentDnaType;
     }
 }

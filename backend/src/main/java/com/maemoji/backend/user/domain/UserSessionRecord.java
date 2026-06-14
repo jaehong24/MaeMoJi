@@ -9,8 +9,14 @@ public class UserSessionRecord {
     private String nickname;
     private String profileImageUrl;
     private String googleSubject;
+    private String riskProfile;
+    private String investmentDnaType;
+    private Integer riskProfileScore;
+    private Integer riskProfileConfidence;
+    private String riskProfileSource;
     private String authToken;
     private OffsetDateTime authTokenExpiresAt;
+    private OffsetDateTime riskProfileUpdatedAt;
     private String status;
 
     public Long getId() {
@@ -53,6 +59,46 @@ public class UserSessionRecord {
         this.googleSubject = googleSubject;
     }
 
+    public String getRiskProfile() {
+        return riskProfile;
+    }
+
+    public void setRiskProfile(String riskProfile) {
+        this.riskProfile = riskProfile;
+    }
+
+    public String getInvestmentDnaType() {
+        return investmentDnaType;
+    }
+
+    public void setInvestmentDnaType(String investmentDnaType) {
+        this.investmentDnaType = investmentDnaType;
+    }
+
+    public Integer getRiskProfileScore() {
+        return riskProfileScore;
+    }
+
+    public void setRiskProfileScore(Integer riskProfileScore) {
+        this.riskProfileScore = riskProfileScore;
+    }
+
+    public Integer getRiskProfileConfidence() {
+        return riskProfileConfidence;
+    }
+
+    public void setRiskProfileConfidence(Integer riskProfileConfidence) {
+        this.riskProfileConfidence = riskProfileConfidence;
+    }
+
+    public String getRiskProfileSource() {
+        return riskProfileSource;
+    }
+
+    public void setRiskProfileSource(String riskProfileSource) {
+        this.riskProfileSource = riskProfileSource;
+    }
+
     public String getAuthToken() {
         return authToken;
     }
@@ -67,6 +113,14 @@ public class UserSessionRecord {
 
     public void setAuthTokenExpiresAt(OffsetDateTime authTokenExpiresAt) {
         this.authTokenExpiresAt = authTokenExpiresAt;
+    }
+
+    public OffsetDateTime getRiskProfileUpdatedAt() {
+        return riskProfileUpdatedAt;
+    }
+
+    public void setRiskProfileUpdatedAt(OffsetDateTime riskProfileUpdatedAt) {
+        this.riskProfileUpdatedAt = riskProfileUpdatedAt;
     }
 
     public String getStatus() {

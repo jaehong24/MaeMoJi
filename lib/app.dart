@@ -7,6 +7,7 @@ import 'currency/currency_scope.dart';
 import 'screens/app_shell.dart';
 import 'screens/auth_screen.dart';
 import 'screens/brand_launch_screen.dart';
+import 'screens/investment_dna_survey_screen.dart';
 import 'services/auth_service.dart';
 import 'services/auth_session_store.dart';
 import 'theme/app_theme.dart';
@@ -78,6 +79,10 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
                 );
               }
               return const AuthScreen();
+            }
+
+            if (!(_authSessionStore.session?.user.hasRiskProfile ?? false)) {
+              return const InvestmentDnaSurveyScreen();
             }
 
             return const AppShell();

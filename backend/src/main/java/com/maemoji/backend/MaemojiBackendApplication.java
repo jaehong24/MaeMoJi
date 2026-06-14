@@ -1,5 +1,6 @@
 package com.maemoji.backend;
 
+import com.maemoji.backend.recommendation.config.RecommendationTuningProperties;
 import com.maemoji.backend.stock.config.TopStockSyncProperties;
 import com.maemoji.backend.stock.config.PriceSnapshotBatchProperties;
 import org.springframework.boot.SpringApplication;
@@ -11,7 +12,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableConfigurationProperties({
         TopStockSyncProperties.class,
-        PriceSnapshotBatchProperties.class
+        PriceSnapshotBatchProperties.class,
+        RecommendationTuningProperties.class
 })
 public class MaemojiBackendApplication {
 

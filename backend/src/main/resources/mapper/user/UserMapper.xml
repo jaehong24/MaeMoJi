@@ -19,6 +19,12 @@
             nickname,
             profile_image_url,
             google_subject,
+            risk_profile,
+            investment_dna_type,
+            risk_profile_score,
+            risk_profile_confidence,
+            risk_profile_source,
+            risk_profile_updated_at,
             auth_token,
             auth_token_expires_at,
             status
@@ -92,6 +98,12 @@
             nickname,
             profile_image_url,
             google_subject,
+            risk_profile,
+            investment_dna_type,
+            risk_profile_score,
+            risk_profile_confidence,
+            risk_profile_source,
+            risk_profile_updated_at,
             auth_token,
             auth_token_expires_at,
             status
@@ -101,6 +113,19 @@
           and status = 'ACTIVE'
         limit 1
     </select>
+
+    <update id="updateRiskProfile">
+        update users
+        set
+            risk_profile = #{riskProfile},
+            investment_dna_type = #{investmentDnaType},
+            risk_profile_score = #{riskProfileScore},
+            risk_profile_confidence = #{riskProfileConfidence},
+            risk_profile_source = #{riskProfileSource},
+            risk_profile_updated_at = #{riskProfileUpdatedAt},
+            updated_at = now()
+        where id = #{userId}
+    </update>
 
     <select id="findActiveUserIdsWithPortfolioItems" resultType="long">
         select distinct u.id

@@ -186,15 +186,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           usdToKrwRate: currencyController.usdToKrwRate,
                           quoteTimeFormat: _quoteTimeFormat,
                         ),
-                        const SizedBox(height: 14),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 220),
-                          child: Text(
-                            resolvedItem.note,
-                            key: ValueKey(resolvedItem.note),
-                            style: theme.textTheme.bodyLarge,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -229,8 +220,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MiniMetricCard(
-                          label: '점수',
-                          value: '${resolvedItem.score}',
+                          label: '최종 점수',
+                          value: '${resolvedItem.score}점',
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -274,7 +265,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           style: theme.textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 16),
-                        EvidenceSection(items: resolvedItem.evidence),
+                        EvidenceSection(
+                          items: resolvedItem.evidence,
+                          riskProfileLabel: _riskProfileLabel(
+                            resolvedItem.riskProfileApplied,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -496,6 +492,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       relatedNewsStatusMessage:
           next.relatedNewsStatusMessage ??
           '오늘 새 관련 뉴스가 적어 최근 확인된 뉴스를 함께 보여드리고 있어요.',
+      formulaVersion: next.formulaVersion,
+      priceMomentumScore: next.priceMomentumScore,
+      priceStabilityScore: next.priceStabilityScore,
+      fundamentalQualityScore: next.fundamentalQualityScore,
+      newsScore: next.newsScore,
+      userFitScore: next.userFitScore,
+      crossFactorAdjustment: next.crossFactorAdjustment,
+      userAdjustment: next.userAdjustment,
+      riskProfileApplied: next.riskProfileApplied,
+      confidenceBreakdownJson: next.confidenceBreakdownJson,
     );
   }
 
@@ -533,6 +539,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       return null;
     }
     return '뉴스 확인 ${_formatDateOnly(analyzedAt)}';
+  }
+
+  String _riskProfileLabel(String? raw) {
+    switch ((raw ?? '').toUpperCase()) {
+      case 'SAFE_FIRST':
+        return '안전 우선형';
+      case 'GROWTH_SEEKER':
+        return '성장 추구형';
+      case 'AGGRESSIVE':
+        return '공격 투자형';
+      default:
+        return '균형형';
+    }
   }
 
   String _formatDateOnly(DateTime value) {
