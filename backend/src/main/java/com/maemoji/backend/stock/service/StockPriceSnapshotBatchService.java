@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.stock.config.PriceSnapshotBatchProperties;
 import com.maemoji.backend.stock.domain.Stock;
+import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import org.slf4j.Logger;
@@ -22,7 +23,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class StockPriceSnapshotBatchService {
@@ -70,22 +73,46 @@ public class StockPriceSnapshotBatchService {
                 ? properties.getDefaultLimit()
                 : limit;
         final List<Stock> stocks = stockPriceSnapshotMapper.findActiveStocksForSnapshot(effectiveLimit);
+        final Set<Long> portfolioStockIds =
+                new HashSet<>(stockPriceSnapshotMapper.findActivePortfolioStockIds());
         final LocalDate snapshotDate = LocalDate.now(SNAPSHOT_ZONE);
+        final long startedAtNanos = System.nanoTime();
 
         int savedCount = 0;
         int failedCount = 0;
 
-        log.info("가격 스냅샷 배치를 시작합니다. snapshotDate={}, requested={}", snapshotDate, stocks.size());
-        for (Stock stock : stocks) {
+        log.info(
+                "가격 스냅샷 배치를 시작합니다. snapshotDate={}, requested={}, portfolioStocks={}, requestMode=QUOTE_ALL_METRIC_PORTFOLIO",
+                snapshotDate,
+                stocks.size(),
+                portfolioStockIds.size()
+        );
+        for (int index = 0; index < stocks.size(); index++) {
+            final Stock stock = stocks.get(index);
             try {
                 final String symbol = stock.getFinnhubSymbol() == null || stock.getFinnhubSymbol().isBlank()
                         ? stock.getTicker()
                         : stock.getFinnhubSymbol();
-                final SnapshotData snapshotData = fetchSnapshotData(symbol, apiKey);
+                final boolean fetchMetrics = portfolioStockIds.contains(stock.getId());
+                final StockPriceSnapshotRecord previousSnapshot =
+                        stockPriceSnapshotMapper.findLatestSnapshotByStockId(stock.getId());
+                final SnapshotData snapshotData = fetchSnapshotData(
+                        symbol,
+                        apiKey,
+                        fetchMetrics
+                );
                 if (snapshotData.currentPrice() == null) {
                     throw new IllegalStateException("Finnhub 현재가가 비어 있습니다. symbol=" + symbol);
                 }
                 final BigDecimal currentPrice = decimalOrNull(snapshotData.currentPrice());
+                final BigDecimal marketCap = firstNonNull(
+                        decimalOrNull(snapshotData.marketCap()),
+                        previousSnapshot == null ? null : previousSnapshot.getMarketCap()
+                );
+                final BigDecimal perValue = firstNonNull(
+                        decimalOrNull(snapshotData.perValue()),
+                        previousSnapshot == null ? null : previousSnapshot.getPerValue()
+                );
                 final PriceReturns priceReturns = calculateReturns(
                         stock.getId(),
                         snapshotDate,
@@ -98,15 +125,31 @@ public class StockPriceSnapshotBatchService {
                         priceReturns.changeRate1d(),
                         priceReturns.changeRate7d(),
                         priceReturns.changeRate30d(),
-                        decimalOrNull(snapshotData.marketCap()),
-                        decimalOrNull(snapshotData.perValue()),
+                        marketCap,
+                        perValue,
                         SOURCE
                 );
                 savedCount++;
-                sleep(properties.getDelayMillis());
+            } catch (FinnhubAuthenticationException exception) {
+                log.error("Finnhub 인증에 실패해 가격 배치를 중단합니다. API 키를 확인해주세요.");
+                throw exception;
             } catch (Exception exception) {
                 failedCount++;
                 log.warn("가격 스냅샷 적재에 실패했습니다. stockId={}, ticker={}", stock.getId(), stock.getTicker(), exception);
+            } finally {
+                sleep(properties.getDelayMillis());
+            }
+
+            final int processedCount = index + 1;
+            if (processedCount % 25 == 0 || processedCount == stocks.size()) {
+                log.info(
+                        "가격 스냅샷 배치 진행 중입니다. processed={}/{}, saved={}, failed={}, elapsedSeconds={}",
+                        processedCount,
+                        stocks.size(),
+                        savedCount,
+                        failedCount,
+                        Duration.ofNanos(System.nanoTime() - startedAtNanos).toSeconds()
+                );
             }
         }
 
@@ -120,16 +163,23 @@ public class StockPriceSnapshotBatchService {
         );
     }
 
-    private SnapshotData fetchSnapshotData(String symbol, String apiKey) throws Exception {
+    private SnapshotData fetchSnapshotData(
+            String symbol,
+            String apiKey,
+            boolean fetchMetrics
+    ) throws Exception {
         final JsonNode quote = getJson(
                 "https://finnhub.io/api/v1/quote?symbol=" + encode(symbol) + "&token=" + encode(apiKey)
         );
-        final JsonNode metrics = getJsonOrNull(
-                "https://finnhub.io/api/v1/stock/metric?symbol="
-                        + encode(symbol)
-                        + "&metric=all&token="
-                        + encode(apiKey)
-        );
+        final JsonNode metrics = fetchMetrics
+                ? getJsonOrNull(
+                        "https://finnhub.io/api/v1/stock/metric?symbol="
+                                + encode(symbol)
+                                + "&metric=all&token="
+                                + encode(apiKey),
+                        symbol
+                )
+                : null;
 
         return new SnapshotData(
                 readPositiveDouble(quote, "c"),
@@ -174,17 +224,24 @@ public class StockPriceSnapshotBatchService {
                 request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
         );
+        if (response.statusCode() == 401 || response.statusCode() == 403) {
+            throw new FinnhubAuthenticationException(response.statusCode());
+        }
         if (response.statusCode() != 200 || response.body().isBlank()) {
             throw new IllegalStateException("Finnhub 응답이 비정상입니다. status=" + response.statusCode());
         }
         return objectMapper.readTree(response.body());
     }
 
-    private JsonNode getJsonOrNull(String uri) {
+    private JsonNode getJsonOrNull(String uri, String symbol) {
         try {
             return getJson(uri);
         } catch (Exception exception) {
-            log.info("선택형 Finnhub 데이터는 건너뜁니다. uri={}", uri, exception);
+            log.info(
+                    "선택형 Finnhub 지표 데이터는 건너뜁니다. symbol={}, reason={}",
+                    symbol,
+                    exception.getMessage()
+            );
             return null;
         }
     }
@@ -206,6 +263,10 @@ public class StockPriceSnapshotBatchService {
         return value == null
                 ? null
                 : BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal firstNonNull(BigDecimal primary, BigDecimal fallback) {
+        return primary == null ? fallback : primary;
     }
 
     private String encode(String value) {
@@ -235,5 +296,11 @@ public class StockPriceSnapshotBatchService {
             BigDecimal changeRate7d,
             BigDecimal changeRate30d
     ) {
+    }
+
+    private static final class FinnhubAuthenticationException extends RuntimeException {
+        private FinnhubAuthenticationException(int statusCode) {
+            super("Finnhub 인증 실패: status=" + statusCode);
+        }
     }
 }

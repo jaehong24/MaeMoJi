@@ -14,6 +14,8 @@ public interface StockPriceSnapshotMapper {
 
     List<Stock> findActiveStocksForSnapshot(@Param("limit") Integer limit);
 
+    List<Long> findActivePortfolioStockIds();
+
     StockPriceSnapshotRecord findLatestSnapshotByStockId(@Param("stockId") Long stockId);
 
     BigDecimal findPreviousPrice(

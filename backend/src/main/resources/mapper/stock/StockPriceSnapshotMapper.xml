@@ -21,13 +21,31 @@
             is_active,
             created_at,
             updated_at
-        from stocks
-        where is_active = true
-          and finnhub_symbol is not null
-        order by id asc
+        from stocks s
+        where s.is_active = true
+          and s.finnhub_symbol is not null
+        order by
+            exists (
+                select 1
+                from portfolio_items pi
+                where pi.stock_id = s.id
+                  and pi.is_active = true
+            ) desc,
+            (
+                select max(sps.snapshot_date)
+                from stock_price_snapshots sps
+                where sps.stock_id = s.id
+            ) asc nulls first,
+            s.id asc
         <if test="limit != null and limit > 0">
             limit #{limit}
         </if>
+    </select>
+
+    <select id="findActivePortfolioStockIds" resultType="java.lang.Long">
+        select distinct stock_id
+        from portfolio_items
+        where is_active = true
     </select>
 
     <select id="findLatestSnapshotByStockId" resultType="com.maemoji.backend.stock.domain.StockPriceSnapshotRecord">

@@ -7,7 +7,7 @@ public class PriceSnapshotBatchProperties {
 
     private boolean enabled = false;
     private String cron = "0 40 6 * * *";
-    private int delayMillis = 2100;
+    private int delayMillis = 1200;
     private int defaultLimit = 500;
 
     public boolean isEnabled() {

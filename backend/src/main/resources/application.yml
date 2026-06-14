@@ -46,7 +46,8 @@ maemoji:
       # 운영 배치는 Render Cron Job이 담당합니다. 웹 서버에서는 중복 실행하지 않습니다.
       enabled: false
       cron: "0 40 6 * * *"
-      delay-millis: 2100
+      # 무료 API 분당 한도를 넘지 않으면서 500종목을 약 10분 안에 처리합니다.
+      delay-millis: 1200
       default-limit: 500
     daily:
       price-limit: 500
