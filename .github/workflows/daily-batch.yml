@@ -22,10 +22,13 @@ jobs:
     environment: DATABASE_URL
     env:
       SPRING_PROFILES_ACTIVE: prod
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SPRING_DATASOURCE_URL: ${{ secrets.DATABASE_URL }}
       FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       PRICE_LIMIT: ${{ github.event.inputs.price_limit || '500' }}
+      SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+      SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+      
 
     steps:
       - name: Checkout repository
