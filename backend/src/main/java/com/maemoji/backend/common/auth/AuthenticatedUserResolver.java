@@ -10,9 +10,14 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthenticatedUserResolver {
 
     private final UserMapper userMapper;
+    private final AuthTokenHasher authTokenHasher;
 
-    public AuthenticatedUserResolver(UserMapper userMapper) {
+    public AuthenticatedUserResolver(
+            UserMapper userMapper,
+            AuthTokenHasher authTokenHasher
+    ) {
         this.userMapper = userMapper;
+        this.authTokenHasher = authTokenHasher;
     }
 
     public Long requireUserId(String authorizationHeader) {
@@ -21,9 +26,13 @@ public class AuthenticatedUserResolver {
 
     public UserSessionRecord requireUser(String authorizationHeader) {
         final String token = extractBearerToken(authorizationHeader);
-        final UserSessionRecord user = userMapper.findSessionUserByAuthToken(token);
+        final String tokenHash = authTokenHasher.hash(token);
+        final UserSessionRecord user = userMapper.findSessionUserByAuthToken(token, tokenHash);
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        if (user.getAuthTokenHash() == null || user.getAuthTokenHash().isBlank()) {
+            userMapper.upgradeLegacyAuthToken(user.getId(), tokenHash);
         }
         return user;
     }

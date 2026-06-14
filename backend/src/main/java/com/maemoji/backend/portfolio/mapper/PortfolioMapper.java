@@ -10,6 +10,8 @@ import java.util.List;
 @Mapper
 public interface PortfolioMapper {
 
+    Long lockUserPortfolio(@Param("userId") Long userId);
+
     Long findPortfolioItemIdByUserIdAndStockId(
             @Param("userId") Long userId,
             @Param("stockId") Long stockId

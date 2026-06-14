@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -23,6 +22,7 @@ import java.util.Set;
 @RequestMapping("/api/assets")
 public class LogoProxyController {
 
+    private static final int MAX_LOGO_BYTES = 2 * 1024 * 1024;
     private static final Set<String> ALLOWED_HOSTS = Set.of(
             "static2.finnhub.io",
             "finnhub.io"
@@ -41,7 +41,10 @@ public class LogoProxyController {
 
         final URI sourceUri = URI.create(trimmed);
         final String host = sourceUri.getHost() == null ? "" : sourceUri.getHost().toLowerCase(Locale.ROOT);
-        if (!ALLOWED_HOSTS.contains(host)) {
+        if (!"https".equalsIgnoreCase(sourceUri.getScheme())
+                || sourceUri.getUserInfo() != null
+                || sourceUri.getPort() != -1
+                || !ALLOWED_HOSTS.contains(host)) {
             return ResponseEntity.badRequest().body(new byte[0]);
         }
 
@@ -59,10 +62,20 @@ public class LogoProxyController {
         if (response.statusCode() != 200 || response.body() == null || response.body().length == 0) {
             return ResponseEntity.status(502).body(new byte[0]);
         }
+        if (response.body().length > MAX_LOGO_BYTES) {
+            return ResponseEntity.status(413).body(new byte[0]);
+        }
 
         final String contentType = response.headers()
                 .firstValue("content-type")
-                .orElse(MediaType.IMAGE_PNG_VALUE);
+                .orElse("")
+                .split(";", 2)[0]
+                .trim()
+                .toLowerCase(Locale.ROOT);
+        if (!contentType.startsWith("image/")
+                || "image/svg+xml".equals(contentType)) {
+            return ResponseEntity.status(415).body(new byte[0]);
+        }
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(Duration.ofDays(7)).cachePublic().getHeaderValue())

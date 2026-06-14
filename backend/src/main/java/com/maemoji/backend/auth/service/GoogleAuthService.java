@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.auth.dto.AuthLoginResponse;
 import com.maemoji.backend.auth.dto.AuthUserResponse;
+import com.maemoji.backend.common.auth.AuthTokenHasher;
 import com.maemoji.backend.user.domain.UserSessionRecord;
 import com.maemoji.backend.user.mapper.UserMapper;
 import org.springframework.http.HttpStatus;
@@ -26,23 +27,35 @@ import java.util.UUID;
 public class GoogleAuthService {
 
     private static final Duration SESSION_TTL = Duration.ofDays(30);
+    private static final String CURRENT_CONSENT_VERSION = "2026-06-14";
     private static final String DEFAULT_WEB_CLIENT_ID =
             "868949164440-fph4vc0lnrdi3src47alvid1qg1vp930.apps.googleusercontent.com";
 
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final AuthTokenHasher authTokenHasher;
 
-    public GoogleAuthService(UserMapper userMapper, ObjectMapper objectMapper) {
+    public GoogleAuthService(
+            UserMapper userMapper,
+            ObjectMapper objectMapper,
+            AuthTokenHasher authTokenHasher
+    ) {
         this.userMapper = userMapper;
         this.objectMapper = objectMapper;
+        this.authTokenHasher = authTokenHasher;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
 
     @Transactional
-    public AuthLoginResponse login(String idToken) {
+    public AuthLoginResponse login(
+            String idToken,
+            boolean requiredConsentAccepted,
+            String consentVersion
+    ) {
+        validateConsent(requiredConsentAccepted, consentVersion);
         final GoogleTokenProfile profile = verifyGoogleIdToken(idToken);
         final OffsetDateTime now = OffsetDateTime.now();
 
@@ -55,6 +68,7 @@ public class GoogleAuthService {
                     userId,
                     profile.email(),
                     profile.nickname(),
+                    normalizeNicknameKey(profile.nickname()),
                     profile.profileImageUrl(),
                     profile.googleSubject(),
                     now
@@ -63,15 +77,20 @@ public class GoogleAuthService {
             userId = userMapper.upsertGoogleUserByEmail(
                     profile.email(),
                     profile.nickname(),
+                    normalizeNicknameKey(profile.nickname()),
                     profile.profileImageUrl(),
                     profile.googleSubject(),
                     now
             );
         }
 
+        userMapper.updateRequiredConsent(userId, consentVersion, now);
         final String accessToken = issueSessionToken(userId, now);
 
-        final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(accessToken);
+        final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(
+                null,
+                authTokenHasher.hash(accessToken)
+        );
         if (authenticatedUser == null) {
             throw new IllegalStateException("로그인 사용자 세션을 생성하지 못했습니다.");
         }
@@ -84,6 +103,7 @@ public class GoogleAuthService {
                         authenticatedUser.getEmail(),
                         authenticatedUser.getNickname(),
                         authenticatedUser.getProfileImageUrl(),
+                        Boolean.TRUE.equals(authenticatedUser.getNicknameConfirmed()),
                         authenticatedUser.getRiskProfile(),
                         authenticatedUser.getInvestmentDnaType(),
                         authenticatedUser.getRiskProfileScore(),
@@ -107,7 +127,10 @@ public class GoogleAuthService {
 
         final OffsetDateTime now = OffsetDateTime.now();
         final String accessToken = issueSessionToken(userId, now);
-        final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(accessToken);
+        final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(
+                null,
+                authTokenHasher.hash(accessToken)
+        );
         if (authenticatedUser == null) {
             throw new IllegalStateException("개발용 로그인 세션을 생성하지 못했습니다.");
         }
@@ -120,6 +143,7 @@ public class GoogleAuthService {
                         authenticatedUser.getEmail(),
                         authenticatedUser.getNickname(),
                         authenticatedUser.getProfileImageUrl(),
+                        Boolean.TRUE.equals(authenticatedUser.getNicknameConfirmed()),
                         authenticatedUser.getRiskProfile(),
                         authenticatedUser.getInvestmentDnaType(),
                         authenticatedUser.getRiskProfileScore(),
@@ -138,8 +162,22 @@ public class GoogleAuthService {
         final String accessToken = UUID.randomUUID().toString().replace("-", "")
                 + UUID.randomUUID().toString().replace("-", "");
         final OffsetDateTime expiresAt = now.plus(SESSION_TTL);
-        userMapper.updateAuthSession(userId, accessToken, expiresAt, now);
+        userMapper.updateAuthSession(
+                userId,
+                authTokenHasher.hash(accessToken),
+                expiresAt,
+                now
+        );
         return accessToken;
+    }
+
+    private void validateConsent(boolean requiredConsentAccepted, String consentVersion) {
+        if (!requiredConsentAccepted) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "필수 안내 동의가 필요합니다.");
+        }
+        if (!CURRENT_CONSENT_VERSION.equals(consentVersion)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "최신 서비스 안내에 다시 동의해주세요.");
+        }
     }
 
     private boolean isAllowedDevHost(String hostName) {
@@ -185,11 +223,12 @@ public class GoogleAuthService {
             final String aud = body.path("aud").asText("");
             final String email = body.path("email").asText("");
             final String sub = body.path("sub").asText("");
+            final boolean emailVerified = body.path("email_verified").asBoolean(false);
 
             if (!resolveExpectedWebClientId().equals(aud)) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Google 클라이언트 ID가 일치하지 않습니다.");
             }
-            if (email.isBlank() || sub.isBlank()) {
+            if (email.isBlank() || sub.isBlank() || !emailVerified) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Google 사용자 정보가 올바르지 않습니다.");
             }
 
@@ -209,6 +248,10 @@ public class GoogleAuthService {
             return DEFAULT_WEB_CLIENT_ID;
         }
         return configured.trim();
+    }
+
+    private String normalizeNicknameKey(String nickname) {
+        return nickname == null ? "" : nickname.trim().toLowerCase();
     }
 
     private record GoogleTokenProfile(

@@ -8,6 +8,7 @@ public class UserSessionRecord {
     private String email;
     private String nickname;
     private String profileImageUrl;
+    private Boolean nicknameConfirmed;
     private String googleSubject;
     private String riskProfile;
     private String investmentDnaType;
@@ -15,6 +16,7 @@ public class UserSessionRecord {
     private Integer riskProfileConfidence;
     private String riskProfileSource;
     private String authToken;
+    private String authTokenHash;
     private OffsetDateTime authTokenExpiresAt;
     private OffsetDateTime riskProfileUpdatedAt;
     private String status;
@@ -49,6 +51,14 @@ public class UserSessionRecord {
 
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public Boolean getNicknameConfirmed() {
+        return nicknameConfirmed;
+    }
+
+    public void setNicknameConfirmed(Boolean nicknameConfirmed) {
+        this.nicknameConfirmed = nicknameConfirmed;
     }
 
     public String getGoogleSubject() {
@@ -105,6 +115,14 @@ public class UserSessionRecord {
 
     public void setAuthToken(String authToken) {
         this.authToken = authToken;
+    }
+
+    public String getAuthTokenHash() {
+        return authTokenHash;
+    }
+
+    public void setAuthTokenHash(String authTokenHash) {
+        this.authTokenHash = authTokenHash;
     }
 
     public OffsetDateTime getAuthTokenExpiresAt() {

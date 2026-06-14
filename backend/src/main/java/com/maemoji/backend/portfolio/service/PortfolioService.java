@@ -36,6 +36,7 @@ public class PortfolioService {
             PortfolioCreateRequest request
     ) {
         validateDailyInvestAmount(request);
+        portfolioMapper.lockUserPortfolio(userId);
 
         final Long portfolioItemId = portfolioMapper.findPortfolioItemIdByUserIdAndStockId(
                 userId,

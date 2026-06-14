@@ -278,8 +278,8 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
     final percentPrefix = quote.percentChange > 0 ? '+' : '';
 
     return '$basePrice\n'
-        '변동 ${changePrefix}${quote.change.toStringAsFixed(2)} '
-        '(${percentPrefix}${quote.percentChange.toStringAsFixed(2)}%)';
+        '변동 $changePrefix${quote.change.toStringAsFixed(2)} '
+        '($percentPrefix${quote.percentChange.toStringAsFixed(2)}%)';
   }
 
   Future<void> _savePortfolioItem() async {

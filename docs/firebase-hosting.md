@@ -26,7 +26,7 @@ firebase login
 MaeMoJi 웹은 운영 WAS를 바라보도록 빌드해야 합니다.
 
 ```powershell
-flutter build web --release --dart-define=API_BASE_URL=https://maemoji.onrender.com
+flutter build web --release --dart-define=API_BASE_URL=https://maemoji-ig16.onrender.com
 ```
 
 빌드 결과물은 `build/web` 아래에 생성됩니다.
@@ -49,7 +49,7 @@ firebase deploy --only hosting
 
 ## 6. 중요 체크
 
-- 현재 앱은 웹에서도 `API_BASE_URL` 을 명시하면 운영 WAS `https://maemoji.onrender.com` 를 호출합니다.
+- 현재 앱은 웹에서도 `API_BASE_URL` 을 명시하면 운영 WAS `https://maemoji-ig16.onrender.com` 를 호출합니다.
 - 웹은 브라우저 CORS 정책이 있으므로, Firebase Hosting 도메인에서 Render WAS 호출이 막히면 백엔드에 CORS 허용 설정이 추가로 필요할 수 있습니다.
 - Flutter Web 배포와 Android 앱 배포는 별개입니다. 웹은 Firebase Hosting, Android APK는 기존 방식 그대로 유지됩니다.
 
@@ -58,12 +58,12 @@ firebase deploy --only hosting
 로컬 웹 실행:
 
 ```powershell
-flutter run -d chrome --dart-define=API_BASE_URL=https://maemoji.onrender.com
+flutter run -d chrome --dart-define=API_BASE_URL=https://maemoji-ig16.onrender.com
 ```
 
 운영 배포:
 
 ```powershell
-flutter build web --release --dart-define=API_BASE_URL=https://maemoji.onrender.com
+flutter build web --release --dart-define=API_BASE_URL=https://maemoji-ig16.onrender.com
 firebase deploy --only hosting
 ```

@@ -1,15 +1,19 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:maemoji/app.dart';
+import 'package:maemoji/screens/brand_launch_screen.dart';
+import 'package:maemoji/theme/app_theme.dart';
 
 void main() {
-  testWidgets('홈 화면에 투자 메모와 주요 탭이 보인다', (tester) async {
-    await tester.pumpWidget(const MaeMojiApp());
+  testWidgets('시작 화면에 브랜드 이미지와 매모지가 보인다', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const BrandLaunchScreen(),
+      ),
+    );
 
-    expect(find.text('오늘의 투자 메모'), findsOneWidget);
-    expect(find.text('포트폴리오'), findsOneWidget);
-    expect(find.text('추천'), findsOneWidget);
-    expect(find.text('설정'), findsOneWidget);
-    expect(find.text('화면 설계도 보기'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('매모지'), findsOneWidget);
   });
 }

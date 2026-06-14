@@ -12,6 +12,7 @@ import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Mapper
@@ -56,4 +57,6 @@ public interface RecommendationMapper {
     );
 
     List<NewsAnalysisCacheRecord> findLatestNewsAnalysisByStockId(@Param("stockId") Long stockId);
+
+    OffsetDateTime findLatestNewsAnalyzedAtByStockId(@Param("stockId") Long stockId);
 }

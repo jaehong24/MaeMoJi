@@ -30,6 +30,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   String? _errorMessage;
   List<StockSearchItem> _allResults = const [];
   int _visibleCount = _pageSize;
+  int _searchRequestVersion = 0;
 
   bool get _hasQuery => _searchController.text.trim().isNotEmpty;
 
@@ -164,12 +165,13 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   void _handleKeywordChanged(String value) {
     setState(() {});
     _debounce?.cancel();
+    final requestVersion = ++_searchRequestVersion;
 
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       final trimmed = value.trim();
 
       if (trimmed.isEmpty) {
-        if (!mounted) {
+        if (!mounted || requestVersion != _searchRequestVersion) {
           return;
         }
 
@@ -190,7 +192,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       try {
         final searched = await _searchService.searchStocks(trimmed);
 
-        if (!mounted) {
+        if (!mounted || requestVersion != _searchRequestVersion) {
           return;
         }
 
@@ -200,7 +202,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
           _isLoading = false;
         });
       } catch (_) {
-        if (!mounted) {
+        if (!mounted || requestVersion != _searchRequestVersion) {
           return;
         }
 
@@ -217,6 +219,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   void _clearQuery() {
     _searchController.clear();
     _debounce?.cancel();
+    _searchRequestVersion++;
 
     setState(() {
       _isLoading = false;

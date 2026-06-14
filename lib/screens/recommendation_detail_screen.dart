@@ -136,7 +136,6 @@ class RecommendationDetailScreen extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 '관련 뉴스',
-                                '관련 뉴스',
                                 style: theme.textTheme.titleLarge,
                               ),
                             ),

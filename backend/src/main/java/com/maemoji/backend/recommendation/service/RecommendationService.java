@@ -22,7 +22,9 @@ import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -69,6 +71,7 @@ public class RecommendationService {
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final RecommendationTuningProperties tuningProperties;
     private final HttpClient httpClient;
+    private final TransactionTemplate transactionTemplate;
 
     public RecommendationService(
             RecommendationMapper recommendationMapper,
@@ -76,7 +79,8 @@ public class RecommendationService {
             NewsSentimentService newsSentimentService,
             RecommendationScoreCalculator scoreCalculator,
             StockPriceSnapshotMapper stockPriceSnapshotMapper,
-            RecommendationTuningProperties tuningProperties
+            RecommendationTuningProperties tuningProperties,
+            PlatformTransactionManager transactionManager
     ) {
         this.recommendationMapper = recommendationMapper;
         this.objectMapper = objectMapper;
@@ -84,6 +88,7 @@ public class RecommendationService {
         this.scoreCalculator = scoreCalculator;
         this.stockPriceSnapshotMapper = stockPriceSnapshotMapper;
         this.tuningProperties = tuningProperties;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -138,7 +143,6 @@ public class RecommendationService {
         return responses;
     }
 
-    @Transactional
     public SharedNewsAnalysisWarmupResult warmUpSharedNewsAnalysis() {
         final List<RecommendationTarget> distinctTargets =
                 recommendationMapper.findDistinctActiveRecommendationTargets();
@@ -163,7 +167,13 @@ public class RecommendationService {
             }
 
             if (analyzed.replaceCache()) {
-                replaceNewsAnalysisCache(target.getStockId(), analyzed.relatedNews(), analyzed.llmModel());
+                transactionTemplate.executeWithoutResult(status ->
+                        replaceNewsAnalysisCache(
+                                target.getStockId(),
+                                analyzed.relatedNews(),
+                                analyzed.llmModel()
+                        )
+                );
             }
 
             sharedResults.put(target.getStockId(), withoutCacheWrite(analyzed));
@@ -279,7 +289,6 @@ public class RecommendationService {
         return toResponse(record);
     }
 
-    @Transactional
     public RecommendationResponse refreshRecommendationDetail(Long userId, Long portfolioItemId) {
         final RecommendationRecord existingRecord = recommendationMapper
                 .findLatestRecommendationByUserIdAndPortfolioItemId(userId, portfolioItemId);
@@ -328,12 +337,17 @@ public class RecommendationService {
                 false,
                 false
         );
-        final Long recommendationId = saveRecommendation(
-                userId,
-                target,
-                recommendationDate,
-                engineResult
+        final Long recommendationId = transactionTemplate.execute(status ->
+                saveRecommendation(
+                        userId,
+                        target,
+                        recommendationDate,
+                        engineResult
+                )
         );
+        if (recommendationId == null) {
+            throw new IllegalStateException("추천 결과를 저장하지 못했습니다.");
+        }
         return toResponse(target, recommendationId, engineResult);
     }
 
@@ -768,32 +782,7 @@ public class RecommendationService {
         }
 
         final List<NewsAnalysisCacheRecord> freshRecords = filterFreshNewsRecords(records);
-        if (!freshRecords.isEmpty()) {
-            return freshRecords;
-        }
-
-        OffsetDateTime latestPublishedAt = null;
-        for (NewsAnalysisCacheRecord record : records) {
-            if (record.getNewsPublishedAt() == null) {
-                continue;
-            }
-            if (latestPublishedAt == null || record.getNewsPublishedAt().isAfter(latestPublishedAt)) {
-                latestPublishedAt = record.getNewsPublishedAt();
-            }
-        }
-
-        if (latestPublishedAt == null) {
-            return List.of();
-        }
-
-        final LocalDate latestPublishedDate = latestPublishedAt.atZoneSameInstant(HOME_ZONE).toLocalDate();
-        return records.stream()
-                .filter(record -> record.getNewsPublishedAt() != null)
-                .filter(record -> record.getNewsPublishedAt()
-                        .atZoneSameInstant(HOME_ZONE)
-                        .toLocalDate()
-                        .equals(latestPublishedDate))
-                .toList();
+        return freshRecords;
     }
 
     private String resolveRelatedNewsStatusMessage(
@@ -801,16 +790,12 @@ public class RecommendationService {
             List<NewsAnalysisCacheRecord> displayNewsRecords
     ) {
         if (displayNewsRecords != null && !displayNewsRecords.isEmpty()) {
-            final List<NewsAnalysisCacheRecord> freshNewsRecords = filterFreshNewsRecords(rawNewsRecords);
-            if (!freshNewsRecords.isEmpty()) {
-                return null;
-            }
-            return "오늘 새 관련 뉴스가 적어 최근 확인한 관련 뉴스를 보여드리고 있습니다.";
+            return null;
         }
         if (rawNewsRecords == null || rawNewsRecords.isEmpty()) {
             return "오늘 관련 뉴스가 아직 없습니다.";
         }
-        return "관련 뉴스 분석을 준비하고 있습니다.";
+        return "최근 뉴스가 오래되어 추천 근거에서 제외했습니다.";
     }
 
     private boolean isFreshNewsPublishedAt(OffsetDateTime publishedAt, LocalDate latestAllowedTradingDate) {

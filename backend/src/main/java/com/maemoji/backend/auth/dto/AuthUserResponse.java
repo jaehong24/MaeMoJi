@@ -5,6 +5,7 @@ public record AuthUserResponse(
         String email,
         String nickname,
         String profileImageUrl,
+        boolean nicknameConfirmed,
         String riskProfile,
         String investmentDnaType,
         Integer riskProfileScore,

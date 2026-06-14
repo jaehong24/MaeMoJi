@@ -6,8 +6,12 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/risk_profile_result.dart';
 import 'auth_session_store.dart';
+import 'api_error_message.dart';
+import 'api_response_guard.dart';
 
 class RiskProfileService {
+  static const Duration _requestTimeout = Duration(seconds: 45);
+
   Future<RiskProfileResult> submitSurvey(
     List<int> answers, {
     String source = 'ONBOARDING_SURVEY',
@@ -22,17 +26,25 @@ class RiskProfileService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.put(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'answers': answers, 'source': source}),
-    );
+    final response = await http
+        .put(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'answers': answers, 'source': source}),
+        )
+        .timeout(_requestTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
-      throw Exception('투자성향 결과를 저장하지 못했어요. (${response.statusCode})');
+      throw Exception(
+        readApiErrorMessage(
+          response,
+          fallback: '투자성향 결과를 저장하지 못했어요. 잠시 후 다시 시도해주세요.',
+        ),
+      );
     }
 
     final decoded =

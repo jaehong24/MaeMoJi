@@ -10,9 +10,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Environment;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE)
 @ConditionalOnProperty(name = "maemoji.batch.run-once", havingValue = "daily")
 public class DailyBatchRunOnceRunner implements ApplicationRunner {
 

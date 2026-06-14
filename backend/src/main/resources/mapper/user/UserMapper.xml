@@ -18,6 +18,7 @@
             email,
             nickname,
             profile_image_url,
+            nickname_confirmed,
             google_subject,
             risk_profile,
             investment_dna_type,
@@ -26,6 +27,7 @@
             risk_profile_source,
             risk_profile_updated_at,
             auth_token,
+            auth_token_hash,
             auth_token_expires_at,
             status
         from users
@@ -38,6 +40,8 @@
             email,
             password_hash,
             nickname,
+            nickname_normalized,
+            nickname_confirmed,
             status,
             google_subject,
             profile_image_url,
@@ -46,6 +50,8 @@
             #{email},
             'GOOGLE_AUTH',
             #{nickname},
+            #{nicknameNormalized},
+            false,
             'ACTIVE',
             #{googleSubject},
             #{profileImageUrl},
@@ -53,7 +59,14 @@
         )
         on conflict (email) do update
         set
-            nickname = excluded.nickname,
+            nickname = case
+                when users.nickname_confirmed = true then users.nickname
+                else excluded.nickname
+            end,
+            nickname_normalized = case
+                when users.nickname_confirmed = true then users.nickname_normalized
+                else excluded.nickname_normalized
+            end,
             status = 'ACTIVE',
             google_subject = excluded.google_subject,
             profile_image_url = excluded.profile_image_url,
@@ -65,7 +78,14 @@
         update users
         set
             email = #{email},
-            nickname = #{nickname},
+            nickname = case
+                when nickname_confirmed = true then nickname
+                else #{nickname}
+            end,
+            nickname_normalized = case
+                when nickname_confirmed = true then nickname_normalized
+                else #{nicknameNormalized}
+            end,
             status = 'ACTIVE',
             google_subject = #{googleSubject},
             profile_image_url = #{profileImageUrl},
@@ -76,9 +96,19 @@
     <update id="updateAuthSession">
         update users
         set
-            auth_token = #{authToken},
+            auth_token = null,
+            auth_token_hash = #{authTokenHash},
             auth_token_expires_at = #{authTokenExpiresAt},
             last_login_at = #{lastLoginAt}
+        where id = #{userId}
+    </update>
+
+    <update id="updateRequiredConsent">
+        update users
+        set
+            required_consent_version = #{consentVersion},
+            required_consent_agreed_at = #{consentAgreedAt},
+            updated_at = now()
         where id = #{userId}
     </update>
 
@@ -86,6 +116,7 @@
         update users
         set
             auth_token = null,
+            auth_token_hash = null,
             auth_token_expires_at = null
         where id = #{userId}
     </update>
@@ -97,6 +128,7 @@
             email,
             nickname,
             profile_image_url,
+            nickname_confirmed,
             google_subject,
             risk_profile,
             investment_dna_type,
@@ -105,14 +137,32 @@
             risk_profile_source,
             risk_profile_updated_at,
             auth_token,
+            auth_token_hash,
             auth_token_expires_at,
             status
         from users
-        where auth_token = #{authToken}
+        where (
+                (#{authTokenHash} is not null and auth_token_hash = #{authTokenHash})
+                or (
+                    #{authToken} is not null
+                    and auth_token_hash is null
+                    and auth_token = #{authToken}
+                )
+              )
           and auth_token_expires_at > now()
           and status = 'ACTIVE'
         limit 1
     </select>
+
+    <update id="upgradeLegacyAuthToken">
+        update users
+        set
+            auth_token = null,
+            auth_token_hash = #{authTokenHash},
+            updated_at = now()
+        where id = #{userId}
+          and auth_token_hash is null
+    </update>
 
     <update id="updateRiskProfile">
         update users
@@ -136,16 +186,64 @@
         order by u.id asc
     </select>
 
+    <select id="findById"
+            resultType="com.maemoji.backend.user.domain.UserSessionRecord">
+        select
+            id,
+            email,
+            nickname,
+            profile_image_url,
+            nickname_confirmed,
+            google_subject,
+            risk_profile,
+            investment_dna_type,
+            risk_profile_score,
+            risk_profile_confidence,
+            risk_profile_source,
+            risk_profile_updated_at,
+            auth_token,
+            auth_token_hash,
+            auth_token_expires_at,
+            status
+        from users
+        where id = #{userId}
+        limit 1
+    </select>
+
+    <select id="existsByNicknameNormalizedExcludingUserId" resultType="boolean">
+        select exists(
+            select 1
+            from users
+            where nickname_normalized = #{nicknameNormalized}
+              and id != #{userId}
+              and status = 'ACTIVE'
+        )
+    </select>
+
+    <update id="updateNickname">
+        update users
+        set
+            nickname = #{nickname},
+            nickname_normalized = #{nicknameNormalized},
+            nickname_confirmed = true,
+            updated_at = now()
+        where id = #{userId}
+    </update>
+
     <insert id="insertDevUser">
         insert into users (
             email,
             password_hash,
             nickname,
+            nickname_normalized,
+            nickname_confirmed,
             status
         ) values (
             'dev@maemoji.local',
             'LOCAL_DEV_ONLY',
-            'MaeMoJi DEV USER',
+            'maemoji_dev',
+            lower(trim('maemoji_dev')),
+            true,
             'ACTIVE'
         )
         on conflict (email) do nothing

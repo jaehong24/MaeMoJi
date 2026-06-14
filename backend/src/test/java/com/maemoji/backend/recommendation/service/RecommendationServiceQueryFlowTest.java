@@ -8,6 +8,7 @@ import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,7 +34,8 @@ class RecommendationServiceQueryFlowTest {
             newsSentimentService,
             scoreCalculator,
             stockPriceSnapshotMapper,
-            tuningProperties
+            tuningProperties,
+            mock(PlatformTransactionManager.class)
     );
 
     @Test

@@ -17,6 +17,7 @@ public interface UserMapper {
     Long upsertGoogleUserByEmail(
             @Param("email") String email,
             @Param("nickname") String nickname,
+            @Param("nicknameNormalized") String nicknameNormalized,
             @Param("profileImageUrl") String profileImageUrl,
             @Param("googleSubject") String googleSubject,
             @Param("lastLoginAt") OffsetDateTime lastLoginAt
@@ -26,6 +27,7 @@ public interface UserMapper {
             @Param("userId") Long userId,
             @Param("email") String email,
             @Param("nickname") String nickname,
+            @Param("nicknameNormalized") String nicknameNormalized,
             @Param("profileImageUrl") String profileImageUrl,
             @Param("googleSubject") String googleSubject,
             @Param("lastLoginAt") OffsetDateTime lastLoginAt
@@ -33,14 +35,28 @@ public interface UserMapper {
 
     void updateAuthSession(
             @Param("userId") Long userId,
-            @Param("authToken") String authToken,
+            @Param("authTokenHash") String authTokenHash,
             @Param("authTokenExpiresAt") OffsetDateTime authTokenExpiresAt,
             @Param("lastLoginAt") OffsetDateTime lastLoginAt
     );
 
+    void updateRequiredConsent(
+            @Param("userId") Long userId,
+            @Param("consentVersion") String consentVersion,
+            @Param("consentAgreedAt") OffsetDateTime consentAgreedAt
+    );
+
     void clearAuthSession(@Param("userId") Long userId);
 
-    UserSessionRecord findSessionUserByAuthToken(@Param("authToken") String authToken);
+    UserSessionRecord findSessionUserByAuthToken(
+            @Param("authToken") String authToken,
+            @Param("authTokenHash") String authTokenHash
+    );
+
+    void upgradeLegacyAuthToken(
+            @Param("userId") Long userId,
+            @Param("authTokenHash") String authTokenHash
+    );
 
     void updateRiskProfile(
             @Param("userId") Long userId,
@@ -53,6 +69,19 @@ public interface UserMapper {
     );
 
     List<Long> findActiveUserIdsWithPortfolioItems();
+
+    UserSessionRecord findById(@Param("userId") Long userId);
+
+    boolean existsByNicknameNormalizedExcludingUserId(
+            @Param("nicknameNormalized") String nicknameNormalized,
+            @Param("userId") Long userId
+    );
+
+    void updateNickname(
+            @Param("userId") Long userId,
+            @Param("nickname") String nickname,
+            @Param("nicknameNormalized") String nicknameNormalized
+    );
 
     void insertDevUser();
 }

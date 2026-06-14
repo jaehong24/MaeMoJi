@@ -14,7 +14,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class StockQuoteService {
@@ -22,10 +24,12 @@ public class StockQuoteService {
     private static final TypeReference<Map<String, Object>> MAP_TYPE =
             new TypeReference<>() {
             };
+    private static final Duration QUOTE_CACHE_TTL = Duration.ofSeconds(60);
 
     private final StockMapper stockMapper;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final Map<Long, CachedQuote> quoteCache = new ConcurrentHashMap<>();
 
     public StockQuoteService(
             StockMapper stockMapper,
@@ -40,6 +44,11 @@ public class StockQuoteService {
 
     /// 종목 등록 화면에서 보여줄 현재가를 우리 WAS를 통해 조회합니다.
     public StockQuoteResponse fetchQuote(Long stockId) {
+        final CachedQuote cachedQuote = quoteCache.get(stockId);
+        if (cachedQuote != null && cachedQuote.expiresAt().isAfter(Instant.now())) {
+            return cachedQuote.quote();
+        }
+
         final Stock stock = stockMapper.findStockById(stockId);
 
         if (stock == null) {
@@ -56,7 +65,7 @@ public class StockQuoteService {
                 : stock.getFinnhubSymbol();
         final Map<String, Object> quote = fetchFinnhubQuote(symbol, apiKey);
 
-        return new StockQuoteResponse(
+        final StockQuoteResponse result = new StockQuoteResponse(
                 stock.getId(),
                 symbol,
                 toDouble(quote.get("c")),
@@ -65,6 +74,11 @@ public class StockQuoteService {
                 toDouble(quote.get("pc")),
                 toLong(quote.get("t"))
         );
+        quoteCache.put(
+                stockId,
+                new CachedQuote(result, Instant.now().plus(QUOTE_CACHE_TTL))
+        );
+        return result;
     }
 
     private Map<String, Object> fetchFinnhubQuote(String symbol, String apiKey) {
@@ -129,5 +143,8 @@ public class StockQuoteService {
         } catch (NumberFormatException exception) {
             return null;
         }
+    }
+
+    private record CachedQuote(StockQuoteResponse quote, Instant expiresAt) {
     }
 }

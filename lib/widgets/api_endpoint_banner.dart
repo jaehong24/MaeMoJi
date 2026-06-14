@@ -13,7 +13,7 @@ class ApiEndpointBanner extends StatelessWidget {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final isProduction = baseUrl.startsWith('https://maemoji.onrender.com');
+    final isProduction = ApiConfig.isProductionUrl(baseUrl);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 10, 20, 6),

@@ -36,7 +36,7 @@ public class RecommendationController {
 
     @GetMapping
     public ApiResponse<List<RecommendationResponse>> getLatestRecommendations(
-            @RequestHeader("Authorization") String authorizationHeader
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
         return ApiResponse.ok(recommendationService.getLatestRecommendations(userId));
@@ -44,7 +44,7 @@ public class RecommendationController {
 
     @GetMapping("/{portfolioItemId:\\d+}")
     public ApiResponse<RecommendationResponse> getRecommendationDetail(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @PathVariable("portfolioItemId") Long portfolioItemId
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
@@ -53,7 +53,7 @@ public class RecommendationController {
 
     @PostMapping("/{portfolioItemId:\\d+}/refresh")
     public ApiResponse<RecommendationResponse> refreshRecommendationDetail(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @PathVariable("portfolioItemId") Long portfolioItemId
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
@@ -62,7 +62,7 @@ public class RecommendationController {
 
     @GetMapping("/home")
     public ApiResponse<HomeRecommendationResponse> getHomeRecommendations(
-            @RequestHeader("Authorization") String authorizationHeader
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
         return ApiResponse.ok(recommendationService.getOptimizedHomeRecommendations(userId));
@@ -70,14 +70,17 @@ public class RecommendationController {
 
     @PostMapping("/generate")
     public ApiResponse<List<RecommendationResponse>> generateRecommendations(
-            @RequestHeader("Authorization") String authorizationHeader
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
-        return ApiResponse.ok(recommendationService.generateLatestRecommendations(userId));
+        return ApiResponse.ok(recommendationService.generateLatestRecommendationsFromCachedData(userId));
     }
 
     @GetMapping("/news-engine/status")
-    public ApiResponse<NewsEngineStatusResponse> getNewsEngineStatus() {
+    public ApiResponse<NewsEngineStatusResponse> getNewsEngineStatus(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
+    ) {
+        authenticatedUserResolver.requireUserId(authorizationHeader);
         return ApiResponse.ok(newsSentimentService.getStatus());
     }
 }

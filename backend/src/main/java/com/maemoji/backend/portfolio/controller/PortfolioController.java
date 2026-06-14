@@ -34,7 +34,7 @@ public class PortfolioController {
 
     @GetMapping
     public ApiResponse<List<PortfolioItemSummaryResponse>> getPortfolioItems(
-            @RequestHeader("Authorization") String authorizationHeader
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
         return ApiResponse.ok(portfolioService.getPortfolioItems(userId));
@@ -42,7 +42,7 @@ public class PortfolioController {
 
     @PostMapping
     public ApiResponse<List<PortfolioItemSummaryResponse>> createPortfolioItem(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @Valid @RequestBody PortfolioCreateRequest request
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
@@ -51,7 +51,7 @@ public class PortfolioController {
 
     @DeleteMapping("/{portfolioItemId}")
     public ApiResponse<List<PortfolioItemSummaryResponse>> deletePortfolioItem(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @PathVariable("portfolioItemId") Long portfolioItemId
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);

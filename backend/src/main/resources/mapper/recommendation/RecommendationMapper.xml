@@ -448,4 +448,10 @@
         order by abs(weighted_score) desc nulls last, news_published_at desc nulls last
         limit 3
     </select>
+
+    <select id="findLatestNewsAnalyzedAtByStockId" resultType="java.time.OffsetDateTime">
+        select max(analyzed_at)
+        from news_analysis_cache
+        where stock_id = #{stockId}
+    </select>
 </mapper>

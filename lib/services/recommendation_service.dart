@@ -10,9 +10,13 @@ import '../models/recommendation_item.dart';
 import '../models/recommendation_news_item.dart';
 import '../models/recommendation_status.dart';
 import 'api_auth_headers.dart';
+import 'api_response_guard.dart';
 
 class RecommendationService {
   const RecommendationService();
+
+  static const Duration _readTimeout = Duration(seconds: 30);
+  static const Duration _analysisTimeout = Duration(seconds: 90);
 
   Future<HomeRecommendationSummary> fetchHomeRecommendations() async {
     final uri = ApiConfig.buildUri(
@@ -20,7 +24,10 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
+    final response = await http
+        .get(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_readTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
       throw Exception('홈 추천 조회에 실패했습니다. (${response.statusCode})');
@@ -53,7 +60,10 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
+    final response = await http
+        .get(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_readTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
       throw Exception('추천 조회에 실패했습니다. (${response.statusCode})');
@@ -70,7 +80,10 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
+    final response = await http
+        .get(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_readTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
       throw Exception('추천 상세 조회에 실패했습니다. (${response.statusCode})');
@@ -94,7 +107,10 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.post(uri, headers: ApiAuthHeaders.auth());
+    final response = await http
+        .post(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_analysisTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
       throw Exception('최신 추천 갱신에 실패했습니다. (${response.statusCode})');
@@ -116,7 +132,10 @@ class RecommendationService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.post(uri, headers: ApiAuthHeaders.auth());
+    final response = await http
+        .post(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_analysisTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
       throw Exception('추천 생성에 실패했습니다. (${response.statusCode})');

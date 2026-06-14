@@ -30,24 +30,39 @@ class BrandLaunchScreen extends StatelessWidget {
             ),
             SafeArea(
               child: Center(
-                child: Container(
-                  width: 184,
-                  height: 184,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(46),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x150C111D),
-                        blurRadius: 36,
-                        offset: Offset(0, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 184,
+                      height: 184,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(46),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x150C111D),
+                            blurRadius: 36,
+                            offset: Offset(0, 20),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.asset(
-                    'assets/branding/maemoji_icon.png',
-                    fit: BoxFit.cover,
-                  ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        'assets/branding/maemoji_icon.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      '매모지',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.6,
+                        color: MaeMojiColors.ink,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

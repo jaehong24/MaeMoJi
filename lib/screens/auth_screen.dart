@@ -7,9 +7,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'app_shell.dart';
 import 'investment_dna_survey_screen.dart';
+import 'legal_document_screen.dart';
+import 'nickname_setup_screen.dart';
+import '../config/api_config.dart';
 import '../models/auth_session.dart';
 import '../services/auth_service.dart';
 import '../services/auth_session_store.dart';
+import '../services/local_dev_preferences_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/google_web_sign_in_button.dart';
 
@@ -22,9 +26,13 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final AuthService _authService = AuthService();
+  final LocalDevPreferencesStore _localDevPreferencesStore =
+      LocalDevPreferencesStore.instance;
   StreamSubscription<GoogleSignInUserData?>? _googleUserSubscription;
 
   bool _submitting = false;
+  bool _devSigningIn = false;
+  bool _agreedToRequiredNotice = false;
   String? _errorMessage;
 
   @override
@@ -33,9 +41,6 @@ class _AuthScreenState extends State<AuthScreen> {
     if (kIsWeb) {
       _googleUserSubscription = GoogleSignInPlatform.instance.userDataEvents
           ?.listen(_handleWebGoogleUserDataChanged);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _authService.restoreGoogleSessionIfPossible().catchError((_) {});
-      });
     }
   }
 
@@ -48,6 +53,10 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isLocalDevelopment = ApiConfig.isLocalDevelopment(
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
 
     return Scaffold(
       body: Container(
@@ -125,14 +134,177 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           const SizedBox(height: 24),
                           if (kIsWeb)
-                            GoogleWebSignInButton(
-                              googleSignIn: _authService.googleSignIn,
+                            Stack(
+                              children: [
+                                IgnorePointer(
+                                  ignoring: !_agreedToRequiredNotice,
+                                  child: GoogleWebSignInButton(
+                                    googleSignIn: _authService.googleSignIn,
+                                  ),
+                                ),
+                                if (!_agreedToRequiredNotice)
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFFF1F2F4,
+                                        ).withValues(alpha: 0.82),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: const Color(0xFFD7DAE0),
+                                        ),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Text(
+                                        '동의 후 로그인',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: MaeMojiColors.inkMuted,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             )
                           else
                             _GoogleButton(
                               busy: _submitting,
-                              onPressed: _submitting ? null : _signInWithGoogle,
+                              onPressed: _submitting || !_agreedToRequiredNotice
+                                  ? null
+                                  : _signInWithGoogle,
                             ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            '매모지는 투자 판단을 돕는 정보와 추천을 제공하며, 최종 투자 결정과 책임은 본인에게 있습니다.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.5,
+                              color: MaeMojiColors.inkMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Checkbox(
+                                value: _agreedToRequiredNotice,
+                                onChanged: _submitting
+                                    ? null
+                                    : (value) {
+                                        setState(() {
+                                          _agreedToRequiredNotice =
+                                              value ?? false;
+                                        });
+                                      },
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Text(
+                                    '개인정보 수집·이용 및 서비스 이용 안내에 동의합니다',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: MaeMojiColors.ink,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Wrap(
+                              spacing: 12,
+                              runSpacing: 4,
+                              children: [
+                                TextButton(
+                                  onPressed: _openPrivacyPolicy,
+                                  child: const Text('개인정보처리방침'),
+                                ),
+                                TextButton(
+                                  onPressed: _openServiceNotice,
+                                  child: const Text('서비스 이용안내'),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!_agreedToRequiredNotice) ...[
+                            const SizedBox(height: 2),
+                            const Text(
+                              '동의 후 Google 로그인 버튼이 활성화됩니다.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: MaeMojiColors.inkMuted,
+                              ),
+                            ),
+                          ],
+                          if (isLocalDevelopment) ...[
+                            const SizedBox(height: 20),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: MaeMojiColors.paperSoft,
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(color: MaeMojiColors.stroke),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SwitchListTile.adaptive(
+                                    contentPadding: EdgeInsets.zero,
+                                    value: _localDevPreferencesStore
+                                        .autoLoginEnabled,
+                                    onChanged: (value) async {
+                                      await _localDevPreferencesStore
+                                          .setAutoLoginEnabled(value);
+                                      if (mounted) {
+                                        setState(() {});
+                                      }
+                                    },
+                                    title: const Text(
+                                      '로컬 개발 계정 자동 로그인',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: MaeMojiColors.ink,
+                                      ),
+                                    ),
+                                    subtitle: const Text(
+                                      '로컬에서만 dev@maemoji.local 자동 진입을 켜고 끌 수 있어요.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1.45,
+                                        color: MaeMojiColors.inkMuted,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton(
+                                      onPressed: _devSigningIn || _submitting
+                                          ? null
+                                          : _signInAsLocalDev,
+                                      child: _devSigningIn
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child:
+                                                  CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              '개발 계정으로 바로 시작',
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           if (_errorMessage != null) ...[
                             const SizedBox(height: 16),
                             Container(
@@ -207,7 +379,9 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      final session = await _authService.signInWithGoogle();
+      final session = await _authService.signInWithGoogle(
+        requiredConsentAccepted: _agreedToRequiredNotice,
+      );
       await _completeSignIn(session);
     } catch (error) {
       if (!mounted) {
@@ -229,7 +403,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _handleWebGoogleUserDataChanged(
     GoogleSignInUserData? userData,
   ) async {
-    if (!kIsWeb || userData == null || _submitting) {
+    if (!kIsWeb ||
+        userData == null ||
+        _submitting ||
+        !_agreedToRequiredNotice) {
       return;
     }
 
@@ -250,7 +427,10 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      final session = await _authService.signInWithIdToken(idToken);
+      final session = await _authService.signInWithIdToken(
+        idToken,
+        requiredConsentAccepted: _agreedToRequiredNotice,
+      );
       await _completeSignIn(session);
     } catch (error) {
       if (!mounted) {
@@ -269,18 +449,67 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _signInAsLocalDev() async {
+    setState(() {
+      _devSigningIn = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final session = await _authService.signInAsDev();
+      await _completeSignIn(session);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _devSigningIn = false;
+        });
+      }
+    }
+  }
+
   Future<void> _completeSignIn(AuthSession session) async {
     await AuthSessionStore.instance.save(session);
     if (!mounted) {
       return;
     }
 
-    final destination = session.user.hasRiskProfile
-        ? const AppShell()
-        : const InvestmentDnaSurveyScreen();
+    final destination = session.user.nicknameConfirmed
+        ? (session.user.hasRiskProfile
+              ? const AppShell()
+              : const InvestmentDnaSurveyScreen())
+        : const NicknameSetupScreen();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => destination),
       (route) => false,
+    );
+  }
+
+  void _openPrivacyPolicy() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const LegalDocumentScreen(
+          titleText: '개인정보처리방침',
+          body: LegalDocumentScreen.privacyPolicy,
+        ),
+      ),
+    );
+  }
+
+  void _openServiceNotice() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const LegalDocumentScreen(
+          titleText: '서비스 이용안내',
+          body: LegalDocumentScreen.serviceNotice,
+        ),
+      ),
     );
   }
 }
@@ -315,8 +544,14 @@ class _GoogleButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: Color(0xFFE4E7EC)),
+          backgroundColor: onPressed == null
+              ? const Color(0xFFF1F2F4)
+              : Colors.white,
+          side: BorderSide(
+            color: onPressed == null
+                ? const Color(0xFFD7DAE0)
+                : const Color(0xFFE4E7EC),
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),

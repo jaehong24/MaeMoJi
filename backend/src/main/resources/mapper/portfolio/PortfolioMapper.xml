@@ -4,6 +4,11 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.maemoji.backend.portfolio.mapper.PortfolioMapper">
 
+    <select id="lockUserPortfolio" resultType="long">
+        select #{userId}
+        from pg_advisory_xact_lock(#{userId})
+    </select>
+
     <select id="findPortfolioItemIdByUserIdAndStockId" resultType="long">
         select id
         from portfolio_items

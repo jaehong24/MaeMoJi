@@ -34,7 +34,13 @@ public class AuthController {
     public ApiResponse<AuthLoginResponse> loginWithGoogle(
             @Valid @RequestBody GoogleLoginRequest request
     ) {
-        return ApiResponse.ok(googleAuthService.login(request.idToken()));
+        return ApiResponse.ok(
+                googleAuthService.login(
+                        request.idToken(),
+                        request.requiredConsentAccepted(),
+                        request.consentVersion()
+                )
+        );
     }
 
     @PostMapping("/dev")
@@ -44,7 +50,7 @@ public class AuthController {
 
     @GetMapping("/me")
     public ApiResponse<AuthUserResponse> getMe(
-            @RequestHeader("Authorization") String authorizationHeader
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
         final var user = authenticatedUserResolver.requireUser(authorizationHeader);
         return ApiResponse.ok(
@@ -53,6 +59,7 @@ public class AuthController {
                         user.getEmail(),
                         user.getNickname(),
                         user.getProfileImageUrl(),
+                        Boolean.TRUE.equals(user.getNicknameConfirmed()),
                         user.getRiskProfile(),
                         user.getInvestmentDnaType(),
                         user.getRiskProfileScore(),
@@ -64,7 +71,7 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ApiResponse<Void> logout(
-            @RequestHeader("Authorization") String authorizationHeader
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
         googleAuthService.logout(userId);

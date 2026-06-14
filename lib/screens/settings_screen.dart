@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../config/api_config.dart';
 import '../models/auth_user.dart';
 import '../services/auth_service.dart';
 import '../services/auth_session_store.dart';
+import '../services/local_dev_preferences_store.dart';
 import '../theme/app_theme.dart';
+import '../utils/risk_profile_labels.dart';
 import '../widgets/app_section_card.dart';
 import 'investment_dna_survey_screen.dart';
 
@@ -17,12 +21,18 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
   final AuthSessionStore _authSessionStore = AuthSessionStore.instance;
+  final LocalDevPreferencesStore _localDevPreferencesStore =
+      LocalDevPreferencesStore.instance;
   bool _signingOut = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = _authSessionStore.session?.user;
+    final isLocalDevelopment = ApiConfig.isLocalDevelopment(
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
@@ -32,15 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Text('계정과 투자성향을 한곳에서 확인할 수 있어요.', style: theme.textTheme.bodyLarge),
         const SizedBox(height: 20),
         AppSectionCard(
-          child: Column(
-            children: [
-              _SettingsRow(
-                title: '로그인 계정',
-                value: user == null ? '-' : '${user.nickname}\n${user.email}',
-              ),
-              const _SettingsRow(title: '기본 테마', value: '라이트', isLast: true),
-            ],
-          ),
+          child: _AccountSummaryCard(user: user),
         ),
         const SizedBox(height: 16),
         AppSectionCard(
@@ -48,6 +50,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? _RiskProfileSummaryCard(user: user!, onResurvey: _openResurvey)
               : _EmptyRiskProfileCard(onStart: _openSurvey),
         ),
+        if (isLocalDevelopment) ...[
+          const SizedBox(height: 16),
+          AppSectionCard(
+            child: ListenableBuilder(
+              listenable: _localDevPreferencesStore,
+              builder: (context, _) {
+                return SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: _localDevPreferencesStore.autoLoginEnabled,
+                  onChanged: (value) async {
+                    await _localDevPreferencesStore.setAutoLoginEnabled(value);
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  },
+                  title: const Text(
+                    '로컬 개발 계정 자동 로그인',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: MaeMojiColors.ink,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    '켜면 dev@maemoji.local 로 바로 들어가고, 끄면 로그인 화면에서 직접 테스트할 수 있어요.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: MaeMojiColors.inkMuted,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
@@ -152,6 +190,55 @@ class _SettingsRow extends StatelessWidget {
   }
 }
 
+class _AccountSummaryCard extends StatelessWidget {
+  const _AccountSummaryCard({required this.user});
+
+  final AuthUser? user;
+
+  @override
+  Widget build(BuildContext context) {
+    final nickname = (user?.nickname ?? '').trim();
+    final email = (user?.email ?? '').trim();
+    final resolvedNickname = nickname.isEmpty ? '닉네임 미설정' : nickname;
+    final resolvedEmail = email.isEmpty ? '-' : email;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '로그인 계정',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: MaeMojiColors.ink,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          resolvedNickname,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+            color: MaeMojiColors.ink,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          resolvedEmail,
+          style: const TextStyle(
+            fontSize: 13,
+            color: MaeMojiColors.inkMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _SettingsRow(title: '기본 테마', value: '라이트', isLast: true),
+      ],
+    );
+  }
+}
+
 class _RiskProfileSummaryCard extends StatelessWidget {
   const _RiskProfileSummaryCard({required this.user, required this.onResurvey});
 
@@ -174,7 +261,7 @@ class _RiskProfileSummaryCard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          user.riskProfile ?? '-',
+          investmentDnaTypeLabel(user.investmentDnaType),
           style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w900,
@@ -275,6 +362,10 @@ class _RiskProfileSummaryCard extends StatelessWidget {
       case 'WEALTH_MASTER':
         return '소비보다 자산 형성과 경제적 자유에 큰 가치를 두는 편이에요.';
       default:
+        final riskLabel = riskProfileLabel(user.riskProfile);
+        if (riskLabel != '-') {
+          return '$riskLabel 기준의 투자성향이 저장되어 있어요.';
+        }
         return '투자성향 정보가 아직 없어요.';
     }
   }

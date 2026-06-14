@@ -29,6 +29,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: 'Pretendard',
       scaffoldBackgroundColor: MaeMojiColors.paper,
       colorScheme: baseScheme.copyWith(
         surface: Colors.white,
@@ -69,6 +70,10 @@ class AppTheme {
           height: 1.5,
           color: MaeMojiColors.inkSoft,
         ),
+      ).apply(
+        fontFamily: 'Pretendard',
+        bodyColor: MaeMojiColors.inkSoft,
+        displayColor: MaeMojiColors.ink,
       ),
       cardTheme: CardThemeData(
         color: Colors.white,

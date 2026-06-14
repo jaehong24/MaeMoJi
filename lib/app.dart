@@ -8,8 +8,11 @@ import 'screens/app_shell.dart';
 import 'screens/auth_screen.dart';
 import 'screens/brand_launch_screen.dart';
 import 'screens/investment_dna_survey_screen.dart';
+import 'screens/nickname_setup_screen.dart';
 import 'services/auth_service.dart';
 import 'services/auth_session_store.dart';
+import 'services/api_exception.dart';
+import 'services/local_dev_preferences_store.dart';
 import 'theme/app_theme.dart';
 
 class MaeMojiApp extends StatefulWidget {
@@ -23,6 +26,8 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
   late final CurrencyController _currencyController;
   final AuthService _authService = AuthService();
   final AuthSessionStore _authSessionStore = AuthSessionStore.instance;
+  final LocalDevPreferencesStore _localDevPreferencesStore =
+      LocalDevPreferencesStore.instance;
   bool _checkingSavedSession = true;
   bool _localDevAutoLoginInFlight = false;
   bool _showLaunchScreen = true;
@@ -56,21 +61,26 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
         debugShowCheckedModeBanner: false,
         title: 'MaeMoJi',
         theme: AppTheme.light(),
-        home: AnimatedBuilder(
-          animation: _authSessionStore,
+        home: ListenableBuilder(
+          listenable: Listenable.merge([
+            _authSessionStore,
+            _localDevPreferencesStore,
+          ]),
           builder: (context, _) {
             if (_showLaunchScreen) {
               return const BrandLaunchScreen();
             }
 
-            if (!_authSessionStore.initialized || _checkingSavedSession) {
+            if (!_authSessionStore.initialized ||
+                !_localDevPreferencesStore.initialized ||
+                _checkingSavedSession) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
             }
 
             if (!_authSessionStore.isSignedIn) {
-              if (_isLocalDevelopment && !_localDevAutoLoginInFlight) {
+              if (_shouldAutoLoginLocalDev && !_localDevAutoLoginInFlight) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _signInAsLocalDev();
                 });
@@ -79,6 +89,10 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
                 );
               }
               return const AuthScreen();
+            }
+
+            if (!(_authSessionStore.session?.user.nicknameConfirmed ?? false)) {
+              return const NicknameSetupScreen();
             }
 
             if (!(_authSessionStore.session?.user.hasRiskProfile ?? false)) {
@@ -104,7 +118,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
 
     final session = _authSessionStore.session;
     if (session == null || session.isExpired) {
-      if (_isLocalDevelopment) {
+      if (_shouldAutoLoginLocalDev) {
         await _signInAsLocalDev();
         return;
       }
@@ -119,8 +133,12 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
     try {
       final user = await _authService.fetchCurrentUser(session.accessToken);
       await _authSessionStore.save(session.copyWith(user: user));
+    } on ApiException catch (error) {
+      if (error.isUnauthorized) {
+        await _authSessionStore.clear();
+      }
     } catch (_) {
-      await _authSessionStore.clear();
+      // 일시적인 네트워크 장애는 정상 세션을 지우지 않습니다.
     } finally {
       if (mounted) {
         setState(() {
@@ -134,6 +152,9 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
     isWeb: kIsWeb,
     platformName: defaultTargetPlatform.name,
   );
+
+  bool get _shouldAutoLoginLocalDev =>
+      _isLocalDevelopment && _localDevPreferencesStore.autoLoginEnabled;
 
   Future<void> _signInAsLocalDev() async {
     if (_localDevAutoLoginInFlight) {

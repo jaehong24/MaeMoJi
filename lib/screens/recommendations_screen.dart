@@ -209,7 +209,7 @@ class _SummaryPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '$label ${count}개',
+        '$label $count개',
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,

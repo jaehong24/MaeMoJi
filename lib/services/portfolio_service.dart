@@ -6,9 +6,13 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/portfolio_item_summary.dart';
 import 'api_auth_headers.dart';
+import 'api_error_message.dart';
+import 'api_response_guard.dart';
 
 class PortfolioService {
   const PortfolioService();
+
+  static const Duration _requestTimeout = Duration(seconds: 30);
 
   Future<List<PortfolioItemSummary>> fetchPortfolioItems() async {
     final uri = ApiConfig.buildUri(
@@ -16,7 +20,10 @@ class PortfolioService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri, headers: ApiAuthHeaders.auth());
+    final response = await http
+        .get(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_requestTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
       throw Exception('포트폴리오 조회에 실패했습니다. (${response.statusCode})');
@@ -37,25 +44,27 @@ class PortfolioService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.post(
-      uri,
-      headers: ApiAuthHeaders.json(),
-      body: jsonEncode({
-        'stockId': stockId,
-        'dailyInvestAmount': dailyInvestAmount,
-        'holdingQuantity': holdingQuantity?.trim().isEmpty ?? true
-            ? null
-            : holdingQuantity?.trim(),
-        'investmentStartDate': investmentStartDate?.trim().isEmpty ?? true
-            ? null
-            : investmentStartDate?.trim(),
-        'memo': memo?.trim().isEmpty ?? true ? null : memo?.trim(),
-      }),
-    );
+    final response = await http
+        .post(
+          uri,
+          headers: ApiAuthHeaders.json(),
+          body: jsonEncode({
+            'stockId': stockId,
+            'dailyInvestAmount': dailyInvestAmount,
+            'holdingQuantity': holdingQuantity?.trim().isEmpty ?? true
+                ? null
+                : holdingQuantity?.trim(),
+            'investmentStartDate': investmentStartDate?.trim().isEmpty ?? true
+                ? null
+                : investmentStartDate?.trim(),
+            'memo': memo?.trim().isEmpty ?? true ? null : memo?.trim(),
+          }),
+        )
+        .timeout(_requestTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
-      final body = utf8.decode(response.bodyBytes);
-      throw Exception(_buildErrorMessage('저장', response.statusCode, body));
+      throw Exception(_buildErrorMessage('저장', response));
     }
 
     return _decodePortfolioItems(utf8.decode(response.bodyBytes));
@@ -67,11 +76,13 @@ class PortfolioService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.delete(uri, headers: ApiAuthHeaders.auth());
+    final response = await http
+        .delete(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_requestTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
-      final body = utf8.decode(response.bodyBytes);
-      throw Exception(_buildErrorMessage('삭제', response.statusCode, body));
+      throw Exception(_buildErrorMessage('삭제', response));
     }
 
     return _decodePortfolioItems(utf8.decode(response.bodyBytes));
@@ -98,12 +109,10 @@ class PortfolioService {
     }).toList();
   }
 
-  String _buildErrorMessage(String action, int statusCode, String body) {
-    final decodedBody = body.trim();
-    if (decodedBody.isEmpty) {
-      return '포트폴리오 $action 중 문제가 발생했습니다. ($statusCode)';
-    }
-
-    return '포트폴리오 $action 중 문제가 발생했습니다. ($statusCode) $decodedBody';
+  String _buildErrorMessage(String action, http.Response response) {
+    return readApiErrorMessage(
+      response,
+      fallback: '포트폴리오 $action 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+    );
   }
 }

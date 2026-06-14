@@ -2,6 +2,8 @@ package com.maemoji.backend.common.startup;
 
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /// 로컬 개발 DB가 최신 검색 마스터 스키마를 항상 갖도록 시작 시점에 보정합니다.
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Component;
 /// 현재 프로젝트는 별도 마이그레이션 도구를 아직 붙이지 않았기 때문에,
 /// 개발 단계에서는 최소한의 컬럼/인덱스를 자동 보정해주는 편이 안전합니다.
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class StockSearchSchemaInitializer implements ApplicationRunner {
 
     private final JdbcTemplate jdbcTemplate;

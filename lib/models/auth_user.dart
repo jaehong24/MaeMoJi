@@ -4,6 +4,7 @@ class AuthUser {
     required this.email,
     required this.nickname,
     required this.profileImageUrl,
+    required this.nicknameConfirmed,
     this.riskProfile,
     this.investmentDnaType,
     this.riskProfileScore,
@@ -15,6 +16,7 @@ class AuthUser {
   final String email;
   final String nickname;
   final String profileImageUrl;
+  final bool nicknameConfirmed;
   final String? riskProfile;
   final String? investmentDnaType;
   final int? riskProfileScore;
@@ -28,6 +30,8 @@ class AuthUser {
       investmentDnaType!.isNotEmpty;
 
   AuthUser copyWith({
+    String? nickname,
+    bool? nicknameConfirmed,
     String? riskProfile,
     String? investmentDnaType,
     int? riskProfileScore,
@@ -37,8 +41,9 @@ class AuthUser {
     return AuthUser(
       userId: userId,
       email: email,
-      nickname: nickname,
+      nickname: nickname ?? this.nickname,
       profileImageUrl: profileImageUrl,
+      nicknameConfirmed: nicknameConfirmed ?? this.nicknameConfirmed,
       riskProfile: riskProfile ?? this.riskProfile,
       investmentDnaType: investmentDnaType ?? this.investmentDnaType,
       riskProfileScore: riskProfileScore ?? this.riskProfileScore,
@@ -54,6 +59,7 @@ class AuthUser {
       'email': email,
       'nickname': nickname,
       'profileImageUrl': profileImageUrl,
+      'nicknameConfirmed': nicknameConfirmed,
       'riskProfile': riskProfile,
       'investmentDnaType': investmentDnaType,
       'riskProfileScore': riskProfileScore,
@@ -68,6 +74,7 @@ class AuthUser {
       email: (json['email'] ?? '').toString(),
       nickname: (json['nickname'] ?? '').toString(),
       profileImageUrl: (json['profileImageUrl'] ?? '').toString(),
+      nicknameConfirmed: json['nicknameConfirmed'] == true,
       riskProfile: _nullableText(json['riskProfile']),
       investmentDnaType: _nullableText(json['investmentDnaType']),
       riskProfileScore: (json['riskProfileScore'] as num?)?.toInt(),

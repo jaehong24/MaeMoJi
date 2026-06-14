@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 @Service
@@ -46,6 +47,7 @@ public class NewsSentimentService {
     private static final int MAX_DAILY_NEWS = 3;
     private static final int MIN_PRE_ANALYSIS_RELEVANCE = 45;
     private static final int MIN_FINAL_RELEVANCE = 60;
+    private static final Duration EXTERNAL_RECHECK_INTERVAL = Duration.ofMinutes(15);
     private static final ZoneId DAILY_NEWS_ZONE = ZoneId.of("Asia/Seoul");
     private static final Pattern HANGUL_PATTERN = Pattern.compile("[가-힣]");
     private static final Logger log = LoggerFactory.getLogger(NewsSentimentService.class);
@@ -76,6 +78,7 @@ public class NewsSentimentService {
     private final ObjectMapper objectMapper;
     private final RecommendationMapper recommendationMapper;
     private final HttpClient httpClient;
+    private final Map<Long, Object> analysisLocks = new ConcurrentHashMap<>();
 
     public NewsSentimentService(
             ObjectMapper objectMapper,
@@ -89,12 +92,39 @@ public class NewsSentimentService {
     }
 
     public NewsSentimentResult analyze(Long stockId, String symbol, String companyName) {
+        if (stockId == null) {
+            return analyzeInternal(stockId, symbol, companyName);
+        }
+
+        final Object lock = analysisLocks.computeIfAbsent(stockId, ignored -> new Object());
+        synchronized (lock) {
+            return analyzeInternal(stockId, symbol, companyName);
+        }
+    }
+
+    private NewsSentimentResult analyzeInternal(Long stockId, String symbol, String companyName) {
         final String finnhubApiKey = System.getenv("FINNHUB_API_KEY");
         if (isBlank(symbol) || isBlank(finnhubApiKey)) {
             return NewsSentimentResult.unavailable();
         }
 
         try {
+            if (stockId != null) {
+                final OffsetDateTime latestAnalyzedAt =
+                        recommendationMapper.findLatestNewsAnalyzedAtByStockId(stockId);
+                if (latestAnalyzedAt != null
+                        && latestAnalyzedAt.isAfter(
+                                OffsetDateTime.now(ZoneOffset.UTC)
+                                        .minus(EXTERNAL_RECHECK_INTERVAL)
+                        )) {
+                    final NewsSentimentResult recentCachedResult =
+                            findCachedDisplayResult(stockId);
+                    if (recentCachedResult != null) {
+                        return recentCachedResult;
+                    }
+                }
+            }
+
             final List<RawNewsItem> fetchedNews = fetchCompanyNews(symbol, finnhubApiKey);
             final List<RawNewsItem> candidates = prepareCandidates(fetchedNews, symbol, companyName);
             if (candidates.isEmpty()) {
@@ -133,8 +163,19 @@ public class NewsSentimentService {
             return null;
         }
 
+        final LocalDate latestAllowedTradingDate =
+                latestTradingDateOnOrBefore(LocalDate.now(DAILY_NEWS_ZONE));
         final List<NewsAnalysisCacheRecord> cachedRecords =
-                recommendationMapper.findLatestNewsAnalysisByStockId(stockId);
+                recommendationMapper.findLatestNewsAnalysisByStockId(stockId)
+                        .stream()
+                        .filter(record -> record.getNewsPublishedAt() != null)
+                        .filter(record -> {
+                            final LocalDate publishedDate = record.getNewsPublishedAt()
+                                    .atZoneSameInstant(DAILY_NEWS_ZONE)
+                                    .toLocalDate();
+                            return tradingDayGap(publishedDate, latestAllowedTradingDate) <= 1;
+                        })
+                        .toList();
         if (cachedRecords.isEmpty()) {
             return null;
         }

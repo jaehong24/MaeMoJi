@@ -9,6 +9,8 @@ import '../models/exchange_rate.dart';
 class ExchangeRateService {
   const ExchangeRateService();
 
+  static const Duration _requestTimeout = Duration(seconds: 12);
+
   /// 우선 우리 WAS를 조회하고, 실패하면 공개 환율 API로 한 번 더 시도합니다.
   Future<ExchangeRate> fetchUsdKrwRate() async {
     try {
@@ -24,7 +26,7 @@ class ExchangeRateService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri);
+    final response = await http.get(uri).timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -52,7 +54,7 @@ class ExchangeRateService {
     final uri = Uri.parse(
       'https://api.frankfurter.dev/v2/rates?base=USD&quotes=KRW',
     );
-    final response = await http.get(uri);
+    final response = await http.get(uri).timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception(

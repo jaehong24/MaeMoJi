@@ -5,9 +5,13 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../models/stock_quote.dart';
+import 'api_auth_headers.dart';
+import 'api_response_guard.dart';
 
 class StockQuoteService {
   const StockQuoteService();
+
+  static const Duration _requestTimeout = Duration(seconds: 20);
 
   /// 종목 등록 전에 현재가를 미리 보여주기 위한 조회입니다.
   Future<StockQuote> fetchQuote(int stockId) async {
@@ -16,7 +20,10 @@ class StockQuoteService {
       isWeb: kIsWeb,
       platformName: defaultTargetPlatform.name,
     );
-    final response = await http.get(uri);
+    final response = await http
+        .get(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_requestTimeout);
+    await clearSessionIfUnauthorized(response);
 
     if (response.statusCode != 200) {
       throw Exception('MaeMoji stock quote failed: ${response.statusCode}');

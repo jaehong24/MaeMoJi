@@ -20,6 +20,8 @@ spring:
       max-lifetime: 600000
       keepalive-time: 240000
       idle-timeout: 300000
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
 
 
 mybatis:
