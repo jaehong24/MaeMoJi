@@ -87,10 +87,9 @@ public class GoogleAuthService {
         userMapper.updateRequiredConsent(userId, consentVersion, now);
         final String accessToken = issueSessionToken(userId, now);
 
-        final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(
-                null,
-                authTokenHasher.hash(accessToken)
-        );
+        // 로그인 직후에는 사용자 ID가 이미 확정되어 있습니다. null 토큰 파라미터를
+        // PostgreSQL 비교식에 넘기지 않아 드라이버의 타입 추론 오류를 피합니다.
+        final UserSessionRecord authenticatedUser = userMapper.findById(userId);
         if (authenticatedUser == null) {
             throw new IllegalStateException("로그인 사용자 세션을 생성하지 못했습니다.");
         }
@@ -127,10 +126,7 @@ public class GoogleAuthService {
 
         final OffsetDateTime now = OffsetDateTime.now();
         final String accessToken = issueSessionToken(userId, now);
-        final UserSessionRecord authenticatedUser = userMapper.findSessionUserByAuthToken(
-                null,
-                authTokenHasher.hash(accessToken)
-        );
+        final UserSessionRecord authenticatedUser = userMapper.findById(userId);
         if (authenticatedUser == null) {
             throw new IllegalStateException("개발용 로그인 세션을 생성하지 못했습니다.");
         }
