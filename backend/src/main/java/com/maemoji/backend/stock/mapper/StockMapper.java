@@ -13,6 +13,7 @@ public interface StockMapper {
 
     List<Stock> searchStocks(
             @Param("keyword") String keyword,
+            @Param("compactKeyword") String compactKeyword,
             @Param("limit") int limit
     );
 

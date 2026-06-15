@@ -25,7 +25,7 @@ class StockServiceTest {
     void 빈검색어는Db를조회하지않고빈배열을반환한다() {
         assertThat(stockService.searchStocks("   ")).isEmpty();
 
-        verify(stockMapper, never()).searchStocks("   ", 20);
+        verify(stockMapper, never()).searchStocks("   ", "", 20);
     }
 
     @Test
@@ -39,7 +39,7 @@ class StockServiceTest {
         stock.setNameKo("애플");
         stock.setNameEn("Apple Inc.");
         stock.setAssetType("STOCK");
-        when(stockMapper.searchStocks("애플", 20)).thenReturn(List.of(stock));
+        when(stockMapper.searchStocks("애플", "애플", 20)).thenReturn(List.of(stock));
 
         final List<StockSummaryResponse> result =
                 stockService.searchStocks("  애플  ");
@@ -47,7 +47,27 @@ class StockServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).symbol()).isEqualTo("AAPL");
         assertThat(result.get(0).assetType()).isEqualTo("STOCK");
-        verify(stockMapper).searchStocks("애플", 20);
+        verify(stockMapper).searchStocks("애플", "애플", 20);
         verify(stockLogoCacheService).cacheMissingLogos(List.of(stock));
+    }
+
+    @Test
+    void 띄어쓰기없는검색어도공백제거키워드로함께조회한다() {
+        when(stockMapper.searchStocks("엑스에너지", "엑스에너지", 20))
+                .thenReturn(List.of());
+
+        stockService.searchStocks("엑스에너지");
+
+        verify(stockMapper).searchStocks("엑스에너지", "엑스에너지", 20);
+    }
+
+    @Test
+    void 띄어쓰기있는검색어는공백제거키워드도같이전달한다() {
+        when(stockMapper.searchStocks("엑스 에너지", "엑스에너지", 20))
+                .thenReturn(List.of());
+
+        stockService.searchStocks(" 엑스 에너지 ");
+
+        verify(stockMapper).searchStocks("엑스 에너지", "엑스에너지", 20);
     }
 }

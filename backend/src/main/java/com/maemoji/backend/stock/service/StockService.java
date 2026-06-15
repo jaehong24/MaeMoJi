@@ -27,7 +27,12 @@ public class StockService {
         if (normalizedKeyword.isEmpty()) {
             return List.of();
         }
-        final List<Stock> stocks = stockMapper.searchStocks(normalizedKeyword, 20);
+        final String compactKeyword = normalizedKeyword.replaceAll("\\s+", "");
+        final List<Stock> stocks = stockMapper.searchStocks(
+                normalizedKeyword,
+                compactKeyword,
+                20
+        );
         stockLogoCacheService.cacheMissingLogos(stocks);
 
         return stocks

@@ -34,17 +34,25 @@
         where is_active = true
           and (
             ticker_normalized like concat('%', lower(trim(#{keyword})), '%')
+            or replace(ticker_normalized, ' ', '') like concat('%', lower(trim(#{compactKeyword})), '%')
             or coalesce(name_ko_normalized, '') like concat('%', lower(trim(#{keyword})), '%')
+            or replace(coalesce(name_ko_normalized, ''), ' ', '') like concat('%', lower(trim(#{compactKeyword})), '%')
             or name_en_normalized like concat('%', lower(trim(#{keyword})), '%')
+            or replace(name_en_normalized, ' ', '') like concat('%', lower(trim(#{compactKeyword})), '%')
           )
         order by
             case
                 when ticker_normalized = lower(trim(#{keyword})) then 1
-                when ticker_normalized like concat(lower(trim(#{keyword})), '%') then 2
-                when coalesce(name_ko_normalized, '') = lower(trim(#{keyword})) then 3
-                when coalesce(name_ko_normalized, '') like concat('%', lower(trim(#{keyword})), '%') then 4
-                when name_en_normalized like concat('%', lower(trim(#{keyword})), '%') then 5
-                else 6
+                when replace(ticker_normalized, ' ', '') = lower(trim(#{compactKeyword})) then 2
+                when ticker_normalized like concat(lower(trim(#{keyword})), '%') then 3
+                when replace(ticker_normalized, ' ', '') like concat(lower(trim(#{compactKeyword})), '%') then 4
+                when coalesce(name_ko_normalized, '') = lower(trim(#{keyword})) then 5
+                when replace(coalesce(name_ko_normalized, ''), ' ', '') = lower(trim(#{compactKeyword})) then 6
+                when coalesce(name_ko_normalized, '') like concat('%', lower(trim(#{keyword})), '%') then 7
+                when replace(coalesce(name_ko_normalized, ''), ' ', '') like concat('%', lower(trim(#{compactKeyword})), '%') then 8
+                when name_en_normalized like concat('%', lower(trim(#{keyword})), '%') then 9
+                when replace(name_en_normalized, ' ', '') like concat('%', lower(trim(#{compactKeyword})), '%') then 10
+                else 11
             end,
             ticker_normalized asc
         limit #{limit}
