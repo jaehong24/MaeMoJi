@@ -21,6 +21,8 @@ import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,8 +52,11 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendationService {
 
+    private static final Logger log = LoggerFactory.getLogger(RecommendationService.class);
     private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE_V2";
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
+    private static final int RECENT_NEWS_TRADING_DAY_WINDOW = 3;
+    private static final int DISPLAY_NEWS_LIMIT = 3;
     private static final Set<String> LEGACY_V4_EVIDENCE_TYPES = Set.of(
             "PRICE",
             "NEWS",
@@ -185,6 +190,38 @@ public class RecommendationService {
                 reusedCount,
                 refreshedCount,
                 unavailableCount
+        );
+    }
+
+    public void warmUpLatestNewsForUserStock(Long userId, Long stockId) {
+        final RecommendationTarget target =
+                recommendationMapper.findActiveRecommendationTargetByUserIdAndStockId(userId, stockId);
+        if (target == null) {
+            return;
+        }
+
+        final NewsSentimentService.NewsSentimentResult analyzed = newsSentimentService.analyze(
+                target.getStockId(),
+                resolveSymbol(target),
+                target.getCompanyName()
+        );
+
+        if (analyzed.replaceCache()) {
+            transactionTemplate.executeWithoutResult(status ->
+                    replaceNewsAnalysisCache(
+                            target.getStockId(),
+                            analyzed.relatedNews(),
+                            analyzed.llmModel()
+                    )
+            );
+        }
+
+        log.info(
+                "포트폴리오 저장 직후 뉴스 선분석을 완료했습니다. userId={}, stockId={}, articles={}, cacheReused={}",
+                userId,
+                stockId,
+                analyzed.relatedNews().size(),
+                analyzed.cacheReused()
         );
     }
 
@@ -773,6 +810,7 @@ public class RecommendationService {
         final LocalDate latestAllowedTradingDate = latestTradingDateOnOrBefore(LocalDate.now(HOME_ZONE));
         return records.stream()
                 .filter(record -> isFreshNewsPublishedAt(record.getNewsPublishedAt(), latestAllowedTradingDate))
+                .limit(DISPLAY_NEWS_LIMIT)
                 .toList();
     }
 
@@ -782,7 +820,13 @@ public class RecommendationService {
         }
 
         final List<NewsAnalysisCacheRecord> freshRecords = filterFreshNewsRecords(records);
-        return freshRecords;
+        if (!freshRecords.isEmpty()) {
+            return freshRecords;
+        }
+
+        return records.stream()
+                .limit(DISPLAY_NEWS_LIMIT)
+                .toList();
     }
 
     private String resolveRelatedNewsStatusMessage(
@@ -790,12 +834,17 @@ public class RecommendationService {
             List<NewsAnalysisCacheRecord> displayNewsRecords
     ) {
         if (displayNewsRecords != null && !displayNewsRecords.isEmpty()) {
-            return null;
+            if (rawNewsRecords != null
+                    && !rawNewsRecords.isEmpty()
+                    && !filterFreshNewsRecords(rawNewsRecords).isEmpty()) {
+                return null;
+            }
+            return "최근 3거래일 관련 뉴스가 없어 가장 최근 분석을 먼저 보여드려요.";
         }
         if (rawNewsRecords == null || rawNewsRecords.isEmpty()) {
-            return "오늘 관련 뉴스가 아직 없습니다.";
+            return "관련 뉴스가 아직 없습니다.";
         }
-        return "최근 뉴스가 오래되어 추천 근거에서 제외했습니다.";
+        return "최근 관련 뉴스가 부족해 표시 가능한 최신 분석이 아직 없습니다.";
     }
 
     private boolean isFreshNewsPublishedAt(OffsetDateTime publishedAt, LocalDate latestAllowedTradingDate) {
@@ -804,7 +853,8 @@ public class RecommendationService {
         }
 
         final LocalDate publishedDate = publishedAt.atZoneSameInstant(HOME_ZONE).toLocalDate();
-        return tradingDayGap(publishedDate, latestAllowedTradingDate) <= 1;
+        return tradingDayGap(publishedDate, latestAllowedTradingDate)
+                <= RECENT_NEWS_TRADING_DAY_WINDOW;
     }
 
     private LocalDate latestTradingDateOnOrBefore(LocalDate date) {
@@ -973,7 +1023,7 @@ public class RecommendationService {
                 LocalDate.now(HOME_ZONE),
                 OffsetDateTime.now(ZoneOffset.UTC),
                 engineResult.relatedNews().isEmpty() ? null : OffsetDateTime.now(ZoneOffset.UTC),
-                engineResult.relatedNews().isEmpty() ? "오늘 관련 뉴스가 아직 없습니다." : null,
+                engineResult.relatedNews().isEmpty() ? "최근 3거래일 관련 뉴스가 아직 없습니다." : null,
                 new RecommendationScoresResponse(
                         engineResult.businessHealthScore(),
                         engineResult.valuationScore(),

@@ -41,10 +41,11 @@ import java.util.regex.Pattern;
 public class NewsSentimentService {
 
     private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
-    private static final int MAX_GEMINI_CANDIDATES = 3;
+    private static final int MAX_GEMINI_CANDIDATES = 6;
     private static final int MAX_GEMINI_ATTEMPTS = 3;
     private static final long GEMINI_RETRY_DELAY_MILLIS = 2500;
     private static final int MAX_DAILY_NEWS = 3;
+    private static final int MAX_DISPLAY_TRADING_DAY_GAP = 3;
     private static final int MIN_PRE_ANALYSIS_RELEVANCE = 45;
     private static final int MIN_FINAL_RELEVANCE = 60;
     private static final Duration EXTERNAL_RECHECK_INTERVAL = Duration.ofMinutes(15);
@@ -173,8 +174,10 @@ public class NewsSentimentService {
                             final LocalDate publishedDate = record.getNewsPublishedAt()
                                     .atZoneSameInstant(DAILY_NEWS_ZONE)
                                     .toLocalDate();
-                            return tradingDayGap(publishedDate, latestAllowedTradingDate) <= 1;
+                            return tradingDayGap(publishedDate, latestAllowedTradingDate)
+                                    <= MAX_DISPLAY_TRADING_DAY_GAP;
                         })
+                        .limit(MAX_DAILY_NEWS)
                         .toList();
         if (cachedRecords.isEmpty()) {
             return null;
@@ -342,14 +345,9 @@ public class NewsSentimentService {
                 ))
                 .filter(item -> item.heuristicRelevanceScore() >= MIN_PRE_ANALYSIS_RELEVANCE)
                 .toList();
-        final LocalDate displayDate = resolveDisplayDate(relevantItems);
-        if (displayDate == null) {
-            return List.of();
-        }
 
-        return relevantItems.stream()
-                // 평일은 당일 뉴스만, 주말은 가장 최근 날짜의 뉴스를 표시합니다.
-                .filter(item -> isPublishedOn(item, displayDate))
+        final List<RawNewsItem> recentItems = relevantItems.stream()
+                .filter(this::isWithinRecentDisplayWindow)
                 .sorted(
                         Comparator.comparingInt(RawNewsItem::heuristicRelevanceScore)
                                 .reversed()
@@ -360,38 +358,39 @@ public class NewsSentimentService {
                 )
                 .limit(MAX_GEMINI_CANDIDATES)
                 .toList();
+
+        if (!recentItems.isEmpty()) {
+            return recentItems;
+        }
+
+        return relevantItems.stream()
+                .sorted(
+                        Comparator.comparing(
+                                        RawNewsItem::publishedAt,
+                                        Comparator.nullsLast(Comparator.reverseOrder())
+                                )
+                                .thenComparing(
+                                        RawNewsItem::heuristicRelevanceScore,
+                                        Comparator.reverseOrder()
+                                )
+                )
+                .limit(MAX_GEMINI_CANDIDATES)
+                .toList();
     }
 
-    private LocalDate resolveDisplayDate(Iterable<RawNewsItem> newsItems) {
+    private boolean isWithinRecentDisplayWindow(RawNewsItem item) {
+        if (item.publishedAt() == null) {
+            return false;
+        }
+
         final LocalDate today = LocalDate.now(DAILY_NEWS_ZONE);
         final LocalDate latestAllowedTradingDate = latestTradingDateOnOrBefore(today);
-        LocalDate latestDate = null;
-        for (RawNewsItem item : newsItems) {
-            if (item.publishedAt() == null) {
-                continue;
-            }
-            final LocalDate publishedDate = item.publishedAt()
-                    .atZoneSameInstant(DAILY_NEWS_ZONE)
-                    .toLocalDate();
-            if (!publishedDate.isAfter(today)
-                    && (latestDate == null || publishedDate.isAfter(latestDate))) {
-                latestDate = publishedDate;
-            }
-        }
-
-        // 평일에도 오늘 뉴스가 비어 있으면 가장 최근 발행일 기사로 자연스럽게 내려갑니다.
-        if (latestDate == null) {
-            return null;
-        }
-        return tradingDayGap(latestDate, latestAllowedTradingDate) <= 1 ? latestDate : null;
-    }
-
-    private boolean isPublishedOn(RawNewsItem item, LocalDate displayDate) {
-        return item.publishedAt() != null
-                && item.publishedAt()
+        final LocalDate publishedDate = item.publishedAt()
                 .atZoneSameInstant(DAILY_NEWS_ZONE)
-                .toLocalDate()
-                .equals(displayDate);
+                .toLocalDate();
+        return !publishedDate.isAfter(today)
+                && tradingDayGap(publishedDate, latestAllowedTradingDate)
+                <= MAX_DISPLAY_TRADING_DAY_GAP;
     }
 
     private LocalDate latestTradingDateOnOrBefore(LocalDate date) {

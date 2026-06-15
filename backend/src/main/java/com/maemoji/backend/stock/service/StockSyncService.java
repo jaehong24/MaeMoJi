@@ -27,26 +27,10 @@ public class StockSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(StockSyncService.class);
     private static final int MINIMUM_SAFE_UNIVERSE_SIZE = 1_000;
-    private static final Map<String, String> POPULAR_KOREAN_NAMES = Map.ofEntries(
-            Map.entry("AAPL", "애플"),
-            Map.entry("TSLA", "테슬라"),
-            Map.entry("NVDA", "엔비디아"),
-            Map.entry("MSFT", "마이크로소프트"),
-            Map.entry("GOOGL", "구글"),
-            Map.entry("GOOG", "구글"),
-            Map.entry("AMZN", "아마존"),
-            Map.entry("META", "메타"),
-            Map.entry("NFLX", "넷플릭스"),
-            Map.entry("QQQ", "큐큐큐"),
-            Map.entry("SPY", "스파이"),
-            Map.entry("VOO", "브이오오"),
-            Map.entry("SCHD", "슈드"),
-            Map.entry("TQQQ", "티큐큐큐"),
-            Map.entry("SQQQ", "에스큐큐큐")
-    );
 
     private final StockMapper stockMapper;
     private final StockService stockService;
+    private final StockKoreanNameService stockKoreanNameService;
     private final StockMasterSyncProperties properties;
     private final FmpStockApiClient fmpClient;
     private final NasdaqStockApiClient nasdaqClient;
@@ -55,12 +39,14 @@ public class StockSyncService {
     public StockSyncService(
             StockMapper stockMapper,
             StockService stockService,
+            StockKoreanNameService stockKoreanNameService,
             StockMasterSyncProperties properties,
             FmpStockApiClient fmpClient,
             NasdaqStockApiClient nasdaqClient
     ) {
         this.stockMapper = stockMapper;
         this.stockService = stockService;
+        this.stockKoreanNameService = stockKoreanNameService;
         this.properties = properties;
         this.fmpClient = fmpClient;
         this.nasdaqClient = nasdaqClient;
@@ -201,7 +187,11 @@ public class StockSyncService {
             StockMasterItem item,
             OffsetDateTime syncedAt
     ) {
-        final String nameKo = POPULAR_KOREAN_NAMES.get(item.symbol());
+        final String nameKo = stockKoreanNameService.resolveNameKo(
+                item.symbol(),
+                item.nameEn(),
+                item.assetType()
+        );
         final StockService.NormalizedStockFields normalized =
                 stockService.normalizeStockFields(item.symbol(), nameKo, item.nameEn());
         return new StockMasterUpsertCommand(

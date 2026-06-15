@@ -4,6 +4,8 @@ import com.maemoji.backend.portfolio.dto.PortfolioCreateRequest;
 import com.maemoji.backend.portfolio.dto.PortfolioItemSummaryResponse;
 import com.maemoji.backend.portfolio.mapper.PortfolioMapper;
 import com.maemoji.backend.recommendation.service.RecommendationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,6 +19,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Service
 public class PortfolioService {
 
+    private static final Logger log = LoggerFactory.getLogger(PortfolioService.class);
     private static final int MAX_PORTFOLIO_ITEMS = 5;
 
     private final PortfolioMapper portfolioMapper;
@@ -55,6 +58,17 @@ public class PortfolioService {
             portfolioMapper.insertPortfolioItem(userId, request);
         } else {
             portfolioMapper.updatePortfolioItem(portfolioItemId, request);
+        }
+
+        try {
+            recommendationService.warmUpLatestNewsForUserStock(userId, request.stockId());
+        } catch (Exception exception) {
+            log.warn(
+                    "포트폴리오 저장 직후 뉴스 선분석에 실패했습니다. userId={}, stockId={}",
+                    userId,
+                    request.stockId(),
+                    exception
+            );
         }
 
         recommendationService.generateLatestRecommendationsFromCachedData(userId);

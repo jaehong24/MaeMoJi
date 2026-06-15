@@ -27,6 +27,11 @@ public interface RecommendationMapper {
             @Param("portfolioItemId") Long portfolioItemId
     );
 
+    RecommendationTarget findActiveRecommendationTargetByUserIdAndStockId(
+            @Param("userId") Long userId,
+            @Param("stockId") Long stockId
+    );
+
     Long upsertRecommendation(@Param("command") RecommendationSaveCommand command);
 
     void deleteRecommendationEvidence(@Param("recommendationId") Long recommendationId);

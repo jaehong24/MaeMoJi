@@ -77,6 +77,32 @@
         limit 1
     </select>
 
+    <select id="findActiveRecommendationTargetByUserIdAndStockId"
+            resultType="com.maemoji.backend.recommendation.domain.RecommendationTarget">
+        select
+            pi.id as portfolio_item_id,
+            pi.user_id,
+            pi.stock_id,
+            coalesce(s.name_ko, s.name_en) as company_name,
+            s.ticker,
+            s.finnhub_symbol,
+            s.logo_url,
+            pi.daily_invest_amount,
+            pi.holding_quantity,
+            pi.investment_start_date,
+            pi.memo,
+            u.risk_profile,
+            u.investment_dna_type
+        from portfolio_items pi
+        join users u on u.id = pi.user_id
+        join stocks s on s.id = pi.stock_id
+        where pi.user_id = #{userId}
+          and pi.stock_id = #{stockId}
+          and pi.is_active = true
+        order by pi.updated_at desc, pi.created_at desc
+        limit 1
+    </select>
+
     <select id="upsertRecommendation"
             parameterType="com.maemoji.backend.recommendation.domain.RecommendationSaveCommand"
             resultType="long"
@@ -437,16 +463,10 @@
         from news_analysis_cache
         where stock_id = #{stockId}
           and relevance_score >= 60
-          and (news_published_at at time zone 'Asia/Seoul')::date = (
-              select max((latest_news.news_published_at at time zone 'Asia/Seoul')::date)
-              from news_analysis_cache latest_news
-              where latest_news.stock_id = #{stockId}
-                and latest_news.relevance_score >= 60
-                and (latest_news.news_published_at at time zone 'Asia/Seoul')::date
-                    &lt;= (current_timestamp at time zone 'Asia/Seoul')::date
-          )
-        order by abs(weighted_score) desc nulls last, news_published_at desc nulls last
-        limit 3
+          and (news_published_at at time zone 'Asia/Seoul')::date
+              &lt;= (current_timestamp at time zone 'Asia/Seoul')::date
+        order by news_published_at desc nulls last, abs(weighted_score) desc nulls last
+        limit 12
     </select>
 
     <select id="findLatestNewsAnalyzedAtByStockId" resultType="java.time.OffsetDateTime">

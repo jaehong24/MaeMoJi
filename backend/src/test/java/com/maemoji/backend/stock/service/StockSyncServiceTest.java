@@ -27,6 +27,8 @@ class StockSyncServiceTest {
             stockMapper,
             mock(StockLogoCacheService.class)
     );
+    private final StockKoreanNameService stockKoreanNameService =
+            new StockKoreanNameService();
     private final StockMasterSyncProperties properties =
             new StockMasterSyncProperties();
     private final FmpStockApiClient fmpClient = mock(FmpStockApiClient.class);
@@ -47,6 +49,7 @@ class StockSyncServiceTest {
         final StockSyncService service = new StockSyncService(
                 stockMapper,
                 stockService,
+                stockKoreanNameService,
                 properties,
                 fmpClient,
                 nasdaqClient
