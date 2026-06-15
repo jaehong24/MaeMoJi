@@ -36,6 +36,10 @@ logging:
 
 maemoji:
   batch:
+    stock-master:
+      enabled: ${STOCK_MASTER_SYNC_ENABLED:false}
+      cron: "${STOCK_MASTER_SYNC_CRON:0 0 4 * * *}"
+      batch-size: ${STOCK_MASTER_SYNC_BATCH_SIZE:500}
     top-stocks:
       enabled: false
       cron: "0 0 6 * * *"

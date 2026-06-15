@@ -38,10 +38,12 @@ public class StockController {
     @GetMapping("/search")
     public ApiResponse<List<StockSummaryResponse>> searchStocks(
             @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
-            @RequestParam(name = "keyword", defaultValue = "") String keyword
+            @RequestParam(name = "query", required = false) String query,
+            @RequestParam(name = "keyword", required = false) String keyword
     ) {
         authenticatedUserResolver.requireUserId(authorizationHeader);
-        return ApiResponse.ok(stockService.searchStocks(keyword));
+        final String searchQuery = query == null ? keyword : query;
+        return ApiResponse.ok(stockService.searchStocks(searchQuery));
     }
 
     @GetMapping("/{stockId}/quote")

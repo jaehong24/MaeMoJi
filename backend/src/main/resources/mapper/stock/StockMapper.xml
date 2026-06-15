@@ -7,7 +7,9 @@
     <select id="searchStocks" resultType="com.maemoji.backend.stock.domain.Stock">
         select
             id,
+            symbol,
             ticker,
+            exchange,
             exchange_code,
             finnhub_symbol,
             name_ko,
@@ -17,7 +19,14 @@
             name_en_normalized,
             search_text,
             logo_url,
+            logo_status,
+            logo_checked_at,
             market_type,
+            asset_type,
+            currency,
+            country,
+            sector,
+            industry,
             is_active,
             created_at,
             updated_at
@@ -31,21 +40,22 @@
         order by
             case
                 when ticker_normalized = lower(trim(#{keyword})) then 1
-                when coalesce(name_ko_normalized, '') = lower(trim(#{keyword})) then 2
-                when name_en_normalized = lower(trim(#{keyword})) then 3
-                when ticker_normalized like concat(lower(trim(#{keyword})), '%') then 4
-                when coalesce(name_ko_normalized, '') like concat(lower(trim(#{keyword})), '%') then 5
-                when name_en_normalized like concat(lower(trim(#{keyword})), '%') then 6
-                else 7
+                when ticker_normalized like concat(lower(trim(#{keyword})), '%') then 2
+                when coalesce(name_ko_normalized, '') = lower(trim(#{keyword})) then 3
+                when coalesce(name_ko_normalized, '') like concat('%', lower(trim(#{keyword})), '%') then 4
+                when name_en_normalized like concat('%', lower(trim(#{keyword})), '%') then 5
+                else 6
             end,
             ticker_normalized asc
-        limit 10
+        limit #{limit}
     </select>
 
     <select id="findStockById" resultType="com.maemoji.backend.stock.domain.Stock">
         select
             id,
+            symbol,
             ticker,
+            exchange,
             exchange_code,
             finnhub_symbol,
             name_ko,
@@ -55,7 +65,14 @@
             name_en_normalized,
             search_text,
             logo_url,
+            logo_status,
+            logo_checked_at,
             market_type,
+            asset_type,
+            currency,
+            country,
+            sector,
+            industry,
             is_active,
             created_at,
             updated_at
@@ -67,7 +84,40 @@
     <select id="findActiveStocksForRefresh" resultType="com.maemoji.backend.stock.domain.Stock">
         select
             id,
+            symbol,
             ticker,
+            exchange,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            logo_status,
+            logo_checked_at,
+            market_type,
+            asset_type,
+            currency,
+            country,
+            sector,
+            industry,
+            is_active,
+            created_at,
+            updated_at
+        from stocks
+        where is_active = true
+          and finnhub_symbol is not null
+        order by id asc
+    </select>
+
+    <insert id="upsertStockMasters">
+        insert into stocks (
+            symbol,
+            ticker,
+            exchange,
             exchange_code,
             finnhub_symbol,
             name_ko,
@@ -78,14 +128,95 @@
             search_text,
             logo_url,
             market_type,
+            asset_type,
+            currency,
+            country,
+            sector,
+            industry,
             is_active,
-            created_at,
-            updated_at
-        from stocks
-        where is_active = true
-          and finnhub_symbol is not null
-        order by id asc
-    </select>
+            last_master_sync_at
+        ) values
+        <foreach collection="stocks" item="stock" separator=",">
+            (
+                #{stock.symbol},
+                #{stock.symbol},
+                #{stock.exchange},
+                #{stock.exchange},
+                #{stock.symbol},
+                #{stock.nameKo},
+                #{stock.nameEn},
+                #{stock.tickerNormalized},
+                #{stock.nameKoNormalized,jdbcType=VARCHAR},
+                #{stock.nameEnNormalized},
+                #{stock.searchText},
+                #{stock.logoUrl},
+                #{stock.assetType},
+                #{stock.assetType},
+                #{stock.currency},
+                #{stock.country},
+                #{stock.sector},
+                #{stock.industry},
+                true,
+                #{stock.syncedAt}
+            )
+        </foreach>
+        on conflict (symbol) do update
+        set
+            ticker = excluded.ticker,
+            exchange = excluded.exchange,
+            exchange_code = excluded.exchange_code,
+            finnhub_symbol = coalesce(stocks.finnhub_symbol, excluded.finnhub_symbol),
+            name_ko = coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko),
+            name_en = excluded.name_en,
+            ticker_normalized = excluded.ticker_normalized,
+            name_ko_normalized = case
+                when coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko) is null then null
+                else lower(trim(coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko)))
+            end,
+            name_en_normalized = excluded.name_en_normalized,
+            search_text = trim(
+                concat_ws(
+                    ' ',
+                    excluded.ticker_normalized,
+                    excluded.name_en_normalized,
+                    lower(trim(coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko, '')))
+                )
+            ),
+            logo_url = coalesce(excluded.logo_url, stocks.logo_url),
+            market_type = excluded.market_type,
+            asset_type = excluded.asset_type,
+            currency = excluded.currency,
+            country = excluded.country,
+            sector = coalesce(excluded.sector, stocks.sector),
+            industry = coalesce(excluded.industry, stocks.industry),
+            is_active = true,
+            last_master_sync_at = excluded.last_master_sync_at,
+            updated_at = now()
+    </insert>
+
+    <update id="deactivateMissingUsStocks">
+        update stocks
+        set
+            is_active = false,
+            updated_at = now()
+        where country = 'US'
+          and is_active = true
+          and (
+              last_master_sync_at is null
+              or last_master_sync_at &lt; #{syncedAt}
+          )
+    </update>
+
+    <update id="updateStockLogoCache">
+        update stocks
+        set
+            logo_url = #{logoUrl,jdbcType=VARCHAR},
+            logo_status = #{logoStatus},
+            logo_checked_at = #{checkedAt},
+            updated_at = now()
+        where id = #{id}
+          and (logo_url is null or trim(logo_url) = '')
+    </update>
 
     <select id="findStockIdByFinnhubSymbol" resultType="long">
         select id
@@ -96,7 +227,9 @@
 
     <insert id="upsertStockMaster">
         insert into stocks (
+            symbol,
             ticker,
+            exchange,
             exchange_code,
             finnhub_symbol,
             name_ko,
@@ -107,9 +240,14 @@
             search_text,
             logo_url,
             market_type,
+            asset_type,
+            currency,
+            country,
             is_active
         ) values (
             #{ticker},
+            #{ticker},
+            #{exchangeCode},
             #{exchangeCode},
             #{finnhubSymbol},
             #{nameKo},
@@ -120,19 +258,40 @@
             #{searchText},
             #{logoUrl},
             #{marketType},
+            #{marketType},
+            'USD',
+            'US',
             true
         )
         on conflict (ticker, exchange_code) do update
         set
+            symbol = excluded.symbol,
+            exchange = excluded.exchange,
             finnhub_symbol = excluded.finnhub_symbol,
-            name_ko = excluded.name_ko,
+            name_ko = coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko),
             name_en = excluded.name_en,
             ticker_normalized = excluded.ticker_normalized,
-            name_ko_normalized = excluded.name_ko_normalized,
+            name_ko_normalized = case
+                when coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko) is null then null
+                else lower(trim(coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko)))
+            end,
             name_en_normalized = excluded.name_en_normalized,
-            search_text = excluded.search_text,
-            logo_url = excluded.logo_url,
+            search_text = trim(
+                concat_ws(
+                    ' ',
+                    excluded.ticker_normalized,
+                    excluded.name_en_normalized,
+                    lower(trim(coalesce(nullif(trim(stocks.name_ko), ''), excluded.name_ko, '')))
+                )
+            ),
+            logo_url = coalesce(nullif(excluded.logo_url, ''), stocks.logo_url),
             market_type = excluded.market_type,
+            asset_type = case
+                when upper(coalesce(excluded.asset_type, '')) like '%ETF%' then 'ETF'
+                else 'STOCK'
+            end,
+            currency = excluded.currency,
+            country = excluded.country,
             is_active = true,
             updated_at = now()
     </insert>
@@ -140,16 +299,34 @@
     <update id="updateStockMaster">
         update stocks
         set
+            symbol = ticker,
+            exchange = #{exchangeCode},
             exchange_code = #{exchangeCode},
             finnhub_symbol = #{finnhubSymbol},
-            name_ko = #{nameKo},
+            name_ko = coalesce(nullif(trim(name_ko), ''), #{nameKo}),
             name_en = #{nameEn},
             ticker_normalized = #{tickerNormalized},
-            name_ko_normalized = #{nameKoNormalized},
+            name_ko_normalized = case
+                when coalesce(nullif(trim(name_ko), ''), #{nameKo}) is null then null
+                else lower(trim(coalesce(nullif(trim(name_ko), ''), #{nameKo})))
+            end,
             name_en_normalized = #{nameEnNormalized},
-            search_text = #{searchText},
-            logo_url = #{logoUrl},
+            search_text = trim(
+                concat_ws(
+                    ' ',
+                    #{tickerNormalized},
+                    #{nameEnNormalized},
+                    lower(trim(coalesce(nullif(trim(name_ko), ''), #{nameKo}, '')))
+                )
+            ),
+            logo_url = coalesce(nullif(#{logoUrl}, ''), logo_url),
             market_type = #{marketType},
+            asset_type = case
+                when upper(coalesce(#{marketType}, '')) like '%ETF%' then 'ETF'
+                else 'STOCK'
+            end,
+            currency = coalesce(currency, 'USD'),
+            country = coalesce(country, 'US'),
             is_active = true,
             updated_at = now()
         where id = #{id}

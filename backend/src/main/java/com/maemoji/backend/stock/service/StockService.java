@@ -12,21 +12,36 @@ import java.util.Locale;
 public class StockService {
 
     private final StockMapper stockMapper;
+    private final StockLogoCacheService stockLogoCacheService;
 
-    public StockService(StockMapper stockMapper) {
+    public StockService(
+            StockMapper stockMapper,
+            StockLogoCacheService stockLogoCacheService
+    ) {
         this.stockMapper = stockMapper;
+        this.stockLogoCacheService = stockLogoCacheService;
     }
 
     public List<StockSummaryResponse> searchStocks(String keyword) {
-        return stockMapper.searchStocks(keyword)
+        final String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (normalizedKeyword.isEmpty()) {
+            return List.of();
+        }
+        final List<Stock> stocks = stockMapper.searchStocks(normalizedKeyword, 20);
+        stockLogoCacheService.cacheMissingLogos(stocks);
+
+        return stocks
                 .stream()
                 .map(stock -> new StockSummaryResponse(
                         stock.getId(),
+                        stock.getSymbol(),
                         stock.getTicker(),
+                        stock.getExchange(),
                         stock.getExchangeCode(),
                         stock.getNameKo(),
                         stock.getNameEn(),
-                        stock.getLogoUrl()
+                        stockLogoCacheService.resolveDisplayLogoUrl(stock),
+                        stock.getAssetType()
                 ))
                 .toList();
     }

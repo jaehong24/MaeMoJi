@@ -1,0 +1,42 @@
+name: maeemoji-stock-master-sync
+
+on:
+  schedule:
+    # GitHub Actions cron uses UTC. 19:00 UTC = 04:00 KST next day.
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: maemoji-stock-master-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-stock-master:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: DATABASE_URL
+    env:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: ${{ secrets.DATABASE_URL }}
+      SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+      SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+      FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Grant Gradle permission
+        run: chmod +x ./gradlew
+        working-directory: backend
+
+      - name: Sync US stock master
+        run: ./gradlew bootRun --args="--spring.main.web-application-type=none --maemoji.batch.run-once=stock-master"
+        working-directory: backend

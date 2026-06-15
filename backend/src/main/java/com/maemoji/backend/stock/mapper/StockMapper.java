@@ -1,15 +1,33 @@
 package com.maemoji.backend.stock.mapper;
 
 import com.maemoji.backend.stock.domain.Stock;
+import com.maemoji.backend.stock.domain.StockMasterUpsertCommand;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Mapper
 public interface StockMapper {
 
-    List<Stock> searchStocks(@Param("keyword") String keyword);
+    List<Stock> searchStocks(
+            @Param("keyword") String keyword,
+            @Param("limit") int limit
+    );
+
+    void upsertStockMasters(
+            @Param("stocks") List<StockMasterUpsertCommand> stocks
+    );
+
+    int deactivateMissingUsStocks(@Param("syncedAt") OffsetDateTime syncedAt);
+
+    int updateStockLogoCache(
+            @Param("id") Long id,
+            @Param("logoUrl") String logoUrl,
+            @Param("logoStatus") String logoStatus,
+            @Param("checkedAt") OffsetDateTime checkedAt
+    );
 
     Stock findStockById(@Param("id") Long id);
 

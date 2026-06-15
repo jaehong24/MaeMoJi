@@ -4,7 +4,9 @@ import java.time.OffsetDateTime;
 
 public class Stock {
     private Long id;
+    private String symbol;
     private String ticker;
+    private String exchange;
     private String exchangeCode;
     private String finnhubSymbol;
     private String nameKo;
@@ -14,7 +16,14 @@ public class Stock {
     private String nameEnNormalized;
     private String searchText;
     private String logoUrl;
+    private String logoStatus;
+    private OffsetDateTime logoCheckedAt;
     private String marketType;
+    private String assetType;
+    private String currency;
+    private String country;
+    private String sector;
+    private String industry;
     private Boolean isActive;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -27,12 +36,28 @@ public class Stock {
         this.id = id;
     }
 
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public void setSymbol(String symbol) {
+        this.symbol = symbol;
+    }
+
     public String getTicker() {
         return ticker;
     }
 
     public void setTicker(String ticker) {
         this.ticker = ticker;
+    }
+
+    public String getExchange() {
+        return exchange;
+    }
+
+    public void setExchange(String exchange) {
+        this.exchange = exchange;
     }
 
     public String getExchangeCode() {
@@ -107,12 +132,68 @@ public class Stock {
         this.logoUrl = logoUrl;
     }
 
+    public String getLogoStatus() {
+        return logoStatus;
+    }
+
+    public void setLogoStatus(String logoStatus) {
+        this.logoStatus = logoStatus;
+    }
+
+    public OffsetDateTime getLogoCheckedAt() {
+        return logoCheckedAt;
+    }
+
+    public void setLogoCheckedAt(OffsetDateTime logoCheckedAt) {
+        this.logoCheckedAt = logoCheckedAt;
+    }
+
     public String getMarketType() {
         return marketType;
     }
 
     public void setMarketType(String marketType) {
         this.marketType = marketType;
+    }
+
+    public String getAssetType() {
+        return assetType;
+    }
+
+    public void setAssetType(String assetType) {
+        this.assetType = assetType;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public String getSector() {
+        return sector;
+    }
+
+    public void setSector(String sector) {
+        this.sector = sector;
+    }
+
+    public String getIndustry() {
+        return industry;
+    }
+
+    public void setIndustry(String industry) {
+        this.industry = industry;
     }
 
     public Boolean getIsActive() {

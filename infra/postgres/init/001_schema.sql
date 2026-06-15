@@ -14,7 +14,9 @@ create unique index uk_users_email on users (email);
 
 create table stocks (
     id bigserial primary key,
+    symbol varchar(30) not null,
     ticker varchar(30) not null,
+    exchange varchar(30) not null,
     exchange_code varchar(30) not null,
     finnhub_symbol varchar(50),
     name_ko text,
@@ -24,12 +26,21 @@ create table stocks (
     name_en_normalized text not null,
     search_text text not null,
     logo_url text,
+    logo_status varchar(20),
+    logo_checked_at timestamptz,
     market_type varchar(50),
+    asset_type varchar(30) not null,
+    currency varchar(10) not null default 'USD',
+    country varchar(10) not null default 'US',
+    sector text,
+    industry text,
     is_active boolean not null default true,
+    last_master_sync_at timestamptz,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
 
+create unique index uk_stocks_symbol on stocks (symbol);
 create unique index uk_stocks_ticker_exchange
     on stocks (ticker, exchange_code);
 
