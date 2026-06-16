@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../models/evidence_item.dart';
@@ -196,10 +198,181 @@ class _FactorCard extends StatelessWidget {
               color: MaeMojiColors.inkSoft,
             ),
           ),
+          if (item.evidenceType == 'FACTOR_FUNDAMENTAL_QUALITY') ...[
+            const SizedBox(height: 12),
+            _FundamentalMetricStrip(rawDataJson: item.rawDataJson),
+          ],
         ],
       ),
     );
   }
+}
+
+class _FundamentalMetricStrip extends StatelessWidget {
+  const _FundamentalMetricStrip({required this.rawDataJson});
+
+  final String? rawDataJson;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = _buildMetrics(rawDataJson);
+    if (metrics.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: metrics
+          .map(
+            (metric) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F1E4),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    metric.label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: MaeMojiColors.inkMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    metric.value,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: MaeMojiColors.ink,
+                    ),
+                  ),
+                  if (metric.caption != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      metric.caption!,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: MaeMojiColors.inkSoft,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  List<_FundamentalMetricChip> _buildMetrics(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return const [];
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return const [];
+      }
+
+      final metrics = <_FundamentalMetricChip>[
+        if (decoded['epsTtm'] is num)
+          _FundamentalMetricChip(
+            label: 'EPS',
+            value: (decoded['epsTtm'] as num).toStringAsFixed(2),
+            caption: _bandLabel(decoded['epsBand']?.toString()),
+          ),
+        if (decoded['revenueGrowthYoy'] is num)
+          _FundamentalMetricChip(
+            label: '매출 성장',
+            value: _formatPercent(decoded['revenueGrowthYoy'] as num),
+            caption: _bandLabel(decoded['revenueGrowthBand']?.toString()),
+          ),
+        if (decoded['operatingMarginTtm'] is num)
+          _FundamentalMetricChip(
+            label: '영업이익률',
+            value: _formatPercent(decoded['operatingMarginTtm'] as num),
+            caption: _bandLabel(decoded['operatingMarginBand']?.toString()),
+          ),
+        if (decoded['roeTtm'] is num)
+          _FundamentalMetricChip(
+            label: 'ROE',
+            value: _formatPercent(decoded['roeTtm'] as num),
+            caption: _bandLabel(decoded['roeBand']?.toString()),
+          ),
+        if (decoded['debtToEquityTtm'] is num)
+          _FundamentalMetricChip(
+            label: '부채비율',
+            value: (decoded['debtToEquityTtm'] as num).toStringAsFixed(2),
+            caption: _bandLabel(decoded['debtToEquityBand']?.toString()),
+          ),
+      ];
+
+      return metrics;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  String _formatPercent(num value) {
+    final percent = value * 100;
+    final prefix = percent > 0 ? '+' : '';
+    return '$prefix${percent.toStringAsFixed(1)}%';
+  }
+
+  String? _bandLabel(String? band) {
+    switch ((band ?? '').toUpperCase()) {
+      case 'POSITIVE':
+        return '양호';
+      case 'NEGATIVE':
+        return '주의';
+      case 'STRONG':
+        return '강함';
+      case 'HEALTHY':
+        return '양호';
+      case 'FLAT':
+        return '보통';
+      case 'WEAK':
+        return '점검';
+      case 'CONSERVATIVE':
+        return '안정';
+      case 'BALANCED':
+        return '무난';
+      case 'STRETCHED':
+        return '주의';
+      case 'EXCESSIVE':
+        return '위험';
+      case 'FAIR':
+        return '무난';
+      case 'ATTRACTIVE':
+        return '매력적';
+      case 'EXPENSIVE':
+        return '높음';
+      case 'VERY_EXPENSIVE':
+        return '부담';
+      default:
+        return null;
+    }
+  }
+}
+
+class _FundamentalMetricChip {
+  const _FundamentalMetricChip({
+    required this.label,
+    required this.value,
+    this.caption,
+  });
+
+  final String label;
+  final String value;
+  final String? caption;
 }
 
 class _AiNoteCard extends StatelessWidget {

@@ -5,6 +5,7 @@ class EvidenceItem {
     required this.body,
     this.scoreImpact,
     this.displayOrder,
+    this.rawDataJson,
   });
 
   final String evidenceType;
@@ -12,6 +13,7 @@ class EvidenceItem {
   final String body;
   final int? scoreImpact;
   final int? displayOrder;
+  final String? rawDataJson;
 
   bool get isFactor => evidenceType.startsWith('FACTOR_');
 

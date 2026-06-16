@@ -931,7 +931,8 @@ public class RecommendationService {
                         + formatSignedPercent(scoreResult.thirtyDayReturn())
                         + "를 반영했습니다.",
                 scoreResult.priceScore(),
-                1
+                1,
+                null
         ));
         evidence.add(new RecommendationEvidenceResponse(
                 "NEWS_CACHE",
@@ -942,7 +943,8 @@ public class RecommendationService {
                         + formatSignedNumber(newsSummary.sentimentScore())
                         + "를 재사용했습니다.",
                 scoreResult.newsScore(),
-                2
+                2,
+                null
         ));
         return evidence;
     }
@@ -978,7 +980,8 @@ public class RecommendationService {
                         + formatSignedPercent(scoreResult.thirtyDayReturn())
                         + "와 가격 안정성을 함께 반영했어요.",
                 v4Context.priceMomentumScore(),
-                1
+                1,
+                null
         ));
         evidence.add(new RecommendationEvidenceResponse(
                 "NEWS_CACHE",
@@ -989,7 +992,8 @@ public class RecommendationService {
                         + formatSignedNumber(newsSummary.sentimentScore())
                         + "를 추천에 반영했어요.",
                 v4Context.newsScore(),
-                2
+                2,
+                null
         ));
         if (v4Context.userFitScore() != null) {
             evidence.add(new RecommendationEvidenceResponse(
@@ -997,7 +1001,8 @@ public class RecommendationService {
                     "내 투자 상황",
                     "현재 매일 모으기 금액과 보유 정보를 함께 반영했어요.",
                     v4Context.userFitScore(),
-                    3
+                    3,
+                    null
             ));
         }
         return evidence;
@@ -1104,7 +1109,8 @@ public class RecommendationService {
                         "추천 분석 대기",
                         "홈 화면에서는 저장된 추천 결과만 빠르게 보여줍니다. 상세 분석이 필요하면 추천 생성 시 최신 분석을 불러옵니다.",
                         null,
-                        1
+                        1,
+                        null
                 )
         );
 
@@ -1195,7 +1201,8 @@ public class RecommendationService {
                 command.getTitle(),
                 command.getBody(),
                 command.getScoreImpact(),
-                command.getDisplayOrder()
+                command.getDisplayOrder(),
+                null
         );
     }
 
@@ -1205,7 +1212,8 @@ public class RecommendationService {
                 record.getTitle(),
                 record.getBody(),
                 record.getScoreImpact(),
-                record.getDisplayOrder()
+                record.getDisplayOrder(),
+                null
         );
     }
 
@@ -1275,7 +1283,8 @@ public class RecommendationService {
                         record.getFactorRawJson()
                 ),
                 record.getFactorScore(),
-                resolveFactorDisplayOrder(record.getFactorCode())
+                resolveFactorDisplayOrder(record.getFactorCode()),
+                record.getFactorRawJson()
         );
     }
 
@@ -1293,7 +1302,8 @@ public class RecommendationService {
                         command.getFactorRawJson()
                 ),
                 command.getFactorScore(),
-                resolveFactorDisplayOrder(command.getFactorCode())
+                resolveFactorDisplayOrder(command.getFactorCode()),
+                command.getFactorRawJson()
         );
     }
 
@@ -1661,14 +1671,39 @@ public class RecommendationService {
         for (RecommendationScoreCalculator.FactorResult factor : v4ScoreResult.factors()) {
             final RecommendationFactorDetailSaveCommand command =
                     new RecommendationFactorDetailSaveCommand();
+            final String factorSummary = resolveFactorSummary(factor, v4Context);
             command.setFactorCode(factor.factorCode().name());
             command.setFactorScore(factor.score());
             command.setFactorWeight(factor.appliedWeight());
-            command.setFactorSummary(factor.summary());
+            command.setFactorSummary(factorSummary);
             command.setFactorRawJson(buildFactorRawJson(factor, v4ScoreResult, v4Context));
             commands.add(command);
         }
         return commands;
+    }
+
+    private String resolveFactorSummary(
+            RecommendationScoreCalculator.FactorResult factor,
+            V4ScoringContext v4Context
+    ) {
+        return switch (factor.factorCode()) {
+            case PRICE_MOMENTUM -> buildPriceMomentumSummary(
+                    v4Context == null ? null : v4Context.priceSnapshot()
+            );
+            case PRICE_STABILITY -> buildPriceStabilitySummary(
+                    v4Context == null ? null : v4Context.priceSnapshot()
+            );
+            case NEWS_SENTIMENT -> buildNewsSentimentSummary(
+                    v4Context == null ? null : v4Context.rawNewsSentimentScore(),
+                    v4Context == null ? null : v4Context.input()
+            );
+            case FUNDAMENTAL_QUALITY -> buildFundamentalFactorSummary(
+                    v4Context == null ? null : v4Context.fundamentalQualityAssessment()
+            );
+            case USER_FIT -> v4Context != null && v4Context.userFitAssessment() != null
+                    ? blankToEmpty(v4Context.userFitAssessment().summary())
+                    : factor.summary();
+        };
     }
 
     private String buildFactorRawJson(
@@ -2524,6 +2559,14 @@ public class RecommendationService {
             Integer factorWeight,
             String factorRawJson
     ) {
+        if ("FUNDAMENTAL_QUALITY".equals(blankToEmpty(factorCode))) {
+            return buildFundamentalEvidenceBody(
+                    factorSummary,
+                    factorScore,
+                    factorWeight,
+                    factorRawJson
+            );
+        }
         if ("USER_FIT".equals(blankToEmpty(factorCode))) {
             return buildUserFitEvidenceBody(
                     factorSummary,
@@ -2539,6 +2582,81 @@ public class RecommendationService {
                 + "점, 가중치 "
                 + zeroIfNull(factorWeight)
                 + "을 반영했어요.";
+    }
+
+    private String buildFundamentalEvidenceBody(
+            String factorSummary,
+            Integer factorScore,
+            Integer factorWeight,
+            String factorRawJson
+    ) {
+        try {
+            final JsonNode node = objectMapper.readTree(blankToEmpty(factorRawJson));
+            final List<String> parts = new ArrayList<>();
+            if (!blankToEmpty(factorSummary).isBlank()) {
+                parts.add(blankToEmpty(factorSummary));
+            }
+
+            appendBandSentence(parts, node.path("marketCapTier").asText(""), switch (node.path("marketCapTier").asText("")) {
+                case "MEGA_CAP" -> "초대형주 체급이어서 기본 안정성을 높게 봤어요.";
+                case "LARGE_CAP" -> "대형주 체급이라 기본 안정성을 긍정적으로 반영했어요.";
+                case "UPPER_MID_CAP" -> "중대형주 체급이라 일정 수준의 버팀력을 반영했어요.";
+                case "MID_CAP" -> "중형주 체급으로 중립에 가깝게 반영했어요.";
+                case "SMALL_CAP" -> "소형주라 변동 가능성을 감안해 보수적으로 봤어요.";
+                default -> "";
+            });
+            appendBandSentence(parts, node.path("perBand").asText(""), switch (node.path("perBand").asText("")) {
+                case "ATTRACTIVE" -> "밸류에이션 부담이 비교적 낮아요.";
+                case "FAIR" -> "밸류에이션은 과도하지 않은 편이에요.";
+                case "EXPENSIVE" -> "밸류에이션 부담은 다소 있지만 감내 가능한 수준으로 봤어요.";
+                case "VERY_EXPENSIVE" -> "밸류에이션 부담이 커서 가점을 제한했어요.";
+                case "NEGATIVE_OR_UNCLEAR" -> "PER 해석이 어려워 밸류 평가는 보수적으로 반영했어요.";
+                default -> "";
+            });
+            appendBandSentence(parts, node.path("epsBand").asText(""), switch (node.path("epsBand").asText("")) {
+                case "POSITIVE" -> "EPS가 흑자라 기본 수익 체력을 긍정적으로 봤어요.";
+                case "NEGATIVE" -> "EPS가 적자라 기본 체력은 보수적으로 봤어요.";
+                default -> "";
+            });
+            appendBandSentence(parts, node.path("revenueGrowthBand").asText(""), switch (node.path("revenueGrowthBand").asText("")) {
+                case "STRONG" -> "매출 성장세가 강해 성장 동력을 높게 평가했어요.";
+                case "HEALTHY" -> "매출이 안정적으로 늘고 있어요.";
+                case "FLAT" -> "매출 성장은 크지 않아 중립으로 반영했어요.";
+                case "NEGATIVE" -> "매출이 줄어드는 구간이라 감점했어요.";
+                default -> "";
+            });
+            appendBandSentence(parts, node.path("operatingMarginBand").asText(""), switch (node.path("operatingMarginBand").asText("")) {
+                case "STRONG" -> "영업이익률이 높아 수익성이 탄탄해요.";
+                case "HEALTHY" -> "영업이익률이 무난하게 유지되고 있어요.";
+                case "WEAK" -> "영업이익률은 다소 낮아 추가 확인이 필요해요.";
+                case "NEGATIVE" -> "수익성이 약해 체력을 낮게 평가했어요.";
+                default -> "";
+            });
+            appendBandSentence(parts, node.path("roeBand").asText(""), switch (node.path("roeBand").asText("")) {
+                case "STRONG" -> "ROE가 높아 자본 효율이 좋아요.";
+                case "HEALTHY" -> "ROE는 양호한 편이에요.";
+                case "WEAK" -> "ROE는 중립 수준으로 반영했어요.";
+                case "NEGATIVE" -> "ROE가 낮아 효율성은 보수적으로 봤어요.";
+                default -> "";
+            });
+            appendBandSentence(parts, node.path("debtToEquityBand").asText(""), switch (node.path("debtToEquityBand").asText("")) {
+                case "CONSERVATIVE" -> "부채 부담이 낮아 재무 안정성은 좋은 편이에요.";
+                case "BALANCED" -> "부채 수준은 관리 가능한 범위예요.";
+                case "STRETCHED" -> "부채 부담이 있어 점수를 일부 낮췄어요.";
+                case "EXCESSIVE" -> "부채 부담이 커 재무 안정성을 낮게 봤어요.";
+                default -> "";
+            });
+            appendSignedAdjustment(parts, "조합 보정", node.path("combinationAdjustment"));
+            parts.add("기업 체력 점수 " + zeroIfNull(factorScore) + "점, 가중치 " + zeroIfNull(factorWeight) + "을 반영했어요.");
+            return String.join(" ", parts);
+        } catch (Exception exception) {
+            return blankToEmpty(factorSummary)
+                    + " 기업 체력 점수 "
+                    + zeroIfNull(factorScore)
+                    + "점, 가중치 "
+                    + zeroIfNull(factorWeight)
+                    + "을 반영했어요.";
+        }
     }
 
     private String buildUserFitEvidenceBody(
@@ -2595,6 +2713,132 @@ public class RecommendationService {
             return;
         }
         parts.add(label + "은 " + formatSignedNumber(value) + "점이에요.");
+    }
+
+    private void appendBandSentence(List<String> parts, String band, String sentence) {
+        if (band == null || band.isBlank() || sentence == null || sentence.isBlank()) {
+            return;
+        }
+        parts.add(sentence);
+    }
+
+    private String buildPriceMomentumSummary(PriceSnapshot priceSnapshot) {
+        if (priceSnapshot == null || !priceSnapshot.hasThirtyDayReturn()) {
+            return "최근 가격 흐름 데이터가 부족해 모멘텀 평가는 보수적으로 반영했어요.";
+        }
+        final Double return30d = priceSnapshot.thirtyDayReturn();
+        if (return30d == null) {
+            return "최근 가격 흐름 데이터가 부족해 모멘텀 평가는 보수적으로 반영했어요.";
+        }
+        if (return30d >= 15) {
+            return "최근 30일 상승 폭이 커 단기 과열 가능성을 함께 봤어요.";
+        }
+        if (return30d >= 5) {
+            return "최근 30일 흐름이 완만하게 우상향하고 있어요.";
+        }
+        if (return30d <= -10) {
+            return "최근 30일 조정 폭이 커 단기 약세 흐름을 반영했어요.";
+        }
+        if (return30d <= -3) {
+            return "최근 30일 흐름이 다소 약해 보수적으로 반영했어요.";
+        }
+        return "최근 30일 흐름은 중립 범위로 봤어요.";
+    }
+
+    private String buildPriceStabilitySummary(PriceSnapshot priceSnapshot) {
+        if (priceSnapshot == null) {
+            return "변동성과 하방 리스크를 기준으로 안정성을 평가했어요.";
+        }
+        if (priceSnapshot.hasSevereDrop()) {
+            return "최근 낙폭이 커 하방 리스크를 높게 반영했어요.";
+        }
+        final Double abs30d = absoluteOrNull(priceSnapshot.thirtyDayReturn());
+        if (abs30d != null && abs30d <= 5) {
+            return "최근 가격 변동이 크지 않아 안정성은 좋은 편이에요.";
+        }
+        if (abs30d != null && abs30d >= 20) {
+            return "최근 가격 변동 폭이 커 안정성 점수는 보수적으로 반영했어요.";
+        }
+        return "변동성과 하방 리스크를 기준으로 안정성을 평가했어요.";
+    }
+
+    private String buildNewsSentimentSummary(
+            Integer rawNewsSentimentScore,
+            RecommendationScoreCalculator.V4Input input
+    ) {
+        if (rawNewsSentimentScore == null) {
+            return "관련성 높은 최신 뉴스가 적어 뉴스 평가는 제한적으로 반영했어요.";
+        }
+        if (input != null && input.hardNegativeNews()) {
+            return "강한 악재 뉴스가 확인돼 다른 긍정 기사보다 우선 반영했어요.";
+        }
+        if (rawNewsSentimentScore >= 40) {
+            return "관련 뉴스 분위기가 전반적으로 긍정적이에요.";
+        }
+        if (rawNewsSentimentScore >= 10) {
+            return "관련 뉴스가 다소 긍정적인 편이에요.";
+        }
+        if (rawNewsSentimentScore <= -20) {
+            return "관련 뉴스 분위기가 부정적으로 기울어 있어요.";
+        }
+        return "관련 뉴스는 전반적으로 중립에 가까웠어요.";
+    }
+
+    private String buildFundamentalFactorSummary(FundamentalQualityAssessment assessment) {
+        if (assessment == null) {
+            return "기업 체력과 밸류에이션을 함께 반영했어요.";
+        }
+
+        final List<String> points = new ArrayList<>();
+        if ("POSITIVE".equals(assessment.epsBand())) {
+            points.add("흑자 EPS");
+        }
+        if ("STRONG".equals(assessment.revenueGrowthBand())) {
+            points.add("강한 매출 성장");
+        } else if ("HEALTHY".equals(assessment.revenueGrowthBand())) {
+            points.add("안정적 매출 성장");
+        }
+        if ("STRONG".equals(assessment.operatingMarginBand())) {
+            points.add("높은 수익성");
+        } else if ("HEALTHY".equals(assessment.operatingMarginBand())) {
+            points.add("양호한 수익성");
+        }
+        if ("STRONG".equals(assessment.roeBand()) || "HEALTHY".equals(assessment.roeBand())) {
+            points.add("좋은 자본 효율");
+        }
+        if ("CONSERVATIVE".equals(assessment.debtToEquityBand())) {
+            points.add("낮은 부채 부담");
+        }
+
+        final List<String> risks = new ArrayList<>();
+        if ("NEGATIVE".equals(assessment.epsBand())) {
+            risks.add("적자 EPS");
+        }
+        if ("NEGATIVE".equals(assessment.revenueGrowthBand())) {
+            risks.add("매출 역성장");
+        }
+        if ("NEGATIVE".equals(assessment.operatingMarginBand()) || "WEAK".equals(assessment.operatingMarginBand())) {
+            risks.add("약한 수익성");
+        }
+        if ("NEGATIVE".equals(assessment.roeBand())) {
+            risks.add("낮은 자본 효율");
+        }
+        if ("STRETCHED".equals(assessment.debtToEquityBand()) || "EXCESSIVE".equals(assessment.debtToEquityBand())) {
+            risks.add("높은 부채 부담");
+        }
+
+        if (!points.isEmpty() && risks.isEmpty()) {
+            return String.join(", ", points) + "이 확인돼 기업 체력을 높게 평가했어요.";
+        }
+        if (points.isEmpty() && !risks.isEmpty()) {
+            return String.join(", ", risks) + "이 보여 기업 체력은 보수적으로 봤어요.";
+        }
+        if (!points.isEmpty()) {
+            return String.join(", ", points) + "은 강점이지만 " + String.join(", ", risks) + "은 함께 살폈어요.";
+        }
+        return blankToEmpty(assessment.summary()).isBlank()
+                ? "기업 체력과 밸류에이션을 함께 반영했어요."
+                : assessment.summary();
     }
 
     private String formatUsdAmount(double value) {

@@ -5,6 +5,7 @@ public record RecommendationEvidenceResponse(
         String title,
         String body,
         Integer scoreImpact,
-        Integer displayOrder
+        Integer displayOrder,
+        String rawDataJson
 ) {
 }

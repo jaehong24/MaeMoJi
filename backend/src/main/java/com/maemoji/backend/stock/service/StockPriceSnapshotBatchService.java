@@ -262,6 +262,12 @@ public class StockPriceSnapshotBatchService {
         if (root == null || root.isMissingNode() || root.isNull()) {
             return null;
         }
+        if (root.isArray()) {
+            return root.isEmpty() ? null : root.get(0);
+        }
+        if (root.isObject() && root.has("symbol")) {
+            return root;
+        }
         final JsonNode value = root.path("value");
         if (!value.isArray() || value.isEmpty()) {
             return null;

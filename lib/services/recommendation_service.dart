@@ -165,6 +165,7 @@ class RecommendationService {
               body: (evidence['body'] ?? '').toString(),
               scoreImpact: (evidence['scoreImpact'] as num?)?.toInt(),
               displayOrder: (evidence['displayOrder'] as num?)?.toInt(),
+              rawDataJson: _nullableText(evidence['rawDataJson']),
             ),
           )
           .toList();
