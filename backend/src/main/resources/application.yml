@@ -111,6 +111,41 @@ maemoji:
           expensive-adjustment: 0
           very-expensive-adjustment: -10
           negative-or-unclear-adjustment: -8
+        eps:
+          positive-adjustment: 8
+          negative-adjustment: -14
+        revenue-growth:
+          strong-min: 0.15
+          healthy-min: 0.05
+          flat-min: 0.0
+          strong-adjustment: 8
+          healthy-adjustment: 4
+          flat-adjustment: 0
+          negative-adjustment: -8
+        operating-margin:
+          strong-min: 0.25
+          healthy-min: 0.15
+          weak-min: 0.05
+          strong-adjustment: 8
+          healthy-adjustment: 4
+          weak-adjustment: 0
+          negative-adjustment: -10
+        roe:
+          strong-min: 0.20
+          healthy-min: 0.10
+          weak-min: 0.0
+          strong-adjustment: 6
+          healthy-adjustment: 3
+          weak-adjustment: 0
+          negative-adjustment: -8
+        debt-to-equity:
+          conservative-max: 0.8
+          balanced-max: 1.5
+          stretched-max: 3.0
+          conservative-adjustment: 4
+          balanced-adjustment: 1
+          stretched-adjustment: -4
+          excessive-adjustment: -8
         combination:
           positive-market-cap-min: 50000
           positive-per-max: 35
@@ -118,3 +153,5 @@ maemoji:
           negative-market-cap-max: 10000
           negative-per-min: 60
           negative-adjustment: -4
+          quality-stack-adjustment: 6
+          fragile-stack-adjustment: -6

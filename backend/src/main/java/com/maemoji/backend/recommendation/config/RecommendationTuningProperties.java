@@ -247,6 +247,11 @@ public class RecommendationTuningProperties {
         private int baseScore = 50;
         private MarketCap marketCap = new MarketCap();
         private Per per = new Per();
+        private Eps eps = new Eps();
+        private RevenueGrowth revenueGrowth = new RevenueGrowth();
+        private OperatingMargin operatingMargin = new OperatingMargin();
+        private Roe roe = new Roe();
+        private DebtToEquity debtToEquity = new DebtToEquity();
         private Combination combination = new Combination();
 
         public int getBaseScore() {
@@ -271,6 +276,46 @@ public class RecommendationTuningProperties {
 
         public void setPer(Per per) {
             this.per = per;
+        }
+
+        public Eps getEps() {
+            return eps;
+        }
+
+        public void setEps(Eps eps) {
+            this.eps = eps;
+        }
+
+        public RevenueGrowth getRevenueGrowth() {
+            return revenueGrowth;
+        }
+
+        public void setRevenueGrowth(RevenueGrowth revenueGrowth) {
+            this.revenueGrowth = revenueGrowth;
+        }
+
+        public OperatingMargin getOperatingMargin() {
+            return operatingMargin;
+        }
+
+        public void setOperatingMargin(OperatingMargin operatingMargin) {
+            this.operatingMargin = operatingMargin;
+        }
+
+        public Roe getRoe() {
+            return roe;
+        }
+
+        public void setRoe(Roe roe) {
+            this.roe = roe;
+        }
+
+        public DebtToEquity getDebtToEquity() {
+            return debtToEquity;
+        }
+
+        public void setDebtToEquity(DebtToEquity debtToEquity) {
+            this.debtToEquity = debtToEquity;
         }
 
         public Combination getCombination() {
@@ -448,6 +493,8 @@ public class RecommendationTuningProperties {
         private double negativeMarketCapMax = 10_000;
         private double negativePerMin = 60;
         private int negativeAdjustment = -4;
+        private int qualityStackAdjustment = 6;
+        private int fragileStackAdjustment = -6;
 
         public double getPositiveMarketCapMin() {
             return positiveMarketCapMin;
@@ -495,6 +542,307 @@ public class RecommendationTuningProperties {
 
         public void setNegativeAdjustment(int negativeAdjustment) {
             this.negativeAdjustment = negativeAdjustment;
+        }
+
+        public int getQualityStackAdjustment() {
+            return qualityStackAdjustment;
+        }
+
+        public void setQualityStackAdjustment(int qualityStackAdjustment) {
+            this.qualityStackAdjustment = qualityStackAdjustment;
+        }
+
+        public int getFragileStackAdjustment() {
+            return fragileStackAdjustment;
+        }
+
+        public void setFragileStackAdjustment(int fragileStackAdjustment) {
+            this.fragileStackAdjustment = fragileStackAdjustment;
+        }
+    }
+
+    public static class Eps {
+        private int positiveAdjustment = 8;
+        private int negativeAdjustment = -14;
+
+        public int getPositiveAdjustment() {
+            return positiveAdjustment;
+        }
+
+        public void setPositiveAdjustment(int positiveAdjustment) {
+            this.positiveAdjustment = positiveAdjustment;
+        }
+
+        public int getNegativeAdjustment() {
+            return negativeAdjustment;
+        }
+
+        public void setNegativeAdjustment(int negativeAdjustment) {
+            this.negativeAdjustment = negativeAdjustment;
+        }
+    }
+
+    public static class RevenueGrowth {
+        private double strongMin = 0.15;
+        private double healthyMin = 0.05;
+        private double flatMin = 0.0;
+        private int strongAdjustment = 8;
+        private int healthyAdjustment = 4;
+        private int flatAdjustment = 0;
+        private int negativeAdjustment = -8;
+
+        public double getStrongMin() {
+            return strongMin;
+        }
+
+        public void setStrongMin(double strongMin) {
+            this.strongMin = strongMin;
+        }
+
+        public double getHealthyMin() {
+            return healthyMin;
+        }
+
+        public void setHealthyMin(double healthyMin) {
+            this.healthyMin = healthyMin;
+        }
+
+        public double getFlatMin() {
+            return flatMin;
+        }
+
+        public void setFlatMin(double flatMin) {
+            this.flatMin = flatMin;
+        }
+
+        public int getStrongAdjustment() {
+            return strongAdjustment;
+        }
+
+        public void setStrongAdjustment(int strongAdjustment) {
+            this.strongAdjustment = strongAdjustment;
+        }
+
+        public int getHealthyAdjustment() {
+            return healthyAdjustment;
+        }
+
+        public void setHealthyAdjustment(int healthyAdjustment) {
+            this.healthyAdjustment = healthyAdjustment;
+        }
+
+        public int getFlatAdjustment() {
+            return flatAdjustment;
+        }
+
+        public void setFlatAdjustment(int flatAdjustment) {
+            this.flatAdjustment = flatAdjustment;
+        }
+
+        public int getNegativeAdjustment() {
+            return negativeAdjustment;
+        }
+
+        public void setNegativeAdjustment(int negativeAdjustment) {
+            this.negativeAdjustment = negativeAdjustment;
+        }
+    }
+
+    public static class OperatingMargin {
+        private double strongMin = 0.25;
+        private double healthyMin = 0.15;
+        private double weakMin = 0.05;
+        private int strongAdjustment = 8;
+        private int healthyAdjustment = 4;
+        private int weakAdjustment = 0;
+        private int negativeAdjustment = -10;
+
+        public double getStrongMin() {
+            return strongMin;
+        }
+
+        public void setStrongMin(double strongMin) {
+            this.strongMin = strongMin;
+        }
+
+        public double getHealthyMin() {
+            return healthyMin;
+        }
+
+        public void setHealthyMin(double healthyMin) {
+            this.healthyMin = healthyMin;
+        }
+
+        public double getWeakMin() {
+            return weakMin;
+        }
+
+        public void setWeakMin(double weakMin) {
+            this.weakMin = weakMin;
+        }
+
+        public int getStrongAdjustment() {
+            return strongAdjustment;
+        }
+
+        public void setStrongAdjustment(int strongAdjustment) {
+            this.strongAdjustment = strongAdjustment;
+        }
+
+        public int getHealthyAdjustment() {
+            return healthyAdjustment;
+        }
+
+        public void setHealthyAdjustment(int healthyAdjustment) {
+            this.healthyAdjustment = healthyAdjustment;
+        }
+
+        public int getWeakAdjustment() {
+            return weakAdjustment;
+        }
+
+        public void setWeakAdjustment(int weakAdjustment) {
+            this.weakAdjustment = weakAdjustment;
+        }
+
+        public int getNegativeAdjustment() {
+            return negativeAdjustment;
+        }
+
+        public void setNegativeAdjustment(int negativeAdjustment) {
+            this.negativeAdjustment = negativeAdjustment;
+        }
+    }
+
+    public static class Roe {
+        private double strongMin = 0.20;
+        private double healthyMin = 0.10;
+        private double weakMin = 0.0;
+        private int strongAdjustment = 6;
+        private int healthyAdjustment = 3;
+        private int weakAdjustment = 0;
+        private int negativeAdjustment = -8;
+
+        public double getStrongMin() {
+            return strongMin;
+        }
+
+        public void setStrongMin(double strongMin) {
+            this.strongMin = strongMin;
+        }
+
+        public double getHealthyMin() {
+            return healthyMin;
+        }
+
+        public void setHealthyMin(double healthyMin) {
+            this.healthyMin = healthyMin;
+        }
+
+        public double getWeakMin() {
+            return weakMin;
+        }
+
+        public void setWeakMin(double weakMin) {
+            this.weakMin = weakMin;
+        }
+
+        public int getStrongAdjustment() {
+            return strongAdjustment;
+        }
+
+        public void setStrongAdjustment(int strongAdjustment) {
+            this.strongAdjustment = strongAdjustment;
+        }
+
+        public int getHealthyAdjustment() {
+            return healthyAdjustment;
+        }
+
+        public void setHealthyAdjustment(int healthyAdjustment) {
+            this.healthyAdjustment = healthyAdjustment;
+        }
+
+        public int getWeakAdjustment() {
+            return weakAdjustment;
+        }
+
+        public void setWeakAdjustment(int weakAdjustment) {
+            this.weakAdjustment = weakAdjustment;
+        }
+
+        public int getNegativeAdjustment() {
+            return negativeAdjustment;
+        }
+
+        public void setNegativeAdjustment(int negativeAdjustment) {
+            this.negativeAdjustment = negativeAdjustment;
+        }
+    }
+
+    public static class DebtToEquity {
+        private double conservativeMax = 0.8;
+        private double balancedMax = 1.5;
+        private double stretchedMax = 3.0;
+        private int conservativeAdjustment = 4;
+        private int balancedAdjustment = 1;
+        private int stretchedAdjustment = -4;
+        private int excessiveAdjustment = -8;
+
+        public double getConservativeMax() {
+            return conservativeMax;
+        }
+
+        public void setConservativeMax(double conservativeMax) {
+            this.conservativeMax = conservativeMax;
+        }
+
+        public double getBalancedMax() {
+            return balancedMax;
+        }
+
+        public void setBalancedMax(double balancedMax) {
+            this.balancedMax = balancedMax;
+        }
+
+        public double getStretchedMax() {
+            return stretchedMax;
+        }
+
+        public void setStretchedMax(double stretchedMax) {
+            this.stretchedMax = stretchedMax;
+        }
+
+        public int getConservativeAdjustment() {
+            return conservativeAdjustment;
+        }
+
+        public void setConservativeAdjustment(int conservativeAdjustment) {
+            this.conservativeAdjustment = conservativeAdjustment;
+        }
+
+        public int getBalancedAdjustment() {
+            return balancedAdjustment;
+        }
+
+        public void setBalancedAdjustment(int balancedAdjustment) {
+            this.balancedAdjustment = balancedAdjustment;
+        }
+
+        public int getStretchedAdjustment() {
+            return stretchedAdjustment;
+        }
+
+        public void setStretchedAdjustment(int stretchedAdjustment) {
+            this.stretchedAdjustment = stretchedAdjustment;
+        }
+
+        public int getExcessiveAdjustment() {
+            return excessiveAdjustment;
+        }
+
+        public void setExcessiveAdjustment(int excessiveAdjustment) {
+            this.excessiveAdjustment = excessiveAdjustment;
         }
     }
 }

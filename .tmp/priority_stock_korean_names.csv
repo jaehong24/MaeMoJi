@@ -1,0 +1,535 @@
+﻿ticker,exchange_code,finnhub_symbol,name_ko,name_en,source
+A,NYSE,A,에이 지 아이 엘 이 엔 티 테크놀로지스,"Agilent Technologies, Inc. Common Stock",uploaded_csv
+AAPL,NASDAQ,AAPL,??,Apple Inc. - Common Stock,manual
+ABBV,NYSE,ABBV,애브비,AbbVie Inc. Common Stock,uploaded_csv
+ABNB,NASDAQ,ABNB,에이 아이 알 비 엔 비,"Airbnb, Inc. - Class A Common Stock",uploaded_csv
+ABT,NYSE,ABT,에이 비 비 오 티 티 엘 에이 비 오 알 에이 티 오 알 아이 이 에스,Abbott Laboratories Common Stock,uploaded_csv
+ACGL,NASDAQ,ACGL,에이 알 씨 에이치 캐피털 그룹,Arch Capital Group Ltd. - Common Stock,uploaded_csv
+ACN,NYSE,ACN,에이씨엔,Accenture plc Class A Ordinary Shares (Ireland),uploaded_csv
+ADBE,NASDAQ,ADBE,어도비,Adobe Inc. - Common Stock,uploaded_csv
+ADI,NASDAQ,ADI,에이 엔 에이 엘 오 지 디바이시스,"Analog Devices, Inc. - Common Stock",uploaded_csv
+ADM,NYSE,ADM,에이 알 씨 에이치 이 알 디 에이 엔 아이 이 엘 에스 엠 아이 디 엘 에이 엔 디,Archer-Daniels-Midland Company Common Stock,uploaded_csv
+ADP,NASDAQ,ADP,에이 유 티 오 엠 에이 티 아이 씨 디 에이 티 에이 피 알 오 씨 이 에스 에스 아이 엔 지,"Automatic Data Processing, Inc. - Common Stock",uploaded_csv
+ADSK,NASDAQ,ADSK,에이 유 티 오 디 이 에스 케이,"Autodesk, Inc. - Common Stock",uploaded_csv
+AEE,NYSE,AEE,에이 엠 이 알 이 엔,Ameren Corporation Common Stock,uploaded_csv
+AEP,NASDAQ,AEP,아메리칸 이 엘 이 씨 티 알 아이 씨 피 오 더블유 이 알,"American Electric Power Company, Inc. - Common Stock",uploaded_csv
+AES,NYSE,AES,티 에이치 이 에이이에스,The AES Corporation Common Stock,uploaded_csv
+AFL,NYSE,AFL,에이에프엘에이씨,AFLAC Incorporated Common Stock,uploaded_csv
+AIG,NYSE,AIG,아메리칸 인터내셔널 그룹 엔 이 더블유,"American International Group, Inc. New Common Stock",uploaded_csv
+AIZ,NYSE,AIZ,에이 에스 에스 유 알 에이 엔 티,"Assurant, Inc. Common Stock",uploaded_csv
+AJG,NYSE,AJG,에이 알 티 에이치 유 알 제이 지 에이 엘 엘 에이 지 에이치 이 알 앤,Arthur J. Gallagher & Co. Common Stock,uploaded_csv
+AKAM,NASDAQ,AKAM,에이 케이 에이 엠 에이 아이 테크놀로지스,"Akamai Technologies, Inc. - Common Stock",uploaded_csv
+ALB,NYSE,ALB,에이 엘 비 이 엠 에이 알 엘 이,Albemarle Corporation Common Stock,uploaded_csv
+ALGN,NASDAQ,ALGN,에이 엘 아이 지 엔 테크놀로지,"Align Technology, Inc. - Common Stock",uploaded_csv
+ALL,NYSE,ALL,에이 엘 엘 에스 티 에이 티 이 티 에이치 이,Allstate Corporation (The) Common Stock,uploaded_csv
+ALLE,NYSE,ALLE,에이엘엘이,Allegion plc Ordinary Shares,uploaded_csv
+ALNY,NASDAQ,ALNY,에이 엘 엔 와이 엘 에이 엠 파마슈티컬스,"Alnylam Pharmaceuticals, Inc. - Common Stock",uploaded_csv
+AMAT,NASDAQ,AMAT,????? ?????,"Applied Materials, Inc. - Common Stock",manual
+AMCR,NYSE,AMCR,에이엠씨알,Amcor plc Ordinary Shares,uploaded_csv
+AMD,NASDAQ,AMD,AMD,"Advanced Micro Devices, Inc. - Common Stock",manual
+AME,NYSE,AME,에이엠이티이케이,"AMETEK, Inc.",uploaded_csv
+AMGN,NASDAQ,AMGN,에이 엠 지 이 엔,Amgen Inc. - Common Stock,uploaded_csv
+AMP,NYSE,AMP,에이 엠 이 알 아이 피 알 아이 에스 이 파이낸셜,"Ameriprise Financial, Inc. Common Stock",uploaded_csv
+AMT,NYSE,AMT,아메리칸 티 오 더블유 이 알 알이아이티,American Tower Corporation (REIT) Common Stock,uploaded_csv
+AMZN,NASDAQ,AMZN,???,"Amazon.com, Inc. - Common Stock",manual
+ANET,NYSE,ANET,에이 알 아이 에스 티 에이 엔 이 티 더블유 오 알 케이 에스,"Arista Networks, Inc. Common Stock",uploaded_csv
+AON,NYSE,AON,에이오엔,Aon plc Class A Ordinary Shares (Ireland),uploaded_csv
+AOS,NYSE,AOS,에이 오 에스 엠 아이 티 에이치,A.O. Smith Corporation Common Stock,uploaded_csv
+APA,NASDAQ,APA,에이피에이,APA Corporation - Common Stock,uploaded_csv
+APD,NYSE,APD,에이 아이 알 피 알 오 디 유 씨 티 에스 앤드 씨 에이치 이 엠 아이 씨 에이 엘 에스,"Air Products and Chemicals, Inc. Common Stock",uploaded_csv
+APH,NYSE,APH,에이 엠 피 에이치 이 엔 오 엘,Amphenol Corporation Common Stock,uploaded_csv
+APO,NYSE,APO,에이 피 오 엘 엘 오 글로벌 엠 에이 엔 에이 지 이 엠 이 엔 티 엔 이 더블유,"Apollo Global Management, Inc. (New) Common Stock",uploaded_csv
+APP,NASDAQ,APP,에이 피 피 엘 오 브이 아이 엔,Applovin Corporation - Class A Common Stock,uploaded_csv
+APTV,NYSE,APTV,에이피티브이,Aptiv PLC Ordinary Shares,uploaded_csv
+ARE,NYSE,ARE,에이 엘 이 엑스 에이 엔 디 알 아이 에이 알 이 에이 엘 이 에스 티 에이 티 이 이 큐 유 아이 티 아이 이 에스,"Alexandria Real Estate Equities, Inc. Common Stock",uploaded_csv
+ARES,NYSE,ARES,에이 알 이 에스 엠 에이 엔 에이 지 이 엠 이 엔 티,Ares Management Corporation Class A Common Stock,uploaded_csv
+ARKF,BATS,ARKF,ARK ??? ?? ETF,ARK Blockchain & Fintech Innovation ETF,manual
+ARKG,BATS,ARKG,ARK ??? ?? ETF,ARK Genomic Revolution ETF,manual
+ARKK,BATS,ARKK,ARK ?? ETF,ARK Innovation ETF,manual
+ARM,NASDAQ,ARM,Arm ???,Arm Holdings plc - American Depositary Shares,manual
+ASML,NASDAQ,ASML,ASML,ASML Holding N.V. - New York Registry Shares,manual
+ATO,NYSE,ATO,에이 티 엠 오 에스 에너지,Atmos Energy Corporation Common Stock,uploaded_csv
+AVB,NYSE,AVB,에이 브이 에이 엘 오 엔 비 에이 와이 씨 오 엠 엠 유 엔 아이 티 아이 이 에스,"AvalonBay Communities, Inc. Common Stock",uploaded_csv
+AVGO,NASDAQ,AVGO,????,Broadcom Inc. - Common Stock,manual
+AVY,NYSE,AVY,에이 브이 이 알 와이 디 이 엔 엔 아이 에스 오 엔,Avery Dennison Corporation Common Stock,uploaded_csv
+AWK,NYSE,AWK,아메리칸 더블유 에이 티 이 알 더블유 오 알 케이 에스,"American Water Works Company, Inc. Common Stock",uploaded_csv
+AXON,NASDAQ,AXON,에이 엑스 오 엔 엔터프라이즈,"Axon Enterprise, Inc. - Common Stock",uploaded_csv
+AXP,NYSE,AXP,아메리칸 익스프레스,American Express Company Common Stock,uploaded_csv
+AZO,NYSE,AZO,에이 유 티 오 지 오 엔 이,"AutoZone, Inc. Common Stock",uploaded_csv
+BA,NYSE,BA,비 오 이 아이 엔 지 티 에이치 이,Boeing Company (The) Common Stock,uploaded_csv
+BAC,NYSE,BAC,뱅크 오브 아메리카,Bank of America Corporation Common Stock,uploaded_csv
+BALL,NYSE,BALL,비 에이 엘 엘,Ball Corporation Common Stock,uploaded_csv
+BAX,NYSE,BAX,비 에이 엑스 티 이 알 인터내셔널,Baxter International Inc. Common Stock,uploaded_csv
+BBY,NYSE,BBY,비 이 에스 티 비 유 와이,"Best Buy Co., Inc. Common Stock",uploaded_csv
+BDX,NYSE,BDX,비 이 씨 티 오 엔 디 아이 씨 케이 아이 엔 에스 오 엔 앤드,"Becton, Dickinson and Company Common Stock",uploaded_csv
+BEN,NYSE,BEN,에프 알 에이 엔 케이 엘 아이 엔 리소시스,"Franklin Resources, Inc. Common Stock",uploaded_csv
+BF.B,NYSE,BF.B,비 알 오 더블유 엔 에프 오 알 엠 에이 엔,Brown Forman Inc Class B Common Stock,uploaded_csv
+BG,NYSE,BG,비지,Bunge Limited Common Shares,uploaded_csv
+BIIB,NASDAQ,BIIB,비 아이 오 지 이 엔,Biogen Inc. - Common Stock,uploaded_csv
+BKNG,NASDAQ,BKNG,비 오 오 케이 아이 엔 지 홀딩스,Booking Holdings Inc. - Common Stock,uploaded_csv
+BKR,NASDAQ,BKR,비 에이 케이 이 알 에이치 유 지 에이치 이 에스,Baker Hughes Company - Common Stock,uploaded_csv
+BLDR,NYSE,BLDR,비 유 아이 엘 디 이 알 에스 에프 아이 알 에스 티 에스 오 유 알 씨 이,"Builders FirstSource, Inc. Common Stock",uploaded_csv
+BLK,NYSE,BLK,비 엘 에이 씨 케이 알 오 씨 케이,"BlackRock, Inc. Common Stock",uploaded_csv
+BMY,NYSE,BMY,비 알 아이 에스 티 오 엘 엠 와이 이 알 에스 에스 큐 유 아이 비 비,Bristol-Myers Squibb Company Common Stock,uploaded_csv
+BNY,NYSE,BNY,티 에이치 이 뱅크 오브 엔 이 더블유 와이 오 알 케이 엠 이 엘 엘 오 엔,The Bank of New York Mellon Corporation Common Stock,uploaded_csv
+BR,NYSE,BR,비 알 오 에이 디 알 아이 디 지 이 파이낸셜 에스 오 엘 유 티 아이 오 엔 에스,"Broadridge Financial Solutions, Inc. Common Stock",uploaded_csv
+BRK.B,NYSE,BRK.B,??? ???? B,Berkshire Hathaway Inc. New Common Stock,manual
+BRO,NYSE,BRO,비 알 오 더블유 엔 앤 비 알 오 더블유 엔,"Brown & Brown, Inc. Common Stock",uploaded_csv
+BSX,NYSE,BSX,비 오 에스 티 오 엔 에스 씨 아이 이 엔 티 아이 에프 아이 씨,Boston Scientific Corporation Common Stock,uploaded_csv
+BX,NYSE,BX,비 엘 에이 씨 케이 에스 티 오 엔 이,Blackstone Inc. Common Stock,uploaded_csv
+BXP,NYSE,BXP,비엑스피,"BXP, Inc. Common Stock",uploaded_csv
+C,NYSE,C,????,"Citigroup, Inc. Common Stock",manual
+CAG,NYSE,CAG,씨 오 엔 에이 지 알 에이 브랜즈,"ConAgra Brands, Inc. Common Stock",uploaded_csv
+CAH,NYSE,CAH,씨 에이 알 디 아이 엔 에이 엘 헬스,"Cardinal Health, Inc. Common Stock",uploaded_csv
+CARR,NYSE,CARR,씨 에이 알 알 아이 이 알 글로벌,Carrier Global Corporation Common Stock,uploaded_csv
+CASY,NASDAQ,CASY,씨 에이 에스 이 와이 에스 지 이 엔 이 알 에이 엘 에스 티 오 알 이 에스,"Caseys General Stores, Inc. - Common Stock",uploaded_csv
+CAT,NYSE,CAT,????,"Caterpillar, Inc. Common Stock",manual
+CB,NYSE,CB,씨 에이치 유 비 비,Chubb Limited  Common Stock,uploaded_csv
+CBOE,BATS,CBOE,씨 비 오 이 글로벌 엠 에이 알 케이 이 티 에스,"Cboe Global Markets, Inc. Common Stock",uploaded_csv
+CBRE,NYSE,CBRE,씨비알이 그룹,CBRE Group Inc Common Stock Class A,uploaded_csv
+CCEP,NASDAQ,CCEP,씨씨이피,Coca-Cola Europacific Partners plc - Ordinary Shares,uploaded_csv
+CCI,NYSE,CCI,씨 알 오 더블유 엔 씨 에이 에스 티 엘 이,Crown Castle Inc. Common Stock,uploaded_csv
+CCL,NYSE,CCL,씨씨엘,Carnival Corporation Ltd. Common Shares,uploaded_csv
+CDNS,NASDAQ,CDNS,씨 에이 디 이 엔 씨 이 디 이 에스 아이 지 엔 시스템즈,"Cadence Design Systems, Inc. - Common Stock",uploaded_csv
+CDW,NASDAQ,CDW,씨디더블유,CDW Corporation - Common Stock,uploaded_csv
+CEG,NASDAQ,CEG,씨 오 엔 에스 티 이 엘 엘 에이 티 아이 오 엔 에너지,Constellation Energy Corporation - Common Stock When-Issued,uploaded_csv
+CF,NYSE,CF,씨에프 인더스트리스 홀딩스,"CF Industries Holdings, Inc. Common Stock",uploaded_csv
+CFG,NYSE,CFG,씨 아이 티 아이 지 이 엔 에스 파이낸셜 그룹,"Citizens Financial Group, Inc. Common Stock",uploaded_csv
+CHD,NYSE,CHD,씨 에이치 유 알 씨 에이치 앤 디 더블유 아이 지 에이치 티,"Church & Dwight Company, Inc. Common Stock",uploaded_csv
+CHRW,NASDAQ,CHRW,씨 에이치 알 오 비 아이 엔 에스 오 엔 더블유 오 알 엘 디 더블유 아이 디 이,"C.H. Robinson Worldwide, Inc. - Common Stock",uploaded_csv
+CHTR,NASDAQ,CHTR,씨 에이치 에이 알 티 이 알 커뮤니케이션스,"Charter Communications, Inc. - Class A Common Stock",uploaded_csv
+CI,NYSE,CI,티 에이치 이 씨 아이 지 엔 에이 그룹,The Cigna Group Common Stock,uploaded_csv
+CIEN,NYSE,CIEN,씨 아이 이 엔 에이,Ciena Corporation Common Stock,uploaded_csv
+CINF,NASDAQ,CINF,씨 아이 엔 씨 아이 엔 엔 에이 티 아이 파이낸셜,Cincinnati Financial Corporation - Common Stock,uploaded_csv
+CL,NYSE,CL,씨 오 엘 지 에이 티 이 피 에이 엘 엠 오 엘 아이 브이 이,Colgate-Palmolive Company Common Stock,uploaded_csv
+CLX,NYSE,CLX,씨 엘 오 알 오 엑스 티 에이치 이,Clorox Company (The) Common Stock,uploaded_csv
+CMCSA,NASDAQ,CMCSA,씨 오 엠 씨 에이 에스 티,Comcast Corporation - Class A Common Stock,uploaded_csv
+CME,NASDAQ,CME,씨엠이 그룹,CME Group Inc. - Class A Common Stock,uploaded_csv
+CMG,NYSE,CMG,씨 에이치 아이 피 오 티 엘 이 엠 이 엑스 아이 씨 에이 엔 지 알 아이 엘 엘,"Chipotle Mexican Grill, Inc. Common Stock",uploaded_csv
+CMI,NYSE,CMI,씨 유 엠 엠 아이 엔 에스,Cummins Inc. Common Stock,uploaded_csv
+CMS,NYSE,CMS,씨엠에스 에너지,CMS Energy Corporation Common Stock,uploaded_csv
+CNC,NYSE,CNC,씨 이 엔 티 이 엔 이,Centene Corporation Common Stock,uploaded_csv
+CNP,NYSE,CNP,씨 이 엔 티 이 알 피 오 아이 엔 티 에너지 홀딩,"CenterPoint Energy, Inc (Holding Co) Common Stock",uploaded_csv
+COF,NYSE,COF,캐피털 오 엔 이 파이낸셜,Capital One Financial Corporation Common Stock,uploaded_csv
+COHR,NYSE,COHR,씨 오 에이치 이 알 이 엔 티,Coherent Corp. Common Stock,uploaded_csv
+COIN,NASDAQ,COIN,씨 오 아이 엔 비 에이 에스 이 글로벌,"Coinbase Global, Inc. - Class A Common Stock",uploaded_csv
+COO,NASDAQ,COO,티 에이치 이 씨 오 오 피 이 알 씨 오 엠 피 에이 엔 아이 이 에스,"The Cooper Companies, Inc.  - Common Stock",uploaded_csv
+COP,NYSE,COP,씨 오 엔 오 씨 오 피 에이치 아이 엘 엘 아이 피 에스,ConocoPhillips Common Stock,uploaded_csv
+COR,NYSE,COR,씨 이 엔 씨 오 알 에이,"Cencora, Inc. Common Stock",uploaded_csv
+COST,NASDAQ,COST,코스트코,Costco Wholesale Corporation - Common Stock,uploaded_csv
+CPAY,NYSE,CPAY,씨 오 알 피 에이 와이,"Corpay, Inc. Common Stock",uploaded_csv
+CPB,NASDAQ,CPB,티 에이치 이 씨 에이 엠 피 비 이 엘 엘 에스,The Campbell's Company - Common Stock,uploaded_csv
+CPRT,NASDAQ,CPRT,씨 오 피 에이 알 티,"Copart, Inc. - Common Stock",uploaded_csv
+CPT,NYSE,CPT,씨피티,Camden Property Trust Common Stock,uploaded_csv
+CRH,NYSE,CRH,씨알에이치,CRH PLC Ordinary Shares,uploaded_csv
+CRL,NYSE,CRL,씨 에이치 에이 알 엘 이 에스 알 아이 브이 이 알 엘 에이 비 오 알 에이 티 오 알 아이 이 에스 인터내셔널,"Charles River Laboratories International, Inc. Common Stock",uploaded_csv
+CRM,NYSE,CRM,?????,"Salesforce, Inc. Common Stock",manual
+CRWD,NASDAQ,CRWD,씨 알 오 더블유 디 에스 티 알 아이 케이 이 홀딩스,"CrowdStrike Holdings, Inc. - Class A Common Stock",uploaded_csv
+CSCO,NASDAQ,CSCO,시스코,"Cisco Systems, Inc. - Common Stock",uploaded_csv
+CSGP,NASDAQ,CSGP,씨 오 에스 티 에이 알 그룹,"CoStar Group, Inc. - Common Stock",uploaded_csv
+CSX,NASDAQ,CSX,씨에스엑스,CSX Corporation - Common Stock,uploaded_csv
+CTAS,NASDAQ,CTAS,씨 아이 엔 티 에이 에스,Cintas Corporation - Common Stock,uploaded_csv
+CTSH,NASDAQ,CTSH,씨 오 지 엔 아이 지 에이 엔 티 테크놀로지 에스 오 엘 유 티 아이 오 엔 에스,Cognizant Technology Solutions Corporation - Class A Common Stock,uploaded_csv
+CTVA,NYSE,CTVA,씨 오 알 티 이 브이 에이,"Corteva, Inc. Common Stock",uploaded_csv
+CVNA,NYSE,CVNA,씨 에이 알 브이 에이 엔 에이,Carvana Co. Class A Common Stock,uploaded_csv
+CVS,NYSE,CVS,씨브이에스 헬스,CVS Health Corporation Common Stock,uploaded_csv
+CVX,NYSE,CVX,셰브론,Chevron Corporation Common Stock,uploaded_csv
+D,NYSE,D,디 오 엠 아이 엔 아이 오 엔 에너지,"Dominion Energy, Inc. Common Stock",uploaded_csv
+DAL,NYSE,DAL,디 이 엘 티 에이 에이 아이 알 엘 아이 엔 이 에스,"Delta Air Lines, Inc. Common Stock",uploaded_csv
+DASH,NASDAQ,DASH,디 오 오 알 디 에이 에스 에이치,"DoorDash, Inc. - Common Stock",uploaded_csv
+DD,NYSE,DD,디 유 피 오 엔 티 디 이 엔 이 엠 오 유 알 에스,"DuPont de Nemours, Inc. Common Stock",uploaded_csv
+DDOG,NASDAQ,DDOG,디 에이 티 에이 디 오 지,"Datadog, Inc. - Class A Common Stock",uploaded_csv
+DE,NYSE,DE,디 이 이 알 이 앤,Deere & Company Common Stock,uploaded_csv
+DECK,NYSE,DECK,디 이 씨 케이 이 알 에스 오 유 티 디 오 오 알,Deckers Outdoor Corporation Common Stock,uploaded_csv
+DELL,NYSE,DELL,? ??????,Dell Technologies Inc. Class C Common Stock,manual
+DG,NYSE,DG,디 오 엘 엘 에이 알 지 이 엔 이 알 에이 엘,Dollar General Corporation Common Stock,uploaded_csv
+DGX,NYSE,DGX,큐 유 이 에스 티 디 아이 에이 지 엔 오 에스 티 아이 씨 에스,Quest Diagnostics Incorporated Common Stock,uploaded_csv
+DHI,NYSE,DHI,디 알 에이치 오 알 티 오 엔,"D.R. Horton, Inc. Common Stock",uploaded_csv
+DHR,NYSE,DHR,디 에이 엔 에이 에이치 이 알,Danaher Corporation Common Stock,uploaded_csv
+DIS,NYSE,DIS,디즈니,Walt Disney Company (The) Common Stock,uploaded_csv
+DLR,NYSE,DLR,디엘알,"Digital Realty Trust, Inc. Common Stock",uploaded_csv
+DLTR,NASDAQ,DLTR,디 오 엘 엘 에이 알 티 알 이 이,"Dollar Tree, Inc. - Common Stock",uploaded_csv
+DOC,NYSE,DOC,에이치 이 에이 엘 티 에이치 피 이 에이 케이 피 알 오 피 이 알 티 아이 이 에스,"Healthpeak Properties, Inc. Common Stock",uploaded_csv
+DOV,NYSE,DOV,디 오 브이 이 알,Dover Corporation Common Stock,uploaded_csv
+DOW,NYSE,DOW,디 오 더블유,Dow Inc. Common Stock,uploaded_csv
+DPZ,NASDAQ,DPZ,디 오 엠 아이 엔 오 에스 피 아이 지 지 에이,Domino's Pizza Inc - Common Stock,uploaded_csv
+DRI,NYSE,DRI,디 에이 알 디 이 엔 알 이 에스 티 에이 유 알 에이 엔 티 에스,"Darden Restaurants, Inc. Common Stock",uploaded_csv
+DTE,NYSE,DTE,디티이 에너지,DTE Energy Company Common Stock,uploaded_csv
+DUK,NYSE,DUK,디 유 케이 이 에너지,Duke Energy Corporation (Holding Company) Common Stock,uploaded_csv
+DVA,NYSE,DVA,디 에이 브이 아이 티 에이,DaVita Inc. Common Stock,uploaded_csv
+DVN,NYSE,DVN,디 이 브이 오 엔 에너지,Devon Energy Corporation Common Stock,uploaded_csv
+DXCM,NASDAQ,DXCM,디 이 엑스 씨 오 엠,"DexCom, Inc. - Common Stock",uploaded_csv
+EA,NASDAQ,EA,이 엘 이 씨 티 알 오 엔 아이 씨 에이 알 티 에스,Electronic Arts Inc. - Common Stock,uploaded_csv
+EBAY,NASDAQ,EBAY,이 비 에이 와이,eBay Inc. - Common Stock,uploaded_csv
+ECL,NYSE,ECL,이 씨 오 엘 에이 비,Ecolab Inc. Common Stock,uploaded_csv
+ED,NYSE,ED,씨 오 엔 에스 오 엘 아이 디 에이 티 이 디 이 디 아이 에스 오 엔,"Consolidated Edison, Inc. Common Stock",uploaded_csv
+EFX,NYSE,EFX,이 큐 유 아이 에프 에이 엑스,"Equifax, Inc. Common Stock",uploaded_csv
+EG,NYSE,EG,이 브이 이 알 이 에스 티 그룹,"Everest Group, Ltd. Common Stock",uploaded_csv
+EIX,NYSE,EIX,이 디 아이 에스 오 엔 인터내셔널,Edison International Common Stock,uploaded_csv
+EL,NYSE,EL,이 에스 티 이 이 엘 에이 유 디 이 알 씨 오 엠 피 에이 엔 아이 이 에스 티 에이치 이,"Estee Lauder Companies, Inc. (The) Common Stock",uploaded_csv
+ELV,NYSE,ELV,이 엘 이 브이 에이 엔 씨 이 헬스,"Elevance Health, Inc. Common Stock",uploaded_csv
+EME,NYSE,EME,이엠씨오알 그룹,"EMCOR Group, Inc. Common Stock",uploaded_csv
+EMR,NYSE,EMR,이 엠 이 알 에스 오 엔 이 엘 이 씨 티 알 아이 씨,Emerson Electric Company Common Stock,uploaded_csv
+EOG,NYSE,EOG,이오지 리소시스,"EOG Resources, Inc. Common Stock",uploaded_csv
+EQIX,NASDAQ,EQIX,이 큐 유 아이 엔 아이 엑스,"Equinix, Inc. - Common Stock",uploaded_csv
+EQR,NYSE,EQR,이큐알,Equity Residential Common Shares of Beneficial Interest,uploaded_csv
+EQT,NYSE,EQT,이큐티,EQT Corporation Common Stock,uploaded_csv
+ERIE,NASDAQ,ERIE,이 알 아이 이 아이 엔 디 이 엠 엔 아이 티 와이,Erie Indemnity Company - Class A Common Stock,uploaded_csv
+ES,NYSE,ES,이 브이 이 알 에스 오 유 알 씨 이 에너지 디 비 에이,Eversource Energy (D/B/A) Common Stock,uploaded_csv
+ESS,NYSE,ESS,이에스에스,"Essex Property Trust, Inc. Common Stock",uploaded_csv
+ETHA,NASDAQ,ETHA,????? ???? ETF,iShares Ethereum Trust ETF,manual
+ETN,NYSE,ETN,이티엔,"Eaton Corporation, PLC Ordinary Shares",uploaded_csv
+ETR,NYSE,ETR,이 엔 티 이 알 지 와이,Entergy Corporation Common Stock,uploaded_csv
+EVRG,NASDAQ,EVRG,이 브이 이 알 지 와이,"Evergy, Inc. - Common Stock",uploaded_csv
+EW,NYSE,EW,이 디 더블유 에이 알 디 에스 엘 아이 에프 이 에스 씨 아이 이 엔 씨 이 에스,Edwards Lifesciences Corporation Common Stock,uploaded_csv
+EXC,NASDAQ,EXC,이 엑스 이 엘 오 엔,Exelon Corporation - Common Stock,uploaded_csv
+EXE,NASDAQ,EXE,이 엑스 피 에이 엔 디 에너지,Expand Energy Corporation - Common Stock,uploaded_csv
+EXPD,NYSE,EXPD,이 엑스 피 이 디 아이 티 오 알 에스 인터내셔널 오브 더블유 에이 에스 에이치 아이 엔 지 티 오 엔,"Expeditors International of Washington, Inc. Common Stock",uploaded_csv
+EXPE,NASDAQ,EXPE,이 엑스 피 이 디 아이 에이 그룹,"Expedia Group, Inc. - Common Stock",uploaded_csv
+EXR,NYSE,EXR,이 엑스 티 알 에이 에스 피 에이 씨 이 에스 티 오 알 에이 지 이,Extra Space Storage Inc Common Stock,uploaded_csv
+F,NYSE,F,에프 오 알 디 모터,Ford Motor Company Common Stock,uploaded_csv
+FANG,NASDAQ,FANG,디 아이 에이 엠 오 엔 디 비 에이 씨 케이 에너지,"Diamondback Energy, Inc. - Common Stock",uploaded_csv
+FAST,NASDAQ,FAST,에프 에이 에스 티 이 엔 에이 엘,Fastenal Company - Common Stock,uploaded_csv
+FBTC,BATS,FBTC,???? ???? ETF,Fidelity Wise Origin Bitcoin Fund,manual
+FCX,NYSE,FCX,에프 알 이 이 피 오 알 티 엠 씨 엠 오 알 에이 엔,"Freeport-McMoRan, Inc. Common Stock",uploaded_csv
+FDS,NYSE,FDS,에프 에이 씨 티 에스 이 티 알 이 에스 이 에이 알 씨 에이치 시스템즈,FactSet Research Systems Inc. Common Stock,uploaded_csv
+FDX,NYSE,FDX,에프 이 디 이 엑스,FedEx Corporation Common Stock,uploaded_csv
+FDXF,NYSE,FDXF,에프 이 디 이 엑스 에프 알 이 아이 지 에이치 티,"FedEx Freight Holding Company, Inc. Common Stock",uploaded_csv
+FE,NYSE,FE,에프 아이 알 에스 티 이 엔 이 알 지 와이,FirstEnergy Corp. Common Stock,uploaded_csv
+FER,NASDAQ,FER,에프이알,Ferrovial N.V. - Ordinary Shares,uploaded_csv
+FFIV,NASDAQ,FFIV,에프5,"F5, Inc. - Common Stock",uploaded_csv
+FICO,NYSE,FICO,에프 에이 아이 알 아이 에스 에이 에이 씨,Fair Isaac Corporation Common Stock,uploaded_csv
+FIS,NYSE,FIS,에프 아이 디 이 엘 아이 티 와이 엔 에이 티 아이 오 엔 에이 엘 아이 엔 에프 오 알 엠 에이 티 아이 오 엔 서비스,"Fidelity National Information Services, Inc. Common Stock",uploaded_csv
+FISV,NASDAQ,FISV,에프 아이 에스 이 알 브이,"Fiserv, Inc. - Common Stock",uploaded_csv
+FITB,NYSE,FITB,에프 아이 에프 티 에이치 티 에이치 아이 알 디 비 에이 엔 씨 오 알 피,Fifth Third Bancorp Common Stock,uploaded_csv
+FIX,NYSE,FIX,씨 오 엠 에프 오 알 티 시스템즈 유에스에이,"Comfort Systems USA, Inc. Common Stock",uploaded_csv
+FOX,NASDAQ,FOX,에프 오 엑스,Fox Corporation - Class B Common Stock,uploaded_csv
+FOXA,NASDAQ,FOXA,에프 오 엑스,Fox Corporation - Class A Common Stock,uploaded_csv
+FRT,NYSE,FRT,에프알티,Federal Realty Investment Trust Common Stock,uploaded_csv
+FSLR,NASDAQ,FSLR,에프 아이 알 에스 티 에스 오 엘 에이 알,"First Solar, Inc. - Common Stock",uploaded_csv
+FTNT,NASDAQ,FTNT,에프 오 알 티 아이 엔 이 티,"Fortinet, Inc. - Common Stock",uploaded_csv
+FTV,NYSE,FTV,에프 오 알 티 아이 브이 이,Fortive Corporation Common Stock,uploaded_csv
+GD,NYSE,GD,지 이 엔 이 알 에이 엘 디 와이 엔 에이 엠 아이 씨 에스,General Dynamics Corporation Common Stock,uploaded_csv
+GDDY,NYSE,GDDY,지 오 디 에이 디 디 와이,GoDaddy Inc. Class A Common Stock,uploaded_csv
+GE,NYSE,GE,GE ???????,GE Aerospace Common Stock,manual
+GEHC,NASDAQ,GEHC,지이 헬스케어 테크놀로지스,GE HealthCare Technologies Inc. - Common Stock,uploaded_csv
+GEN,NASDAQ,GEN,지 이 엔 디지털,Gen Digital Inc. - Common Stock,uploaded_csv
+GEV,NYSE,GEV,GE ???,GE Vernova Inc. Common Stock,manual
+GILD,NASDAQ,GILD,지 아이 엘 이 에이 디 에스 씨 아이 이 엔 씨 이 에스,"Gilead Sciences, Inc. - Common Stock",uploaded_csv
+GIS,NYSE,GIS,지 이 엔 이 알 에이 엘 엠 아이 엘 엘 에스,"General Mills, Inc. Common Stock",uploaded_csv
+GL,NYSE,GL,지 엘 오 비 이 엘 아이 에프 이,Globe Life Inc. Common Stock,uploaded_csv
+GLW,NYSE,GLW,씨 오 알 엔 아이 엔 지,Corning Incorporated Common Stock,uploaded_csv
+GM,NYSE,GM,지 이 엔 이 알 에이 엘 모터스,General Motors Company Common Stock,uploaded_csv
+GNRC,NYSE,GNRC,지 이 엔 이 알 에이 씨 에이치 오 엘 디 엘 아이 엔 지 에스,Generac Holdlings Inc. Common Stock,uploaded_csv
+GOOG,NASDAQ,GOOG,??? C,Alphabet Inc. - Class C Capital Stock,manual
+GOOGL,NASDAQ,GOOGL,??? A,Alphabet Inc. - Class A Common Stock,manual
+GPC,NYSE,GPC,지 이 엔 유 아이 엔 이 피 에이 알 티 에스,Genuine Parts Company Common Stock,uploaded_csv
+GPN,NYSE,GPN,글로벌 피 에이 와이 엠 이 엔 티 에스,Global Payments Inc. Common Stock,uploaded_csv
+GRMN,NYSE,GRMN,지 에이 알 엠 아이 엔 에스 더블유 아이 티 지 이 알 엘 에이 엔 디,Garmin Ltd. Common Stock (Switzerland),uploaded_csv
+GS,NYSE,GS,?????,"Goldman Sachs Group, Inc. (The) Common Stock",manual
+GWW,NYSE,GWW,더블유 더블유 지 알 에이 아이 엔 지 이 알,"W.W. Grainger, Inc. Common Stock",uploaded_csv
+HAL,NYSE,HAL,에이치 에이 엘 엘 아이 비 유 알 티 오 엔,Halliburton Company Common Stock,uploaded_csv
+HAS,NASDAQ,HAS,에이치 에이 에스 비 알 오,"Hasbro, Inc. - Common Stock",uploaded_csv
+HBAN,NASDAQ,HBAN,에이치비에이엔,Huntington Bancshares Incorporated - Common Stock,uploaded_csv
+HCA,NYSE,HCA,에이치씨에이 헬스케어,"HCA Healthcare, Inc. Common Stock",uploaded_csv
+HD,NYSE,HD,???,"Home Depot, Inc. (The) Common Stock",manual
+HIG,NYSE,HIG,티 에이치 이 에이치 에이 알 티 에프 오 알 디 아이 엔 에스 유 알 에이 엔 씨 이 그룹,"The Hartford Insurance Group, Inc. Common Stock",uploaded_csv
+HII,NYSE,HII,에이치 유 엔 티 아이 엔 지 티 오 엔 아이 엔 지 에이 엘 엘 에스 인더스트리스,"Huntington Ingalls Industries, Inc. Common Stock",uploaded_csv
+HLT,NYSE,HLT,에이치 아이 엘 티 오 엔 더블유 오 알 엘 디 더블유 아이 디 이 홀딩스,Hilton Worldwide Holdings Inc. Common Stock,uploaded_csv
+HON,NASDAQ,HON,에이치 오 엔 이 와이 더블유 이 엘 엘 인터내셔널,Honeywell International Inc. - Common Stock,uploaded_csv
+HOOD,NASDAQ,HOOD,알 오 비 아이 엔 에이치 오 오 디 엠 에이 알 케이 이 티 에스,"Robinhood Markets, Inc. - Class A Common Stock",uploaded_csv
+HPE,NYSE,HPE,에이치 이 더블유 엘 이 티 티 피 에이 씨 케이 에이 알 디 엔터프라이즈,Hewlett Packard Enterprise Company Common Stock,uploaded_csv
+HPQ,NYSE,HPQ,에이치피,HP Inc. Common Stock,uploaded_csv
+HRL,NYSE,HRL,에이치 오 알 엠 이 엘 푸즈,Hormel Foods Corporation Common Stock,uploaded_csv
+HSIC,NASDAQ,HSIC,에이치 이 엔 알 와이 에스 씨 에이치 이 아이 엔,"Henry Schein, Inc. - Common Stock",uploaded_csv
+HST,NASDAQ,HST,에이치 오 에스 티 에이치 오 티 이 엘 에스 앤 알 이 에스 오 알 티 에스,"Host Hotels & Resorts, Inc. - Common Stock",uploaded_csv
+HSY,NYSE,HSY,티 에이치 이 에이치 이 알 에스 에이치 이 와이,The Hershey Company Common Stock,uploaded_csv
+HUBB,NYSE,HUBB,에이치 유 비 비 이 엘 엘,Hubbell Inc Common Stock,uploaded_csv
+HUM,NYSE,HUM,에이치 유 엠 에이 엔 에이,Humana Inc. Common Stock,uploaded_csv
+HWM,NYSE,HWM,에이치 오 더블유 엠 이 티 에이 이 알 오 에스 피 에이 씨 이,Howmet Aerospace Inc. Common Stock,uploaded_csv
+IBIT,NASDAQ,IBIT,????? ???? ETF,iShares Bitcoin Trust ETF,manual
+IBKR,NASDAQ,IBKR,아이 엔 티 이 알 에이 씨 티 아이 브이 이 비 알 오 케이 이 알 에스 그룹,"Interactive Brokers Group, Inc. - Class A Common Stock",uploaded_csv
+IBM,NYSE,IBM,인터내셔널 비 유 에스 아이 엔 이 에스 에스 엠 에이 씨 에이치 아이 엔 이 에스,International Business Machines Corporation Common Stock,uploaded_csv
+ICE,NYSE,ICE,아이 엔 티 이 알 씨 오 엔 티 아이 엔 이 엔 티 에이 엘 이 엑스 씨 에이치 에이 엔 지 이,Intercontinental Exchange Inc. Common Stock,uploaded_csv
+IDXX,NASDAQ,IDXX,아이디이엑스엑스 엘 에이 비 오 알 에이 티 오 알 아이 이 에스,"IDEXX Laboratories, Inc. - Common Stock",uploaded_csv
+IEX,NYSE,IEX,아이디이엑스,IDEX Corporation Common Stock,uploaded_csv
+IFF,NYSE,IFF,인터내셔널 에프 엘 에이 브이 오 알 에스 앤 에프 알 에이 지 알 에이 엔 씨 이 에스,"International Flavors & Fragrances, Inc. Common Stock",uploaded_csv
+INCY,NASDAQ,INCY,아이 엔 씨 와이 티 이,Incyte Corporation - Common Stock,uploaded_csv
+INSM,NASDAQ,INSM,아이 엔 에스 엠 이 디,Insmed Incorporated - Common Stock,uploaded_csv
+INTC,NASDAQ,INTC,??,Intel Corporation - Common Stock,manual
+INTU,NASDAQ,INTU,아이 엔 티 유 아이 티,Intuit Inc. - Common Stock,uploaded_csv
+INVH,NYSE,INVH,아이 엔 브이 아이 티 에이 티 아이 오 엔 에이치 오 엠 이 에스,Invitation Homes Inc. Common Stock,uploaded_csv
+IP,NYSE,IP,인터내셔널 피 에이 피 이 알,International Paper Company Common Stock,uploaded_csv
+IQV,NYSE,IQV,아이큐브이아이에이 홀딩스,"IQVIA Holdings, Inc. Common Stock",uploaded_csv
+IR,NYSE,IR,아이 엔 지 이 알 에스 오 엘 엘 알 에이 엔 디,Ingersoll Rand Inc. Common Stock,uploaded_csv
+IRM,NYSE,IRM,아이 알 오 엔 엠 오 유 엔 티 에이 아이 엔 디 이 엘 에이 더블유 에이 알 이 알이아이티,Iron Mountain Incorporated (Delaware)Common Stock REIT,uploaded_csv
+ISRG,NASDAQ,ISRG,아이 엔 티 유 아이 티 아이 브이 이 에스 유 알 지 아이 씨 에이 엘,"Intuitive Surgical, Inc. - Common Stock",uploaded_csv
+IT,NYSE,IT,지 에이 알 티 엔 이 알,"Gartner, Inc. Common Stock",uploaded_csv
+ITW,NYSE,ITW,아이 엘 엘 아이 엔 오 아이 에스 티 오 오 엘 더블유 오 알 케이 에스,Illinois Tool Works Inc. Common Stock,uploaded_csv
+IVV,NYSE_ARCA,IVV,????? ?? S&P500 ETF,iShares Core S&P 500 ETF,manual
+IVZ,NYSE,IVZ,아이 엔 브이 이 에스 씨 오,Invesco Ltd Common Stock,uploaded_csv
+J,NYSE,J,제이 에이 씨 오 비 에스 에스 오 엘 유 티 아이 오 엔 에스,Jacobs Solutions Inc. Common Stock,uploaded_csv
+JBHT,NASDAQ,JBHT,제이 비 에이치 유 엔 티 티 알 에이 엔 에스 피 오 알 티 서비스,"J.B. Hunt Transport Services, Inc. - Common Stock",uploaded_csv
+JBL,NYSE,JBL,제이 에이 비 아이 엘,Jabil Inc. Common Stock,uploaded_csv
+JCI,NYSE,JCI,존슨 씨 오 엔 티 알 오 엘 에스 인터내셔널,Johnson Controls International plc Ordinary Share,uploaded_csv
+JEPI,NYSE_ARCA,JEPI,JP?? ?? ???? ETF,JPMorgan Equity Premium Income ETF,manual
+JEPQ,NASDAQ,JEPQ,JP?? ??? ?? ???? ETF,JPMorgan Nasdaq Equity Premium Income ETF,manual
+JKHY,NASDAQ,JKHY,제이 에이 씨 케이 에이치 이 엔 알 와이 앤 에이 에스 에스 오 씨 아이 에이 티 이 에스,"Jack Henry & Associates, Inc. - Common Stock",uploaded_csv
+JNJ,NYSE,JNJ,존슨 앤 존슨,Johnson & Johnson Common Stock,uploaded_csv
+JPM,NYSE,JPM,JP?????,JP Morgan Chase & Co. Common Stock,manual
+KDP,NASDAQ,KDP,케이 이 유 알 아이 지 디 알 피 이 피 피 이 알,Keurig Dr Pepper Inc. - Common Stock,uploaded_csv
+KEY,NYSE,KEY,케이 이 와이 씨 오 알 피,KeyCorp Common Stock,uploaded_csv
+KEYS,NYSE,KEYS,케이 이 와이 에스 아이 지 에이치 티 테크놀로지스,Keysight Technologies Inc. Common Stock,uploaded_csv
+KHC,NASDAQ,KHC,티 에이치 이 케이 알 에이 에프 티 에이치 이 아이 엔 지,The Kraft Heinz Company - Common Stock,uploaded_csv
+KIM,NYSE,KIM,케이 아이 엠 씨 오 리얼티 에이치씨,Kimco Realty Corporation (HC) Common Stock,uploaded_csv
+KKR,NYSE,KKR,케이케이알 앤,KKR & Co. Inc. Common Stock,uploaded_csv
+KLAC,NASDAQ,KLAC,케이엘에이,KLA Corporation  - Common Stock,uploaded_csv
+KMB,NASDAQ,KMB,케이 아이 엠 비 이 알 엘 와이 씨 엘 에이 알 케이,Kimberly-Clark Corporation - Common Stock,uploaded_csv
+KMI,NYSE,KMI,케이 아이 엔 디 이 알 엠 오 알 지 에이 엔,"Kinder Morgan, Inc. Common Stock",uploaded_csv
+KO,NYSE,KO,코카콜라,Coca-Cola Company (The) Common Stock,uploaded_csv
+KR,NYSE,KR,케이 알 오 지 이 알 티 에이치 이,Kroger Company (The) Common Stock,uploaded_csv
+KVUE,NYSE,KVUE,케이 이 엔 브이 유 이,Kenvue Inc. Common Stock,uploaded_csv
+L,NYSE,L,엘 오 이 더블유 에스,Loews Corporation Common Stock,uploaded_csv
+LDOS,NYSE,LDOS,엘 이 아이 디 오 에스 홀딩스,"Leidos Holdings, Inc. Common Stock",uploaded_csv
+LEN,NYSE,LEN,엘 이 엔 엔 에이 알,Lennar Corporation Class A Common Stock,uploaded_csv
+LH,NYSE,LH,엘 에이 비 씨 오 알 피 홀딩스,Labcorp Holdings Inc. Common Stock,uploaded_csv
+LHX,NYSE,LHX,엘3 에이치 에이 알 알 아이 에스 테크놀로지스,"L3Harris Technologies, Inc. Common Stock",uploaded_csv
+LII,NYSE,LII,엘 이 엔 엔 오 엑스 인터내셔널,"Lennox International, Inc. Common Stock",uploaded_csv
+LIN,NASDAQ,LIN,??,Linde plc - Ordinary Shares,manual
+LITE,NASDAQ,LITE,엘 유 엠 이 엔 티 유 엠 홀딩스,Lumentum Holdings Inc. - Common Stock,uploaded_csv
+LLY,NYSE,LLY,일라이 릴리,Eli Lilly and Company Common Stock,uploaded_csv
+LMT,NYSE,LMT,엘 오 씨 케이 에이치 이 이 디 엠 에이 알 티 아이 엔,Lockheed Martin Corporation Common Stock,uploaded_csv
+LNT,NASDAQ,LNT,에이 엘 엘 아이 에이 엔 티 에너지,Alliant Energy Corporation - Common Stock,uploaded_csv
+LOW,NYSE,LOW,엘 오 더블유 이 에스 씨 오 엠 피 에이 엔 아이 이 에스,"Lowe's Companies, Inc. Common Stock",uploaded_csv
+LRCX,NASDAQ,LRCX,????,Lam Research Corporation - Common Stock,manual
+LULU,NASDAQ,LULU,엘 유 엘 유 엘 이 엠 오 엔 에이 티 에이치 엘 이 티 아이 씨 에이,lululemon athletica inc. - Common Stock,uploaded_csv
+LUV,NYSE,LUV,에스 오 유 티 에이치 더블유 이 에스 티 에이 아이 알 엘 아이 엔 이 에스,Southwest Airlines Company Common Stock,uploaded_csv
+LVS,NYSE,LVS,엘 에이 에스 브이 이 지 에이 에스 에스 에이 엔 디 에스,Las Vegas Sands Corp. Common Stock,uploaded_csv
+LYB,NYSE,LYB,엘와이비,LyondellBasell Industries NV Ordinary Shares Class A (Netherlands),uploaded_csv
+LYV,NYSE,LYV,엘 아이 브이 이 엔 에이 티 아이 오 엔 이 엔 티 이 알 티 에이 아이 엔 엠 이 엔 티,"Live Nation Entertainment, Inc. Common Stock",uploaded_csv
+MA,NYSE,MA,마스터카드,Mastercard Incorporated Common Stock,uploaded_csv
+MAA,NYSE,MAA,엠 아이 디 아메리카 에이 피 에이 알 티 엠 이 엔 티 씨 오 엠 엠 유 엔 아이 티 아이 이 에스,"Mid-America Apartment Communities, Inc. Common Stock",uploaded_csv
+MAR,NASDAQ,MAR,엠 에이 알 알 아이 오 티 티 인터내셔널,Marriott International - Class A Common Stock,uploaded_csv
+MAS,NYSE,MAS,엠 에이 에스 씨 오,Masco Corporation Common Stock,uploaded_csv
+MCD,NYSE,MCD,맥도날드,McDonald's Corporation Common Stock,uploaded_csv
+MCHP,NASDAQ,MCHP,엠 아이 씨 알 오 씨 에이치 아이 피 테크놀로지,Microchip Technology Incorporated - Common Stock,uploaded_csv
+MCK,NYSE,MCK,엠 씨 케이 이 에스 에스 오 엔,McKesson Corporation Common Stock,uploaded_csv
+MCO,NYSE,MCO,엠 오 오 디 와이 에스,Moody's Corporation Common Stock,uploaded_csv
+MDLZ,NASDAQ,MDLZ,엠 오 엔 디 이 엘 이 지 인터내셔널,"Mondelez International, Inc. - Class A Common Stock",uploaded_csv
+MDT,NYSE,MDT,엠디티,Medtronic plc. Ordinary Shares,uploaded_csv
+MELI,NASDAQ,MELI,엠 이 알 씨 에이 디 오 엘 아이 비 알 이,"MercadoLibre, Inc. - Common Stock",uploaded_csv
+MET,NYSE,MET,엠 이 티 엘 아이 에프 이,"MetLife, Inc. Common Stock",uploaded_csv
+META,NASDAQ,META,?? ????,"Meta Platforms, Inc. - Class A Common Stock",manual
+MGM,NYSE,MGM,엠지엠 알 이 에스 오 알 티 에스 인터내셔널,MGM Resorts International Common Stock,uploaded_csv
+MKC,NYSE,MKC,엠 씨 씨 오 알 엠 아이 씨 케이 앤,"McCormick & Company, Incorporated Common Stock",uploaded_csv
+MLM,NYSE,MLM,엠 에이 알 티 아이 엔 엠 에이 알 아이 이 티 티 에이 머티리얼즈,"Martin Marietta Materials, Inc. Common Stock",uploaded_csv
+MMM,NYSE,MMM,3엠,3M Company Common Stock,uploaded_csv
+MNST,NASDAQ,MNST,엠 오 엔 에스 티 이 알 비 이 브이 이 알 에이 지 이,Monster Beverage Corporation - Common Stock,uploaded_csv
+MO,NYSE,MO,에이 엘 티 알 아이 에이 그룹,"Altria Group, Inc.",uploaded_csv
+MOS,NYSE,MOS,엠 오 에스 에이 아이 씨 티 에이치 이,Mosaic Company (The) Common Stock,uploaded_csv
+MPC,NYSE,MPC,엠 에이 알 에이 티 에이치 오 엔 피 이 티 알 오 엘 이 유 엠,Marathon Petroleum Corporation Common Stock,uploaded_csv
+MPWR,NASDAQ,MPWR,엠 오 엔 오 엘 아이 티 에이치 아이 씨 피 오 더블유 이 알 시스템즈,"Monolithic Power Systems, Inc. - Common Stock",uploaded_csv
+MRK,NYSE,MRK,머크,"Merck & Company, Inc. Common Stock (new)",uploaded_csv
+MRNA,NASDAQ,MRNA,엠 오 디 이 알 엔 에이,"Moderna, Inc. - Common Stock",uploaded_csv
+MRSH,NYSE,MRSH,엠 에이 알 에스 에이치,Marsh Common Stock,uploaded_csv
+MRVL,NASDAQ,MRVL,?? ?????,"Marvell Technology, Inc. - Common Stock",manual
+MS,NYSE,MS,?? ???,Morgan Stanley Common Stock,manual
+MSCI,NYSE,MSCI,엠에스씨아이,MSCI Inc. Common Stock,uploaded_csv
+MSFT,NASDAQ,MSFT,???????,Microsoft Corporation - Common Stock,manual
+MSI,NYSE,MSI,엠 오 티 오 알 오 엘 에이 에스 오 엘 유 티 아이 오 엔 에스,"Motorola Solutions, Inc. Common Stock",uploaded_csv
+MSTR,NASDAQ,MSTR,에스 티 알 에이 티 이 지 와이,Strategy Inc - Class A Common Stock,uploaded_csv
+MTB,NYSE,MTB,엠 앤 티 뱅크,M&T Bank Corporation Common Stock,uploaded_csv
+MTD,NYSE,MTD,엠 이 티 티 엘 이 알 티 오 엘 이 디 오 인터내셔널,"Mettler-Toledo International, Inc. Common Stock",uploaded_csv
+MU,NASDAQ,MU,????,"Micron Technology, Inc. - Common Stock",manual
+NCLH,NYSE,NCLH,엔씨엘에이치,Norwegian Cruise Line Holdings Ltd. Ordinary Shares,uploaded_csv
+NDAQ,NASDAQ,NDAQ,엔 에이 에스 디 에이 큐,"Nasdaq, Inc. - Common Stock",uploaded_csv
+NDSN,NASDAQ,NDSN,엔 오 알 디 에스 오 엔,Nordson Corporation - Common Stock,uploaded_csv
+NEE,NYSE,NEE,????? ???,"NextEra Energy, Inc. Common Stock",manual
+NEM,NYSE,NEM,엔 이 더블유 엠 오 엔 티,Newmont Corporation,uploaded_csv
+NFLX,NASDAQ,NFLX,????,"Netflix, Inc. - Common Stock",manual
+NI,NYSE,NI,엔 아이 에스 오 유 알 씨 이,NiSource Inc Common Stock,uploaded_csv
+NKE,NYSE,NKE,나이키,"Nike, Inc. Common Stock",uploaded_csv
+NOC,NYSE,NOC,엔 오 알 티 에이치 알 오 피 지 알 유 엠 엠 에이 엔,Northrop Grumman Corporation Common Stock,uploaded_csv
+NOW,NYSE,NOW,에스 이 알 브이 아이 씨 이 엔 오 더블유,"ServiceNow, Inc. Common Stock",uploaded_csv
+NRG,NYSE,NRG,엔알지 에너지,"NRG Energy, Inc. Common Stock",uploaded_csv
+NSC,NYSE,NSC,엔 오 알 에프 오 엘 케이 에스 오 유 티 에이치 이 알 엔,Norfolk Southern Corporation Common Stock,uploaded_csv
+NTAP,NASDAQ,NTAP,엔 이 티 에이 피 피,"NetApp, Inc. - Common Stock",uploaded_csv
+NTRS,NASDAQ,NTRS,엔티알에스,Northern Trust Corporation - Common Stock,uploaded_csv
+NUE,NYSE,NUE,엔 유 씨 오 알,Nucor Corporation Common Stock,uploaded_csv
+NVDA,NASDAQ,NVDA,????,NVIDIA Corporation - Common Stock,manual
+NVR,NYSE,NVR,엔브이알,"NVR, Inc. Common Stock",uploaded_csv
+NWS,NASDAQ,NWS,엔 이 더블유 에스,News Corporation - Class B Common Stock,uploaded_csv
+NWSA,NASDAQ,NWSA,엔 이 더블유 에스,News Corporation - Class A Common Stock,uploaded_csv
+NXPI,NASDAQ,NXPI,엔엑스피 에스 이 엠 아이 씨 오 엔 디 유 씨 티 오 알 에스 엔 브이,NXP Semiconductors N.V. - Common Stock,uploaded_csv
+O,NYSE,O,리얼티 아이 엔 씨 오 엠 이,Realty Income Corporation Common Stock,uploaded_csv
+ODFL,NASDAQ,ODFL,오 엘 디 디 오 엠 아이 엔 아이 오 엔 에프 알 이 아이 지 에이치 티 엘 아이 엔 이,"Old Dominion Freight Line, Inc. - Common Stock",uploaded_csv
+OKE,NYSE,OKE,오엔이오케이,"ONEOK, Inc. Common Stock",uploaded_csv
+OMC,NYSE,OMC,오 엠 엔 아이 씨 오 엠 그룹,Omnicom Group Inc. Common Stock,uploaded_csv
+ON,NASDAQ,ON,오엔 세미컨덕터,ON Semiconductor Corporation - Common Stock,uploaded_csv
+ORCL,NYSE,ORCL,???,Oracle Corporation Common Stock,manual
+ORLY,NASDAQ,ORLY,오 알 이 아이 엘 엘 와이 에이 유 티 오 엠 오 티 아이 브이 이,"O'Reilly Automotive, Inc. - Common Stock",uploaded_csv
+OTIS,NYSE,OTIS,오 티 아이 에스 더블유 오 알 엘 디 더블유 아이 디 이,Otis Worldwide Corporation Common Stock,uploaded_csv
+OXY,NYSE,OXY,오 씨 씨 아이 디 이 엔 티 에이 엘 피 이 티 알 오 엘 이 유 엠,Occidental Petroleum Corporation Common Stock,uploaded_csv
+PANW,NASDAQ,PANW,???? ????,"Palo Alto Networks, Inc. - Common Stock",manual
+PAYX,NASDAQ,PAYX,피 에이 와이 씨 에이치 이 엑스,"Paychex, Inc. - Common Stock",uploaded_csv
+PCAR,NASDAQ,PCAR,피에이씨씨에이알,PACCAR Inc. - Common Stock,uploaded_csv
+PCG,NYSE,PCG,피 에이 씨 아이 에프 아이 씨 지 에이 에스 앤 이 엘 이 씨 티 알 아이 씨,Pacific Gas & Electric Co. Common Stock,uploaded_csv
+PDD,NASDAQ,PDD,피디디,PDD Holdings Inc. - American Depositary Shares,uploaded_csv
+PEG,NYSE,PEG,피 유 비 엘 아이 씨 서비스 엔터프라이즈 그룹,Public Service Enterprise Group Incorporated Common Stock,uploaded_csv
+PEP,NASDAQ,PEP,펩시코,"PepsiCo, Inc. - Common Stock",uploaded_csv
+PFE,NYSE,PFE,화이자,"Pfizer, Inc. Common Stock",uploaded_csv
+PFG,NASDAQ,PFG,피 알 아이 엔 씨 아이 피 에이 엘 파이낸셜 그룹,Principal Financial Group Inc - Common Stock,uploaded_csv
+PG,NYSE,PG,??? ? ??,Procter & Gamble Company (The) Common Stock,manual
+PGR,NYSE,PGR,피 알 오 지 알 이 에스 에스 아이 브이 이 티 에이치 이,Progressive Corporation (The) Common Stock,uploaded_csv
+PH,NYSE,PH,피 에이 알 케이 이 알 에이치 에이 엔 엔 아이 에프 아이 엔,Parker-Hannifin Corporation Common Stock,uploaded_csv
+PHM,NYSE,PHM,피 유 엘 티 이 지 알 오 유 피,"PulteGroup, Inc. Common Stock",uploaded_csv
+PKG,NYSE,PKG,피 에이 씨 케이 에이 지 아이 엔 지 오브 아메리카,Packaging Corporation of America Common Stock,uploaded_csv
+PLD,NYSE,PLD,피 알 오 엘 오 지 아이 에스,"Prologis, Inc. Common Stock",uploaded_csv
+PLTR,NASDAQ,PLTR,????,Palantir Technologies Inc. - Class A Common Stock,manual
+PM,NYSE,PM,피 에이치 아이 엘 아이 피 엠 오 알 알 아이 에스 인터내셔널,Philip Morris International Inc Common Stock,uploaded_csv
+PNC,NYSE,PNC,피엔씨 파이낸셜 서비스 그룹 티 에이치 이,"PNC Financial Services Group, Inc. (The) Common Stock",uploaded_csv
+PNR,NYSE,PNR,피 이 엔 티 에이 아이 알,Pentair plc. Ordinary Share,uploaded_csv
+PNW,NYSE,PNW,피 아이 엔 엔 에이 씨 엘 이 더블유 이 에스 티 캐피털,Pinnacle West Capital Corporation Common Stock,uploaded_csv
+PODD,NASDAQ,PODD,아이 엔 에스 유 엘 이 티,Insulet Corporation - Common Stock,uploaded_csv
+POOL,NASDAQ,POOL,피 오 오 엘,Pool Corporation - Common Stock,uploaded_csv
+PPG,NYSE,PPG,피피지 인더스트리스,"PPG Industries, Inc. Common Stock",uploaded_csv
+PPL,NYSE,PPL,피피엘,PPL Corporation Common Stock,uploaded_csv
+PRU,NYSE,PRU,피 알 유 디 이 엔 티 아이 에이 엘 파이낸셜,"Prudential Financial, Inc. Common Stock",uploaded_csv
+PSA,NYSE,PSA,피 유 비 엘 아이 씨 에스 티 오 알 에이 지 이,Public Storage Common Stock,uploaded_csv
+PSKY,NASDAQ,PSKY,피 에이 알 에이 엠 오 유 엔 티 에스 케이 와이 디 에이 엔 씨 이,Paramount Skydance Corporation - Class B Common Stock,uploaded_csv
+PSX,NYSE,PSX,피 에이치 아이 엘 엘 아이 피 에스 66,Phillips 66 Common Stock,uploaded_csv
+PTC,NASDAQ,PTC,피티씨,PTC Inc. - Common Stock,uploaded_csv
+PWR,NYSE,PWR,큐 유 에이 엔 티 에이 서비스,"Quanta Services, Inc. Common Stock",uploaded_csv
+PYPL,NASDAQ,PYPL,피 에이 와이 피 에이 엘 홀딩스,"PayPal Holdings, Inc. - Common Stock",uploaded_csv
+Q,NYSE,Q,큐 엔 아이 티 와이 이 엘 이 씨 티 알 오 엔 아이 씨 에스,"Qnity Electronics, Inc. Common Stock",uploaded_csv
+QCOM,NASDAQ,QCOM,??,QUALCOMM Incorporated - Common Stock,manual
+QQQ,NASDAQ,QQQ,???? QQQ,"Invesco QQQ Trust, Series 1",manual
+RCL,NYSE,RCL,알 오 와이 에이 엘 씨 에이 알 아이 비 비 이 에이 엔 씨 알 유 아이 에스 이 에스,Royal Caribbean Cruises Ltd. Common Stock,uploaded_csv
+REG,NASDAQ,REG,알 이 지 이 엔 씨 와이 씨 이 엔 티 이 알 에스,Regency Centers Corporation - Common Stock,uploaded_csv
+REGN,NASDAQ,REGN,알 이 지 이 엔 이 알 오 엔 파마슈티컬스,"Regeneron Pharmaceuticals, Inc. - Common Stock",uploaded_csv
+RF,NYSE,RF,알 이 지 아이 오 엔 에스 파이낸셜,Regions Financial Corporation Common Stock,uploaded_csv
+RJF,NYSE,RJF,알 에이 와이 엠 오 엔 디 제이 에이 엠 이 에스 파이낸셜,"Raymond James Financial, Inc. Common Stock",uploaded_csv
+RL,NYSE,RL,알 에이 엘 피 에이치 엘 에이 유 알 이 엔,Ralph Lauren Corporation Common Stock,uploaded_csv
+RMD,NYSE,RMD,알 이 에스 엠 이 디,ResMed Inc. Common Stock,uploaded_csv
+ROK,NYSE,ROK,알 오 씨 케이 더블유 이 엘 엘 에이 유 티 오 엠 에이 티 아이 오 엔,"Rockwell Automation, Inc. Common Stock",uploaded_csv
+ROL,NYSE,ROL,알 오 엘 엘 아이 엔 에스,"Rollins, Inc. Common Stock",uploaded_csv
+ROP,NASDAQ,ROP,알 오 피 이 알 테크놀로지스,"Roper Technologies, Inc. - Common Stock",uploaded_csv
+ROST,NASDAQ,ROST,알 오 에스 에스 에스 티 오 알 이 에스,"Ross Stores, Inc. - Common Stock",uploaded_csv
+RSG,NYSE,RSG,알 이 피 유 비 엘 아이 씨 서비스,"Republic Services, Inc. Common Stock",uploaded_csv
+RTX,NYSE,RTX,알티엑스,RTX Corporation Common Stock,uploaded_csv
+RVTY,NYSE,RVTY,알 이 브이 브이 아이 티 와이,"Revvity, Inc. Common Stock",uploaded_csv
+SATS,NASDAQ,SATS,이 씨 에이치 오 에스 티 에이 알,EchoStar Corporation - Common stock,uploaded_csv
+SBAC,NASDAQ,SBAC,에스비에이 커뮤니케이션스,SBA Communications Corporation - Class A Common Stock,uploaded_csv
+SBUX,NASDAQ,SBUX,에스 티 에이 알 비 유 씨 케이 에스,Starbucks Corporation - Common Stock,uploaded_csv
+SCHD,NYSE_ARCA,SCHD,?? ?? ?? ETF,Schwab US Dividend Equity ETF,manual
+SCHW,NYSE,SCHW,씨 에이치 에이 알 엘 이 에스 에스 씨 에이치 더블유 에이 비 티 에이치 이,Charles Schwab Corporation (The) Common Stock,uploaded_csv
+SHOP,NASDAQ,SHOP,에스에이치오피,Shopify Inc. - Class A Subordinate Voting Shares,uploaded_csv
+SHW,NYSE,SHW,에스 에이치 이 알 더블유 아이 엔 더블유 아이 엘 엘 아이 에이 엠 에스 티 에이치 이,Sherwin-Williams Company (The) Common Stock,uploaded_csv
+SJM,NYSE,SJM,티 에이치 이 제이 엠 에스 엠 유 씨 케이 이 알,The J.M. Smucker Company Common Stock,uploaded_csv
+SLB,NYSE,SLB,에스엘비,SLB Limited Common Shares,uploaded_csv
+SMCI,NASDAQ,SMCI,에스 유 피 이 알 마이크로 씨 오 엠 피 유 티 이 알,"Super Micro Computer, Inc. - Common Stock",uploaded_csv
+SMH,NASDAQ,SMH,??? ??? ETF,VanEck Semiconductor ETF,manual
+SNA,NYSE,SNA,에스 엔 에이 피 오 엔,Snap-On Incorporated Common Stock,uploaded_csv
+SNDK,NASDAQ,SNDK,에스 에이 엔 디 아이 에스 케이,Sandisk Corporation - Common Stock When-Issued,uploaded_csv
+SNPS,NASDAQ,SNPS,에스 와이 엔 오 피 에스 와이 에스,"Synopsys, Inc. - Common Stock",uploaded_csv
+SO,NYSE,SO,에스 오 유 티 에이치 이 알 엔 티 에이치 이,Southern Company (The) Common Stock,uploaded_csv
+SOLV,NYSE,SOLV,에스 오 엘 브이 이 엔 티 유 엠,Solventum Corporation Common Stock,uploaded_csv
+SOXX,NASDAQ,SOXX,????? ??? ETF,iShares PHLX SOX Semiconductor Sector Index Fund,manual
+SPG,NYSE,SPG,에스 아이 엠 오 엔 피 알 오 피 이 알 티 와이 그룹,"Simon Property Group, Inc. Common Stock",uploaded_csv
+SPGI,NYSE,SPGI,에스 앤 피 글로벌,S&P Global Inc. Common Stock,uploaded_csv
+SPY,NYSE_ARCA,SPY,SPDR S&P500 ETF,State Street SPDR S&P 500 ETF Trust,manual
+SRE,NYSE,SRE,디비에이 에스 이 엠 피 알 에이,DBA Sempra Common Stock,uploaded_csv
+STE,NYSE,STE,에스티이,STERIS plc (Ireland) Ordinary Shares,uploaded_csv
+STLD,NASDAQ,STLD,에스 티 이 이 엘 디 와이 엔 에이 엠 아이 씨 에스,"Steel Dynamics, Inc. - Common Stock",uploaded_csv
+STT,NYSE,STT,에스 티 에이 티 이 에스 티 알 이 이 티,State Street Corporation Common Stock,uploaded_csv
+STX,NASDAQ,STX,에스티엑스,Seagate Technology Holdings PLC - Ordinary Shares (Ireland),uploaded_csv
+STZ,NYSE,STZ,씨 오 엔 에스 티 이 엘 엘 에이 티 아이 오 엔 브랜즈,"Constellation Brands, Inc. Common Stock",uploaded_csv
+SW,NYSE,SW,에스더블유,Smurfit WestRock plc Ordinary Shares,uploaded_csv
+SWK,NYSE,SWK,에스 티 에이 엔 엘 이 와이 비 엘 에이 씨 케이 앤 디 이 씨 케이 이 알,"Stanley Black & Decker, Inc. Common Stock",uploaded_csv
+SWKS,NASDAQ,SWKS,에스 케이 와이 더블유 오 알 케이 에스 에스 오 엘 유 티 아이 오 엔 에스,"Skyworks Solutions, Inc. - Common Stock",uploaded_csv
+SYF,NYSE,SYF,에스 와이 엔 씨 에이치 알 오 엔 와이 파이낸셜,Synchrony Financial Common Stock,uploaded_csv
+SYK,NYSE,SYK,에스 티 알 와이 케이 이 알,Stryker Corporation Common Stock,uploaded_csv
+SYY,NYSE,SYY,에스 와이 에스 씨 오,Sysco Corporation Common Stock,uploaded_csv
+T,NYSE,T,에이티 앤 티,AT&T Inc.,uploaded_csv
+TAP,NYSE,TAP,엠 오 엘 에스 오 엔 씨 오 오 알 에스 비 이 브이 이 알 에이 지 이,Molson Coors Beverage Company Class B Common Stock,uploaded_csv
+TDG,NYSE,TDG,티 알 에이 엔 에스 디 아이 지 엠 그룹,Transdigm Group Incorporated Common Stock,uploaded_csv
+TDY,NYSE,TDY,티 이 엘 이 디 와이 엔 이 테크놀로지스,Teledyne Technologies Incorporated Common Stock,uploaded_csv
+TECH,NASDAQ,TECH,바이오 티 이 씨 에이치 엔 이,Bio-Techne Corp - Common Stock,uploaded_csv
+TEL,NYSE,TEL,티이엘,TE Connectivity plc Ordinary Shares,uploaded_csv
+TER,NASDAQ,TER,티 이 알 에이 디 와이 엔 이,"Teradyne, Inc. - Common Stock",uploaded_csv
+TFC,NYSE,TFC,티 알 유 아이 에스 티 파이낸셜,Truist Financial Corporation Common Stock,uploaded_csv
+TGT,NYSE,TGT,티 에이 알 지 이 티,Target Corporation Common Stock,uploaded_csv
+TJX,NYSE,TJX,티제이엑스 씨 오 엠 피 에이 엔 아이 이 에스 티 에이치 이,"TJX Companies, Inc. (The) Common Stock",uploaded_csv
+TKO,NYSE,TKO,티케이오 그룹 홀딩스,"TKO Group Holdings, Inc. Class A Common Stock",uploaded_csv
+TMO,NYSE,TMO,티 에이치 이 알 엠 오 에프 아이 에스 에이치 이 알 에스 씨 아이 이 엔 티 아이 에프 아이 씨,Thermo Fisher Scientific Inc Common Stock,uploaded_csv
+TMUS,NASDAQ,TMUS,티 엠 오 비 아이 엘 이 유에스,"T-Mobile US, Inc. - Common Stock",uploaded_csv
+TPL,NYSE,TPL,티 이 엑스 에이 에스 피 에이 씨 아이 에프 아이 씨 엘 에이 엔 디,Texas Pacific Land Corporation Common Stock,uploaded_csv
+TPR,NYSE,TPR,티 에이 피 이 에스 티 알 와이,"Tapestry, Inc. Common Stock",uploaded_csv
+TRGP,NYSE,TRGP,티 에이 알 지 에이 리소시스,"Targa Resources, Inc. Common Stock",uploaded_csv
+TRI,NASDAQ,TRI,티알아이,Thomson Reuters Corp - Common Shares,uploaded_csv
+TRMB,NASDAQ,TRMB,티 알 아이 엠 비 엘 이,Trimble Inc. - Common Stock,uploaded_csv
+TROW,NASDAQ,TROW,티 알 오 더블유 이 피 알 아이 씨 이 그룹,"T. Rowe Price Group, Inc. - Common Stock",uploaded_csv
+TRV,NYSE,TRV,티 에이치 이 티 알 에이 브이 이 엘 이 알 에스 씨 오 엠 피 에이 엔 아이 이 에스,"The Travelers Companies, Inc. Common Stock",uploaded_csv
+TSCO,NASDAQ,TSCO,티 알 에이 씨 티 오 알 에스 유 피 피 엘 와이,Tractor Supply Company - Common Stock,uploaded_csv
+TSLA,NASDAQ,TSLA,???,"Tesla, Inc.  - Common Stock",manual
+TSN,NYSE,TSN,티 와이 에스 오 엔 푸즈,"Tyson Foods, Inc. Common Stock",uploaded_csv
+TT,NYSE,TT,티 알 에이 엔 이 테크놀로지스,Trane Technologies plc,uploaded_csv
+TTD,NASDAQ,TTD,티 에이치 이 티 알 에이 디 이 디 이 에스 케이,"The Trade Desk, Inc. - Class A Common Stock",uploaded_csv
+TTWO,NASDAQ,TTWO,티 에이 케이 이 티 더블유 오 아이 엔 티 이 알 에이 씨 티 아이 브이 이 소프트웨어,"Take-Two Interactive Software, Inc. - Common Stock",uploaded_csv
+TXN,NASDAQ,TXN,??? ??????,Texas Instruments Incorporated - Common Stock,manual
+TXT,NYSE,TXT,티 이 엑스 티 알 오 엔,Textron Inc. Common Stock,uploaded_csv
+TYL,NYSE,TYL,티 와이 엘 이 알 테크놀로지스,"Tyler Technologies, Inc. Common Stock",uploaded_csv
+UAL,NASDAQ,UAL,유 엔 아이 티 이 디 에이 아이 알 엘 아이 엔 이 에스 홀딩스,"United Airlines Holdings, Inc. - Common Stock",uploaded_csv
+UBER,NYSE,UBER,우버,"Uber Technologies, Inc. Common Stock",uploaded_csv
+UDR,NYSE,UDR,유디알,"UDR, Inc. Common Stock",uploaded_csv
+UHS,NYSE,UHS,유 엔 아이 브이 이 알 에스 에이 엘 헬스 서비스,"Universal Health Services, Inc. Common Stock",uploaded_csv
+ULTA,NASDAQ,ULTA,유 엘 티 에이 비 이 에이 유 티 와이,"Ulta Beauty, Inc. - Common Stock",uploaded_csv
+UNH,NYSE,UNH,??????? ??,UnitedHealth Group Incorporated Common Stock (DE),manual
+UNP,NYSE,UNP,유 엔 아이 오 엔 피 에이 씨 아이 에프 아이 씨,Union Pacific Corporation Common Stock,uploaded_csv
+UPS,NYSE,UPS,유 엔 아이 티 이 디 피 에이 알 씨 이 엘 서비스,"United Parcel Service, Inc. Common Stock",uploaded_csv
+URI,NYSE,URI,유 엔 아이 티 이 디 알 이 엔 티 에이 엘 에스,"United Rentals, Inc. Common Stock",uploaded_csv
+USB,NYSE,USB,유 에스 비 에이 엔 씨 오 알 피,U.S. Bancorp Common Stock,uploaded_csv
+V,NYSE,V,비자,Visa Inc.,uploaded_csv
+VEEV,NYSE,VEEV,브이 이 이 브이 에이 시스템즈,Veeva Systems Inc. Class A Common Stock,uploaded_csv
+VICI,NYSE,VICI,브이아이씨아이 피 알 오 피 이 알 티 아이 이 에스,VICI Properties Inc. Common Stock,uploaded_csv
+VLO,NYSE,VLO,브이 에이 엘 이 알 오 에너지,Valero Energy Corporation Common Stock,uploaded_csv
+VLTO,NYSE,VLTO,브이 이 알 에이 엘 티 오,Veralto Corp Common Stock,uploaded_csv
+VMC,NYSE,VMC,브이 유 엘 씨 에이 엔 머티리얼즈,Vulcan Materials Company (Holding Company) Common Stock,uploaded_csv
+VOO,NYSE_ARCA,VOO,??? S&P500 ETF,Vanguard S&P 500 ETF,manual
+VRSK,NASDAQ,VRSK,브이 이 알 아이 에스 케이 에이 엔 에이 엘 와이 티 아이 씨 에스,"Verisk Analytics, Inc. - Common Stock",uploaded_csv
+VRSN,NASDAQ,VRSN,브이 이 알 아이 에스 아이 지 엔,"VeriSign, Inc. - Common Stock",uploaded_csv
+VRT,NYSE,VRT,브이 이 알 티 아이 브이 홀딩스,"Vertiv Holdings, LLC Class A Common Stock",uploaded_csv
+VRTX,NASDAQ,VRTX,브이 이 알 티 이 엑스 파마슈티컬스,Vertex Pharmaceuticals Incorporated - Common Stock,uploaded_csv
+VST,NYSE,VST,브이 아이 에스 티 알 에이,Vistra Corp. Common Stock,uploaded_csv
+VTI,NYSE_ARCA,VTI,??? ?? ???? ETF,Vanguard Total Stock Market ETF,manual
+VTR,NYSE,VTR,브이 이 엔 티 에이 에스,"Ventas, Inc. Common Stock",uploaded_csv
+VTRS,NASDAQ,VTRS,브이 아이 에이 티 알 아이 에스,Viatris Inc. - Common Stock,uploaded_csv
+VYM,NYSE_ARCA,VYM,??? ??? ETF,Vanguard High Dividend Yield ETF,manual
+VZ,NYSE,VZ,브이 이 알 아이 지 오 엔 커뮤니케이션스,Verizon Communications Inc. Common Stock,uploaded_csv
+WAB,NYSE,WAB,더블유 이 에스 티 아이 엔 지 에이치 오 유 에스 이 에이 아이 알 비 알 에이 케이 이 테크놀로지스,Westinghouse Air Brake Technologies Corporation Common Stock,uploaded_csv
+WAT,NYSE,WAT,더블유 에이 티 이 알 에스,Waters Corporation Common Stock,uploaded_csv
+WBD,NASDAQ,WBD,더블유 에이 알 엔 이 알 비 알 오 에스 디 아이 에스 씨 오 브이 이 알 와이,"Warner Bros. Discovery, Inc. - Series A Common Stock",uploaded_csv
+WDAY,NASDAQ,WDAY,더블유 오 알 케이 디 에이 와이,"Workday, Inc. - Class A Common Stock",uploaded_csv
+WDC,NASDAQ,WDC,더블유 이 에스 티 이 알 엔 디지털,Western Digital Corporation - Common Stock,uploaded_csv
+WEC,NYSE,WEC,더블유이씨 에너지 그룹,"WEC Energy Group, Inc. Common Stock",uploaded_csv
+WELL,NYSE,WELL,더블유 이 엘 엘 티 오 더블유 이 알,Welltower Inc. Common Stock,uploaded_csv
+WFC,NYSE,WFC,????,Wells Fargo & Company Common Stock,manual
+WM,NYSE,WM,더블유 에이 에스 티 이 엠 에이 엔 에이 지 이 엠 이 엔 티,"Waste Management, Inc. Common Stock",uploaded_csv
+WMB,NYSE,WMB,더블유 아이 엘 엘 아이 에이 엠 에스 씨 오 엠 피 에이 엔 아이 이 에스 티 에이치 이,"Williams Companies, Inc. (The) Common Stock",uploaded_csv
+WMT,NASDAQ,WMT,월마트,Walmart Inc. - Common Stock,uploaded_csv
+WRB,NYSE,WRB,더블유 알 비 이 알 케이 엘 이 와이,W.R. Berkley Corporation Common Stock,uploaded_csv
+WSM,NYSE,WSM,더블유 아이 엘 엘 아이 에이 엠 에스 에스 오 엔 오 엠 에이 디이,"Williams-Sonoma, Inc. Common Stock (DE)",uploaded_csv
+WST,NYSE,WST,더블유 이 에스 티 피 에이치 에이 알 엠 에이 씨 이 유 티 아이 씨 에이 엘 서비스,"West Pharmaceutical Services, Inc. Common Stock",uploaded_csv
+WTW,NASDAQ,WTW,더블유티더블유,Willis Towers Watson Public Limited Company - Ordinary Shares,uploaded_csv
+WY,NYSE,WY,더블유 이 와이 이 알 에이치 에이 이 유 에스 이 알,Weyerhaeuser Company Common Stock,uploaded_csv
+WYNN,NASDAQ,WYNN,더블유 와이 엔 엔 알 이 에스 오 알 티 에스,"Wynn Resorts, Limited - Common Stock",uploaded_csv
+XEL,NASDAQ,XEL,엑스 씨 이 엘 에너지,Xcel Energy Inc. - Common Stock,uploaded_csv
+XOM,NYSE,XOM,엑슨모빌,Exxon Mobil Corporation Common Stock,uploaded_csv
+XOVR,NASDAQ,XOVR,ERShares ????-??? ????? ETF,ERShares Private-Public Crossover ETF,manual
+XYL,NYSE,XYL,엑스 와이 엘 이 엠 엔 이 더블유,Xylem Inc. Common Stock New,uploaded_csv
+XYZ,NYSE,XYZ,비 엘 오 씨 케이,"Block, Inc. Class A Common Stock,",uploaded_csv
+YUM,NYSE,YUM,와이 유 엠 브랜즈,"Yum! Brands, Inc.",uploaded_csv
+ZBH,NYSE,ZBH,지 아이 엠 엠 이 알 비 아이 오 엠 이 티 홀딩스,"Zimmer Biomet Holdings, Inc. Common Stock",uploaded_csv
+ZBRA,NASDAQ,ZBRA,지 이 비 알 에이 테크놀로지스,Zebra Technologies Corporation - Class A Common Stock,uploaded_csv
+ZS,NASDAQ,ZS,지 에스 씨 에이 엘 이 알,"Zscaler, Inc. - Common Stock",uploaded_csv
+ZTS,NYSE,ZTS,지 오 이 티 아이 에스,Zoetis Inc. Class A Common Stock,uploaded_csv

@@ -33,6 +33,7 @@ public class StockPriceSnapshotBatchService {
     private static final Logger log = LoggerFactory.getLogger(StockPriceSnapshotBatchService.class);
     private static final ZoneId SNAPSHOT_ZONE = ZoneId.of("Asia/Seoul");
     private static final String SOURCE = "FINNHUB";
+    private static final String FMP_MODEL_SOURCE = "FINNHUB_FMP";
 
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final PriceSnapshotBatchProperties properties;
@@ -72,6 +73,7 @@ public class StockPriceSnapshotBatchService {
         final int effectiveLimit = limit == null || limit <= 0
                 ? properties.getDefaultLimit()
                 : limit;
+        final String fmpApiKey = System.getenv("FMP_API_KEY");
         final List<Stock> stocks = stockPriceSnapshotMapper.findActiveStocksForSnapshot(effectiveLimit);
         final Set<Long> portfolioStockIds =
                 new HashSet<>(stockPriceSnapshotMapper.findActivePortfolioStockIds());
@@ -99,6 +101,7 @@ public class StockPriceSnapshotBatchService {
                 final SnapshotData snapshotData = fetchSnapshotData(
                         symbol,
                         apiKey,
+                        fmpApiKey,
                         fetchMetrics
                 );
                 if (snapshotData.currentPrice() == null) {
@@ -112,6 +115,26 @@ public class StockPriceSnapshotBatchService {
                 final BigDecimal perValue = firstNonNull(
                         decimalOrNull(snapshotData.perValue()),
                         previousSnapshot == null ? null : previousSnapshot.getPerValue()
+                );
+                final BigDecimal epsTtm = firstNonNull(
+                        decimalOrNull(snapshotData.epsTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getEpsTtm()
+                );
+                final BigDecimal revenueGrowthYoy = firstNonNull(
+                        decimalOrNull(snapshotData.revenueGrowthYoy()),
+                        previousSnapshot == null ? null : previousSnapshot.getRevenueGrowthYoy()
+                );
+                final BigDecimal operatingMarginTtm = firstNonNull(
+                        decimalOrNull(snapshotData.operatingMarginTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getOperatingMarginTtm()
+                );
+                final BigDecimal roeTtm = firstNonNull(
+                        decimalOrNull(snapshotData.roeTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getRoeTtm()
+                );
+                final BigDecimal debtToEquityTtm = firstNonNull(
+                        decimalOrNull(snapshotData.debtToEquityTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getDebtToEquityTtm()
                 );
                 final PriceReturns priceReturns = calculateReturns(
                         stock.getId(),
@@ -127,7 +150,12 @@ public class StockPriceSnapshotBatchService {
                         priceReturns.changeRate30d(),
                         marketCap,
                         perValue,
-                        SOURCE
+                        epsTtm,
+                        revenueGrowthYoy,
+                        operatingMarginTtm,
+                        roeTtm,
+                        debtToEquityTtm,
+                        snapshotData.hasFmpFundamentals() ? FMP_MODEL_SOURCE : SOURCE
                 );
                 savedCount++;
             } catch (FinnhubAuthenticationException exception) {
@@ -166,6 +194,7 @@ public class StockPriceSnapshotBatchService {
     private SnapshotData fetchSnapshotData(
             String symbol,
             String apiKey,
+            String fmpApiKey,
             boolean fetchMetrics
     ) throws Exception {
         final JsonNode quote = getJson(
@@ -180,12 +209,64 @@ public class StockPriceSnapshotBatchService {
                         symbol
                 )
                 : null;
+        final JsonNode keyMetrics = fetchMetrics && hasText(fmpApiKey)
+                ? getJsonOrNull(
+                        "https://financialmodelingprep.com/stable/key-metrics-ttm?symbol="
+                                + encode(symbol)
+                                + "&apikey="
+                                + encode(fmpApiKey),
+                        symbol
+                )
+                : null;
+        final JsonNode ratios = fetchMetrics && hasText(fmpApiKey)
+                ? getJsonOrNull(
+                        "https://financialmodelingprep.com/stable/ratios-ttm?symbol="
+                                + encode(symbol)
+                                + "&apikey="
+                                + encode(fmpApiKey),
+                        symbol
+                )
+                : null;
+        final JsonNode incomeGrowth = fetchMetrics && hasText(fmpApiKey)
+                ? getJsonOrNull(
+                        "https://financialmodelingprep.com/stable/income-statement-growth?symbol="
+                                + encode(symbol)
+                                + "&limit=1&apikey="
+                                + encode(fmpApiKey),
+                        symbol
+                )
+                : null;
+        final JsonNode keyMetricNode = firstValueNode(keyMetrics);
+        final JsonNode ratioNode = firstValueNode(ratios);
+        final JsonNode growthNode = firstValueNode(incomeGrowth);
 
         return new SnapshotData(
                 readPositiveDouble(quote, "c"),
-                readNullableDouble(metrics == null ? null : metrics.path("metric"), "marketCapitalization"),
-                readNullableDouble(metrics == null ? null : metrics.path("metric"), "peTTM")
+                firstNonNull(
+                        readNullableDouble(keyMetricNode, "marketCap"),
+                        readNullableDouble(metrics == null ? null : metrics.path("metric"), "marketCapitalization")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "priceToEarningsRatioTTM"),
+                        readNullableDouble(metrics == null ? null : metrics.path("metric"), "peTTM")
+                ),
+                readNullableDouble(ratioNode, "netIncomePerShareTTM"),
+                readNullableDouble(growthNode, "growthRevenue"),
+                readNullableDouble(ratioNode, "operatingProfitMarginTTM"),
+                readNullableDouble(keyMetricNode, "returnOnEquityTTM"),
+                readNullableDouble(ratioNode, "debtToEquityRatioTTM")
         );
+    }
+
+    private JsonNode firstValueNode(JsonNode root) {
+        if (root == null || root.isMissingNode() || root.isNull()) {
+            return null;
+        }
+        final JsonNode value = root.path("value");
+        if (!value.isArray() || value.isEmpty()) {
+            return null;
+        }
+        return value.get(0);
     }
 
     private PriceReturns calculateReturns(
@@ -259,6 +340,10 @@ public class StockPriceSnapshotBatchService {
         return Double.isNaN(value) ? null : value;
     }
 
+    private Double firstNonNull(Double primary, Double fallback) {
+        return primary == null ? fallback : primary;
+    }
+
     private BigDecimal decimalOrNull(Double value) {
         return value == null
                 ? null
@@ -267,6 +352,10 @@ public class StockPriceSnapshotBatchService {
 
     private BigDecimal firstNonNull(BigDecimal primary, BigDecimal fallback) {
         return primary == null ? fallback : primary;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String encode(String value) {
@@ -287,8 +376,20 @@ public class StockPriceSnapshotBatchService {
     private record SnapshotData(
             Double currentPrice,
             Double marketCap,
-            Double perValue
+            Double perValue,
+            Double epsTtm,
+            Double revenueGrowthYoy,
+            Double operatingMarginTtm,
+            Double roeTtm,
+            Double debtToEquityTtm
     ) {
+        boolean hasFmpFundamentals() {
+            return epsTtm != null
+                    || revenueGrowthYoy != null
+                    || operatingMarginTtm != null
+                    || roeTtm != null
+                    || debtToEquityTtm != null;
+        }
     }
 
     private record PriceReturns(

@@ -27,6 +27,11 @@ public class StockPriceSnapshotSchemaInitializer implements ApplicationRunner {
                     add column if not exists change_rate_30d numeric(8, 4),
                     add column if not exists market_cap numeric(20, 2),
                     add column if not exists per_value numeric(12, 4),
+                    add column if not exists eps_ttm numeric(12, 4),
+                    add column if not exists revenue_growth_yoy numeric(12, 4),
+                    add column if not exists operating_margin_ttm numeric(12, 4),
+                    add column if not exists roe_ttm numeric(12, 4),
+                    add column if not exists debt_to_equity_ttm numeric(12, 4),
                     add column if not exists source varchar(30)
                 """);
 

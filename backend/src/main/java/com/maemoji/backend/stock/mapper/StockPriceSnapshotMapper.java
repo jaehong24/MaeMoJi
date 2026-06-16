@@ -38,6 +38,11 @@ public interface StockPriceSnapshotMapper {
             @Param("changeRate30d") BigDecimal changeRate30d,
             @Param("marketCap") BigDecimal marketCap,
             @Param("perValue") BigDecimal perValue,
+            @Param("epsTtm") BigDecimal epsTtm,
+            @Param("revenueGrowthYoy") BigDecimal revenueGrowthYoy,
+            @Param("operatingMarginTtm") BigDecimal operatingMarginTtm,
+            @Param("roeTtm") BigDecimal roeTtm,
+            @Param("debtToEquityTtm") BigDecimal debtToEquityTtm,
             @Param("source") String source
     );
 }

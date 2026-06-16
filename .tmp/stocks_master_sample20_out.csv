@@ -1,0 +1,21 @@
+﻿ticker,exchange_code,finnhub_symbol,asset_type,name_en,name_ko,source,is_sp500,is_nasdaq100,is_popular_etf
+A,NYSE,A,STOCK,"Agilent Technologies, Inc. Common Stock",애질런트 테크놀로지스,gemini,True,False,False
+AA,NYSE,AA,STOCK,Alcoa Corporation Common Stock,알코아,gemini,False,False,False
+AAA,NYSE_ARCA,AAA,ETF,Alternative Access First Priority CLO Bond ETF,얼터너티브 액세스 퍼스트 프라이오리티 CLO 본드 ETF,gemini,False,False,False
+AAAA,BATS,AAAA,ETF,Amplius Aggressive Asset Allocation ETF,앰플리우스 공격적 자산 배분 ETF,gemini,False,False,False
+AAAC,NYSE_ARCA,AAAC,ETF,Columbia AAA CLO ETF,컬럼비아 AAA CLO ETF,gemini,False,False,False
+AAAD,NYSE_ARCA,AAAD,ETF,PGIM AAA CLO Aggregate Duration ETF,PGIM AAA CLO 애그리게이트 듀레이션 ETF,gemini,False,False,False
+AAAU,BATS,AAAU,ETF,Goldman Sachs Physical Gold ETF Shares,골드만삭스 실물 금 ETF,gemini,False,False,False
+AACB,NASDAQ,AACB,STOCK,Artius II Acquisition Inc. - Class A Ordinary Shares,아티우스 II 인수,gemini,False,False,False
+AACG,NASDAQ,AACG,STOCK,"ATA Creativity Global - American Depositary Shares, each representing two common shares",ATA 크리에이티비티 글로벌,gemini,False,False,False
+AACI,NASDAQ,AACI,STOCK,Armada Acquisition Corp. III - Class A Ordinary Share,아마다 인수 III,gemini,False,False,False
+AACO,NASDAQ,AACO,STOCK,Abony Acquisition Corp. I - Class A Ordinary Share,아보니 인수합병 1호,gemini,False,False,False
+AACP,NASDAQ,AACP,STOCK,Apogee Acquisition Corp - Class A Ordinary Shares,아포지 인수합병,gemini,False,False,False
+AADR,NASDAQ,AADR,ETF,AdvisorShares Dorsey Wright ADR ETF,어드바이저셰어스 도지라이트 미국 주식형 ETF,gemini,False,False,False
+AADX,NYSE,AADX,STOCK,"Applied Aerospace & Defense, Inc. Common Stock",어플라이드 에어로스페이스 & 디펜스,gemini,False,False,False
+AAEQ,NASDAQ,AAEQ,ETF,Alpha Architect US Equity 2 ETF,알파 아키텍트 미국 주식 2 ETF,gemini,False,False,False
+AAL,NASDAQ,AAL,STOCK,"American Airlines Group, Inc. - Common Stock",아메리칸 에어라인스 그룹,gemini,False,False,False
+AALG,NASDAQ,AALG,ETF,Leverage Shares 2X Long AAL Daily ETF,레버리지 셰어스 2배 롱 AAL 데일리 ETF,gemini,False,False,False
+AAME,NASDAQ,AAME,STOCK,Atlantic American Corporation - Common Stock,애틀랜틱 아메리칸 코퍼레이션,gemini,False,False,False
+AAMI,NYSE,AAMI,STOCK,Acadian Asset Management Inc. Common Stock,아카디안 자산운용,gemini,False,False,False
+AAOG,BATS,AAOG,ETF,Leverage Shares 2X Long AAOI Daily ETF,레버리지 셰어스 2배 롱 AAOI 데일리 ETF,gemini,False,False,False

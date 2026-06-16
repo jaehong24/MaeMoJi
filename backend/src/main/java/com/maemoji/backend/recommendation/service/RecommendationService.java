@@ -638,7 +638,12 @@ public class RecommendationService {
                         snapshot.getChangeRate7d() == null ? null : snapshot.getChangeRate7d().doubleValue(),
                         snapshot.getChangeRate30d() == null ? null : snapshot.getChangeRate30d().doubleValue(),
                         snapshot.getMarketCap(),
-                        snapshot.getPerValue()
+                        snapshot.getPerValue(),
+                        snapshot.getEpsTtm(),
+                        snapshot.getRevenueGrowthYoy(),
+                        snapshot.getOperatingMarginTtm(),
+                        snapshot.getRoeTtm(),
+                        snapshot.getDebtToEquityTtm()
                 );
         final NewsSentimentService.NewsSentimentResult lightweightNewsSentiment =
                 buildLightweightNewsSentiment(newsSummary);
@@ -1766,14 +1771,44 @@ public class RecommendationService {
                 assessment.marketCap() == null ? null : assessment.marketCap().doubleValue());
         putNullable(node, "perValue",
                 assessment.perValue() == null ? null : assessment.perValue().doubleValue());
+        putNullable(node, "epsTtm",
+                assessment.epsTtm() == null ? null : assessment.epsTtm().doubleValue());
+        putNullable(node, "revenueGrowthYoy",
+                assessment.revenueGrowthYoy() == null ? null : assessment.revenueGrowthYoy().doubleValue());
+        putNullable(node, "operatingMarginTtm",
+                assessment.operatingMarginTtm() == null ? null : assessment.operatingMarginTtm().doubleValue());
+        putNullable(node, "roeTtm",
+                assessment.roeTtm() == null ? null : assessment.roeTtm().doubleValue());
+        putNullable(node, "debtToEquityTtm",
+                assessment.debtToEquityTtm() == null ? null : assessment.debtToEquityTtm().doubleValue());
         putNullable(node, "marketCapAdjustment", assessment.marketCapAdjustment());
         putNullable(node, "perAdjustment", assessment.perAdjustment());
+        putNullable(node, "epsAdjustment", assessment.epsAdjustment());
+        putNullable(node, "revenueGrowthAdjustment", assessment.revenueGrowthAdjustment());
+        putNullable(node, "operatingMarginAdjustment", assessment.operatingMarginAdjustment());
+        putNullable(node, "roeAdjustment", assessment.roeAdjustment());
+        putNullable(node, "debtToEquityAdjustment", assessment.debtToEquityAdjustment());
         putNullable(node, "combinationAdjustment", assessment.combinationAdjustment());
         if (assessment.marketCapTier() != null) {
             node.put("marketCapTier", assessment.marketCapTier());
         }
         if (assessment.perBand() != null) {
             node.put("perBand", assessment.perBand());
+        }
+        if (assessment.epsBand() != null) {
+            node.put("epsBand", assessment.epsBand());
+        }
+        if (assessment.revenueGrowthBand() != null) {
+            node.put("revenueGrowthBand", assessment.revenueGrowthBand());
+        }
+        if (assessment.operatingMarginBand() != null) {
+            node.put("operatingMarginBand", assessment.operatingMarginBand());
+        }
+        if (assessment.roeBand() != null) {
+            node.put("roeBand", assessment.roeBand());
+        }
+        if (assessment.debtToEquityBand() != null) {
+            node.put("debtToEquityBand", assessment.debtToEquityBand());
         }
     }
 
@@ -1922,21 +1957,42 @@ public class RecommendationService {
     }
 
     private FundamentalQualityAssessment resolveFundamentalQualityAssessment(PriceSnapshot priceSnapshot) {
-        if (priceSnapshot.marketCap() == null && priceSnapshot.perValue() == null) {
+        if (priceSnapshot.marketCap() == null
+                && priceSnapshot.perValue() == null
+                && priceSnapshot.epsTtm() == null
+                && priceSnapshot.revenueGrowthYoy() == null
+                && priceSnapshot.operatingMarginTtm() == null
+                && priceSnapshot.roeTtm() == null
+                && priceSnapshot.debtToEquityTtm() == null) {
             return null;
         }
 
         final RecommendationTuningProperties.Fundamental fundamental = tuningProperties.getFundamental();
         final RecommendationTuningProperties.MarketCap marketCapRule = fundamental.getMarketCap();
         final RecommendationTuningProperties.Per perRule = fundamental.getPer();
+        final RecommendationTuningProperties.Eps epsRule = fundamental.getEps();
+        final RecommendationTuningProperties.RevenueGrowth revenueGrowthRule = fundamental.getRevenueGrowth();
+        final RecommendationTuningProperties.OperatingMargin operatingMarginRule = fundamental.getOperatingMargin();
+        final RecommendationTuningProperties.Roe roeRule = fundamental.getRoe();
+        final RecommendationTuningProperties.DebtToEquity debtRule = fundamental.getDebtToEquity();
         final RecommendationTuningProperties.Combination combinationRule = fundamental.getCombination();
 
         int score = fundamental.getBaseScore();
         int marketCapAdjustment = 0;
         int perAdjustment = 0;
+        int epsAdjustment = 0;
+        int revenueGrowthAdjustment = 0;
+        int operatingMarginAdjustment = 0;
+        int roeAdjustment = 0;
+        int debtToEquityAdjustment = 0;
         int combinationAdjustment = 0;
         String marketCapTier = null;
         String perBand = null;
+        String epsBand = null;
+        String revenueGrowthBand = null;
+        String operatingMarginBand = null;
+        String roeBand = null;
+        String debtToEquityBand = null;
 
         if (priceSnapshot.marketCap() != null) {
             final double marketCap = priceSnapshot.marketCap().doubleValue();
@@ -1963,10 +2019,10 @@ public class RecommendationService {
             if (per > 0 && per <= perRule.getAttractiveMax()) {
                 perAdjustment = perRule.getAttractiveAdjustment();
                 perBand = "ATTRACTIVE";
-            } else if (per <= perRule.getFairMax()) {
+            } else if (per > 0 && per <= perRule.getFairMax()) {
                 perAdjustment = perRule.getFairAdjustment();
                 perBand = "FAIR";
-            } else if (per <= perRule.getExpensiveMax()) {
+            } else if (per > 0 && per <= perRule.getExpensiveMax()) {
                 perAdjustment = perRule.getExpensiveAdjustment();
                 perBand = "EXPENSIVE";
             } else if (per > perRule.getExpensiveMax()) {
@@ -1978,6 +2034,84 @@ public class RecommendationService {
             }
             score += perAdjustment;
         }
+        if (priceSnapshot.epsTtm() != null) {
+            if (priceSnapshot.epsTtm().doubleValue() > 0) {
+                epsAdjustment = epsRule.getPositiveAdjustment();
+                epsBand = "POSITIVE";
+            } else {
+                epsAdjustment = epsRule.getNegativeAdjustment();
+                epsBand = "NEGATIVE";
+            }
+            score += epsAdjustment;
+        }
+        if (priceSnapshot.revenueGrowthYoy() != null) {
+            final double revenueGrowth = priceSnapshot.revenueGrowthYoy().doubleValue();
+            if (revenueGrowth >= revenueGrowthRule.getStrongMin()) {
+                revenueGrowthAdjustment = revenueGrowthRule.getStrongAdjustment();
+                revenueGrowthBand = "STRONG";
+            } else if (revenueGrowth >= revenueGrowthRule.getHealthyMin()) {
+                revenueGrowthAdjustment = revenueGrowthRule.getHealthyAdjustment();
+                revenueGrowthBand = "HEALTHY";
+            } else if (revenueGrowth >= revenueGrowthRule.getFlatMin()) {
+                revenueGrowthAdjustment = revenueGrowthRule.getFlatAdjustment();
+                revenueGrowthBand = "FLAT";
+            } else {
+                revenueGrowthAdjustment = revenueGrowthRule.getNegativeAdjustment();
+                revenueGrowthBand = "NEGATIVE";
+            }
+            score += revenueGrowthAdjustment;
+        }
+        if (priceSnapshot.operatingMarginTtm() != null) {
+            final double operatingMargin = priceSnapshot.operatingMarginTtm().doubleValue();
+            if (operatingMargin >= operatingMarginRule.getStrongMin()) {
+                operatingMarginAdjustment = operatingMarginRule.getStrongAdjustment();
+                operatingMarginBand = "STRONG";
+            } else if (operatingMargin >= operatingMarginRule.getHealthyMin()) {
+                operatingMarginAdjustment = operatingMarginRule.getHealthyAdjustment();
+                operatingMarginBand = "HEALTHY";
+            } else if (operatingMargin >= operatingMarginRule.getWeakMin()) {
+                operatingMarginAdjustment = operatingMarginRule.getWeakAdjustment();
+                operatingMarginBand = "WEAK";
+            } else {
+                operatingMarginAdjustment = operatingMarginRule.getNegativeAdjustment();
+                operatingMarginBand = "NEGATIVE";
+            }
+            score += operatingMarginAdjustment;
+        }
+        if (priceSnapshot.roeTtm() != null) {
+            final double roe = priceSnapshot.roeTtm().doubleValue();
+            if (roe >= roeRule.getStrongMin()) {
+                roeAdjustment = roeRule.getStrongAdjustment();
+                roeBand = "STRONG";
+            } else if (roe >= roeRule.getHealthyMin()) {
+                roeAdjustment = roeRule.getHealthyAdjustment();
+                roeBand = "HEALTHY";
+            } else if (roe >= roeRule.getWeakMin()) {
+                roeAdjustment = roeRule.getWeakAdjustment();
+                roeBand = "WEAK";
+            } else {
+                roeAdjustment = roeRule.getNegativeAdjustment();
+                roeBand = "NEGATIVE";
+            }
+            score += roeAdjustment;
+        }
+        if (priceSnapshot.debtToEquityTtm() != null) {
+            final double debtToEquity = priceSnapshot.debtToEquityTtm().doubleValue();
+            if (debtToEquity <= debtRule.getConservativeMax()) {
+                debtToEquityAdjustment = debtRule.getConservativeAdjustment();
+                debtToEquityBand = "CONSERVATIVE";
+            } else if (debtToEquity <= debtRule.getBalancedMax()) {
+                debtToEquityAdjustment = debtRule.getBalancedAdjustment();
+                debtToEquityBand = "BALANCED";
+            } else if (debtToEquity <= debtRule.getStretchedMax()) {
+                debtToEquityAdjustment = debtRule.getStretchedAdjustment();
+                debtToEquityBand = "STRETCHED";
+            } else {
+                debtToEquityAdjustment = debtRule.getExcessiveAdjustment();
+                debtToEquityBand = "EXCESSIVE";
+            }
+            score += debtToEquityAdjustment;
+        }
 
         if (priceSnapshot.marketCap() != null
                 && priceSnapshot.marketCap().doubleValue() >= combinationRule.getPositiveMarketCapMin()
@@ -1986,12 +2120,29 @@ public class RecommendationService {
                 && priceSnapshot.perValue().doubleValue() <= combinationRule.getPositivePerMax()) {
             combinationAdjustment += combinationRule.getPositiveAdjustment();
         }
-
         if (priceSnapshot.marketCap() != null
                 && priceSnapshot.marketCap().doubleValue() < combinationRule.getNegativeMarketCapMax()
                 && priceSnapshot.perValue() != null
                 && priceSnapshot.perValue().doubleValue() > combinationRule.getNegativePerMin()) {
             combinationAdjustment += combinationRule.getNegativeAdjustment();
+        }
+        if (priceSnapshot.epsTtm() != null
+                && priceSnapshot.epsTtm().doubleValue() > 0
+                && priceSnapshot.revenueGrowthYoy() != null
+                && priceSnapshot.revenueGrowthYoy().doubleValue() >= revenueGrowthRule.getHealthyMin()
+                && priceSnapshot.operatingMarginTtm() != null
+                && priceSnapshot.operatingMarginTtm().doubleValue() >= operatingMarginRule.getHealthyMin()
+                && priceSnapshot.roeTtm() != null
+                && priceSnapshot.roeTtm().doubleValue() >= roeRule.getHealthyMin()) {
+            combinationAdjustment += combinationRule.getQualityStackAdjustment();
+        }
+        if (priceSnapshot.epsTtm() != null
+                && priceSnapshot.epsTtm().doubleValue() <= 0
+                && priceSnapshot.revenueGrowthYoy() != null
+                && priceSnapshot.revenueGrowthYoy().doubleValue() < 0
+                && priceSnapshot.debtToEquityTtm() != null
+                && priceSnapshot.debtToEquityTtm().doubleValue() > debtRule.getStretchedMax()) {
+            combinationAdjustment += combinationRule.getFragileStackAdjustment();
         }
 
         score += combinationAdjustment;
@@ -2000,18 +2151,47 @@ public class RecommendationService {
                 score,
                 priceSnapshot.marketCap(),
                 priceSnapshot.perValue(),
+                priceSnapshot.epsTtm(),
+                priceSnapshot.revenueGrowthYoy(),
+                priceSnapshot.operatingMarginTtm(),
+                priceSnapshot.roeTtm(),
+                priceSnapshot.debtToEquityTtm(),
                 marketCapAdjustment,
                 perAdjustment,
+                epsAdjustment,
+                revenueGrowthAdjustment,
+                operatingMarginAdjustment,
+                roeAdjustment,
+                debtToEquityAdjustment,
                 combinationAdjustment,
                 marketCapTier,
                 perBand,
-                buildFundamentalQualitySummary(marketCapTier, perBand, combinationAdjustment)
+                epsBand,
+                revenueGrowthBand,
+                operatingMarginBand,
+                roeBand,
+                debtToEquityBand,
+                buildFundamentalQualitySummary(
+                        marketCapTier,
+                        perBand,
+                        epsBand,
+                        revenueGrowthBand,
+                        operatingMarginBand,
+                        roeBand,
+                        debtToEquityBand,
+                        combinationAdjustment
+                )
         );
     }
 
     private String buildFundamentalQualitySummary(
             String marketCapTier,
             String perBand,
+            String epsBand,
+            String revenueGrowthBand,
+            String operatingMarginBand,
+            String roeBand,
+            String debtToEquityBand,
             int combinationAdjustment
     ) {
         final List<String> parts = new ArrayList<>();
@@ -2033,6 +2213,47 @@ public class RecommendationService {
                 case "VERY_EXPENSIVE" -> "밸류에이션 부담이 높아 감점했어요.";
                 case "NEGATIVE_OR_UNCLEAR" -> "PER 해석이 어려워 보수적으로 봤어요.";
                 default -> "PER 정보를 반영했어요.";
+            });
+        }
+        if (epsBand != null) {
+            parts.add("POSITIVE".equals(epsBand)
+                    ? "주당순이익이 흑자라 기본 체력을 긍정적으로 봤어요."
+                    : "주당순이익이 적자라 보수적으로 반영했어요.");
+        }
+        if (revenueGrowthBand != null) {
+            parts.add(switch (revenueGrowthBand) {
+                case "STRONG" -> "매출 성장세가 강해 성장 점수를 높였어요.";
+                case "HEALTHY" -> "매출이 안정적으로 성장 중이에요.";
+                case "FLAT" -> "매출 성장률은 크지 않아 중립으로 봤어요.";
+                case "NEGATIVE" -> "매출이 줄어드는 구간이라 감점했어요.";
+                default -> "매출 성장률을 반영했어요.";
+            });
+        }
+        if (operatingMarginBand != null) {
+            parts.add(switch (operatingMarginBand) {
+                case "STRONG" -> "영업이익률이 높아 수익성이 탄탄해요.";
+                case "HEALTHY" -> "영업이익률이 양호한 편이에요.";
+                case "WEAK" -> "영업이익률이 낮아 추가 확인이 필요해요.";
+                case "NEGATIVE" -> "영업이익률이 약해 체력을 낮게 봤어요.";
+                default -> "영업이익률을 반영했어요.";
+            });
+        }
+        if (roeBand != null) {
+            parts.add(switch (roeBand) {
+                case "STRONG" -> "ROE가 높아 자본 효율이 좋아요.";
+                case "HEALTHY" -> "ROE가 무난한 편이에요.";
+                case "WEAK" -> "ROE는 중립 수준으로 봤어요.";
+                case "NEGATIVE" -> "ROE가 낮거나 음수라 보수적으로 봤어요.";
+                default -> "ROE를 반영했어요.";
+            });
+        }
+        if (debtToEquityBand != null) {
+            parts.add(switch (debtToEquityBand) {
+                case "CONSERVATIVE" -> "부채비율이 안정적이에요.";
+                case "BALANCED" -> "부채비율은 관리 가능한 수준이에요.";
+                case "STRETCHED" -> "부채비율 부담이 있어 감점했어요.";
+                case "EXCESSIVE" -> "부채비율이 높아 재무 안정성을 낮게 봤어요.";
+                default -> "부채비율을 반영했어요.";
             });
         }
         if (combinationAdjustment > 0) {
@@ -2513,7 +2734,12 @@ public class RecommendationService {
                             ? null
                             : latestSnapshot.getChangeRate30d().doubleValue(),
                     latestSnapshot.getMarketCap(),
-                    latestSnapshot.getPerValue()
+                    latestSnapshot.getPerValue(),
+                    latestSnapshot.getEpsTtm(),
+                    latestSnapshot.getRevenueGrowthYoy(),
+                    latestSnapshot.getOperatingMarginTtm(),
+                    latestSnapshot.getRoeTtm(),
+                    latestSnapshot.getDebtToEquityTtm()
             );
         }
 
@@ -2530,7 +2756,7 @@ public class RecommendationService {
 
         try {
             final Double currentPrice = fetchCurrentPrice(symbol, apiKey);
-            return new PriceSnapshot(currentPrice, null, null, null, null);
+            return new PriceSnapshot(currentPrice, null, null, null, null, null, null, null, null, null);
         } catch (Exception ignored) {
             return PriceSnapshot.unavailable();
         }
@@ -2685,10 +2911,15 @@ public class RecommendationService {
             Double changeRate7d,
             Double thirtyDayReturn,
             BigDecimal marketCap,
-            BigDecimal perValue
+            BigDecimal perValue,
+            BigDecimal epsTtm,
+            BigDecimal revenueGrowthYoy,
+            BigDecimal operatingMarginTtm,
+            BigDecimal roeTtm,
+            BigDecimal debtToEquityTtm
     ) {
         static PriceSnapshot unavailable() {
-            return new PriceSnapshot(null, null, null, null, null);
+            return new PriceSnapshot(null, null, null, null, null, null, null, null, null, null);
         }
 
         boolean hasCurrentPrice() {
@@ -2749,11 +2980,26 @@ public class RecommendationService {
             int score,
             BigDecimal marketCap,
             BigDecimal perValue,
+            BigDecimal epsTtm,
+            BigDecimal revenueGrowthYoy,
+            BigDecimal operatingMarginTtm,
+            BigDecimal roeTtm,
+            BigDecimal debtToEquityTtm,
             int marketCapAdjustment,
             int perAdjustment,
+            int epsAdjustment,
+            int revenueGrowthAdjustment,
+            int operatingMarginAdjustment,
+            int roeAdjustment,
+            int debtToEquityAdjustment,
             int combinationAdjustment,
             String marketCapTier,
             String perBand,
+            String epsBand,
+            String revenueGrowthBand,
+            String operatingMarginBand,
+            String roeBand,
+            String debtToEquityBand,
             String summary
     ) {
     }

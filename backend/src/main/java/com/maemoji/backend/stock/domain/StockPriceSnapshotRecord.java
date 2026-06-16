@@ -12,6 +12,11 @@ public class StockPriceSnapshotRecord {
     private BigDecimal changeRate30d;
     private BigDecimal marketCap;
     private BigDecimal perValue;
+    private BigDecimal epsTtm;
+    private BigDecimal revenueGrowthYoy;
+    private BigDecimal operatingMarginTtm;
+    private BigDecimal roeTtm;
+    private BigDecimal debtToEquityTtm;
     private String source;
 
     public Long getStockId() {
@@ -76,6 +81,46 @@ public class StockPriceSnapshotRecord {
 
     public void setPerValue(BigDecimal perValue) {
         this.perValue = perValue;
+    }
+
+    public BigDecimal getEpsTtm() {
+        return epsTtm;
+    }
+
+    public void setEpsTtm(BigDecimal epsTtm) {
+        this.epsTtm = epsTtm;
+    }
+
+    public BigDecimal getRevenueGrowthYoy() {
+        return revenueGrowthYoy;
+    }
+
+    public void setRevenueGrowthYoy(BigDecimal revenueGrowthYoy) {
+        this.revenueGrowthYoy = revenueGrowthYoy;
+    }
+
+    public BigDecimal getOperatingMarginTtm() {
+        return operatingMarginTtm;
+    }
+
+    public void setOperatingMarginTtm(BigDecimal operatingMarginTtm) {
+        this.operatingMarginTtm = operatingMarginTtm;
+    }
+
+    public BigDecimal getRoeTtm() {
+        return roeTtm;
+    }
+
+    public void setRoeTtm(BigDecimal roeTtm) {
+        this.roeTtm = roeTtm;
+    }
+
+    public BigDecimal getDebtToEquityTtm() {
+        return debtToEquityTtm;
+    }
+
+    public void setDebtToEquityTtm(BigDecimal debtToEquityTtm) {
+        this.debtToEquityTtm = debtToEquityTtm;
     }
 
     public String getSource() {
