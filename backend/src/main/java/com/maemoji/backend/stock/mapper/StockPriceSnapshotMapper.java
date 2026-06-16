@@ -40,9 +40,19 @@ public interface StockPriceSnapshotMapper {
             @Param("perValue") BigDecimal perValue,
             @Param("epsTtm") BigDecimal epsTtm,
             @Param("revenueGrowthYoy") BigDecimal revenueGrowthYoy,
+            @Param("grossMarginTtm") BigDecimal grossMarginTtm,
+            @Param("netMarginTtm") BigDecimal netMarginTtm,
             @Param("operatingMarginTtm") BigDecimal operatingMarginTtm,
             @Param("roeTtm") BigDecimal roeTtm,
+            @Param("roaTtm") BigDecimal roaTtm,
+            @Param("roicTtm") BigDecimal roicTtm,
             @Param("debtToEquityTtm") BigDecimal debtToEquityTtm,
+            @Param("currentRatioTtm") BigDecimal currentRatioTtm,
+            @Param("quickRatioTtm") BigDecimal quickRatioTtm,
+            @Param("assetTurnoverTtm") BigDecimal assetTurnoverTtm,
+            @Param("freeCashFlowYieldTtm") BigDecimal freeCashFlowYieldTtm,
+            @Param("operatingCashFlowRatioTtm") BigDecimal operatingCashFlowRatioTtm,
+            @Param("incomeQualityTtm") BigDecimal incomeQualityTtm,
             @Param("source") String source
     );
 }

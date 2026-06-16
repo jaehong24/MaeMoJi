@@ -124,6 +124,14 @@ public class StockPriceSnapshotBatchService {
                         decimalOrNull(snapshotData.revenueGrowthYoy()),
                         previousSnapshot == null ? null : previousSnapshot.getRevenueGrowthYoy()
                 );
+                final BigDecimal grossMarginTtm = firstNonNull(
+                        decimalOrNull(snapshotData.grossMarginTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getGrossMarginTtm()
+                );
+                final BigDecimal netMarginTtm = firstNonNull(
+                        decimalOrNull(snapshotData.netMarginTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getNetMarginTtm()
+                );
                 final BigDecimal operatingMarginTtm = firstNonNull(
                         decimalOrNull(snapshotData.operatingMarginTtm()),
                         previousSnapshot == null ? null : previousSnapshot.getOperatingMarginTtm()
@@ -132,9 +140,41 @@ public class StockPriceSnapshotBatchService {
                         decimalOrNull(snapshotData.roeTtm()),
                         previousSnapshot == null ? null : previousSnapshot.getRoeTtm()
                 );
+                final BigDecimal roaTtm = firstNonNull(
+                        decimalOrNull(snapshotData.roaTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getRoaTtm()
+                );
+                final BigDecimal roicTtm = firstNonNull(
+                        decimalOrNull(snapshotData.roicTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getRoicTtm()
+                );
                 final BigDecimal debtToEquityTtm = firstNonNull(
                         decimalOrNull(snapshotData.debtToEquityTtm()),
                         previousSnapshot == null ? null : previousSnapshot.getDebtToEquityTtm()
+                );
+                final BigDecimal currentRatioTtm = firstNonNull(
+                        decimalOrNull(snapshotData.currentRatioTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getCurrentRatioTtm()
+                );
+                final BigDecimal quickRatioTtm = firstNonNull(
+                        decimalOrNull(snapshotData.quickRatioTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getQuickRatioTtm()
+                );
+                final BigDecimal assetTurnoverTtm = firstNonNull(
+                        decimalOrNull(snapshotData.assetTurnoverTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getAssetTurnoverTtm()
+                );
+                final BigDecimal freeCashFlowYieldTtm = firstNonNull(
+                        decimalOrNull(snapshotData.freeCashFlowYieldTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getFreeCashFlowYieldTtm()
+                );
+                final BigDecimal operatingCashFlowRatioTtm = firstNonNull(
+                        decimalOrNull(snapshotData.operatingCashFlowRatioTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getOperatingCashFlowRatioTtm()
+                );
+                final BigDecimal incomeQualityTtm = firstNonNull(
+                        decimalOrNull(snapshotData.incomeQualityTtm()),
+                        previousSnapshot == null ? null : previousSnapshot.getIncomeQualityTtm()
                 );
                 final PriceReturns priceReturns = calculateReturns(
                         stock.getId(),
@@ -152,9 +192,19 @@ public class StockPriceSnapshotBatchService {
                         perValue,
                         epsTtm,
                         revenueGrowthYoy,
+                        grossMarginTtm,
+                        netMarginTtm,
                         operatingMarginTtm,
                         roeTtm,
+                        roaTtm,
+                        roicTtm,
                         debtToEquityTtm,
+                        currentRatioTtm,
+                        quickRatioTtm,
+                        assetTurnoverTtm,
+                        freeCashFlowYieldTtm,
+                        operatingCashFlowRatioTtm,
+                        incomeQualityTtm,
                         snapshotData.hasFmpFundamentals() ? FMP_MODEL_SOURCE : SOURCE
                 );
                 savedCount++;
@@ -252,9 +302,19 @@ public class StockPriceSnapshotBatchService {
                 ),
                 readNullableDouble(ratioNode, "netIncomePerShareTTM"),
                 readNullableDouble(growthNode, "growthRevenue"),
+                readNullableDouble(ratioNode, "grossProfitMarginTTM"),
+                readNullableDouble(ratioNode, "netProfitMarginTTM"),
                 readNullableDouble(ratioNode, "operatingProfitMarginTTM"),
                 readNullableDouble(keyMetricNode, "returnOnEquityTTM"),
-                readNullableDouble(ratioNode, "debtToEquityRatioTTM")
+                readNullableDouble(keyMetricNode, "returnOnAssetsTTM"),
+                readNullableDouble(keyMetricNode, "returnOnInvestedCapitalTTM"),
+                readNullableDouble(ratioNode, "debtToEquityRatioTTM"),
+                readNullableDouble(ratioNode, "currentRatioTTM"),
+                readNullableDouble(ratioNode, "quickRatioTTM"),
+                readNullableDouble(ratioNode, "assetTurnoverTTM"),
+                readNullableDouble(keyMetricNode, "freeCashFlowYieldTTM"),
+                readNullableDouble(ratioNode, "operatingCashFlowRatioTTM"),
+                readNullableDouble(keyMetricNode, "incomeQualityTTM")
         );
     }
 
@@ -385,16 +445,36 @@ public class StockPriceSnapshotBatchService {
             Double perValue,
             Double epsTtm,
             Double revenueGrowthYoy,
+            Double grossMarginTtm,
+            Double netMarginTtm,
             Double operatingMarginTtm,
             Double roeTtm,
-            Double debtToEquityTtm
+            Double roaTtm,
+            Double roicTtm,
+            Double debtToEquityTtm,
+            Double currentRatioTtm,
+            Double quickRatioTtm,
+            Double assetTurnoverTtm,
+            Double freeCashFlowYieldTtm,
+            Double operatingCashFlowRatioTtm,
+            Double incomeQualityTtm
     ) {
         boolean hasFmpFundamentals() {
             return epsTtm != null
                     || revenueGrowthYoy != null
+                    || grossMarginTtm != null
+                    || netMarginTtm != null
                     || operatingMarginTtm != null
                     || roeTtm != null
-                    || debtToEquityTtm != null;
+                    || roaTtm != null
+                    || roicTtm != null
+                    || debtToEquityTtm != null
+                    || currentRatioTtm != null
+                    || quickRatioTtm != null
+                    || assetTurnoverTtm != null
+                    || freeCashFlowYieldTtm != null
+                    || operatingCashFlowRatioTtm != null
+                    || incomeQualityTtm != null;
         }
     }
 

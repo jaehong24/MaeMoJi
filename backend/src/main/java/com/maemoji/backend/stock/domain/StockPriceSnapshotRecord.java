@@ -14,9 +14,19 @@ public class StockPriceSnapshotRecord {
     private BigDecimal perValue;
     private BigDecimal epsTtm;
     private BigDecimal revenueGrowthYoy;
+    private BigDecimal grossMarginTtm;
+    private BigDecimal netMarginTtm;
     private BigDecimal operatingMarginTtm;
     private BigDecimal roeTtm;
+    private BigDecimal roaTtm;
+    private BigDecimal roicTtm;
     private BigDecimal debtToEquityTtm;
+    private BigDecimal currentRatioTtm;
+    private BigDecimal quickRatioTtm;
+    private BigDecimal assetTurnoverTtm;
+    private BigDecimal freeCashFlowYieldTtm;
+    private BigDecimal operatingCashFlowRatioTtm;
+    private BigDecimal incomeQualityTtm;
     private String source;
 
     public Long getStockId() {
@@ -99,6 +109,22 @@ public class StockPriceSnapshotRecord {
         this.revenueGrowthYoy = revenueGrowthYoy;
     }
 
+    public BigDecimal getGrossMarginTtm() {
+        return grossMarginTtm;
+    }
+
+    public void setGrossMarginTtm(BigDecimal grossMarginTtm) {
+        this.grossMarginTtm = grossMarginTtm;
+    }
+
+    public BigDecimal getNetMarginTtm() {
+        return netMarginTtm;
+    }
+
+    public void setNetMarginTtm(BigDecimal netMarginTtm) {
+        this.netMarginTtm = netMarginTtm;
+    }
+
     public BigDecimal getOperatingMarginTtm() {
         return operatingMarginTtm;
     }
@@ -115,12 +141,76 @@ public class StockPriceSnapshotRecord {
         this.roeTtm = roeTtm;
     }
 
+    public BigDecimal getRoaTtm() {
+        return roaTtm;
+    }
+
+    public void setRoaTtm(BigDecimal roaTtm) {
+        this.roaTtm = roaTtm;
+    }
+
+    public BigDecimal getRoicTtm() {
+        return roicTtm;
+    }
+
+    public void setRoicTtm(BigDecimal roicTtm) {
+        this.roicTtm = roicTtm;
+    }
+
     public BigDecimal getDebtToEquityTtm() {
         return debtToEquityTtm;
     }
 
     public void setDebtToEquityTtm(BigDecimal debtToEquityTtm) {
         this.debtToEquityTtm = debtToEquityTtm;
+    }
+
+    public BigDecimal getCurrentRatioTtm() {
+        return currentRatioTtm;
+    }
+
+    public void setCurrentRatioTtm(BigDecimal currentRatioTtm) {
+        this.currentRatioTtm = currentRatioTtm;
+    }
+
+    public BigDecimal getQuickRatioTtm() {
+        return quickRatioTtm;
+    }
+
+    public void setQuickRatioTtm(BigDecimal quickRatioTtm) {
+        this.quickRatioTtm = quickRatioTtm;
+    }
+
+    public BigDecimal getAssetTurnoverTtm() {
+        return assetTurnoverTtm;
+    }
+
+    public void setAssetTurnoverTtm(BigDecimal assetTurnoverTtm) {
+        this.assetTurnoverTtm = assetTurnoverTtm;
+    }
+
+    public BigDecimal getFreeCashFlowYieldTtm() {
+        return freeCashFlowYieldTtm;
+    }
+
+    public void setFreeCashFlowYieldTtm(BigDecimal freeCashFlowYieldTtm) {
+        this.freeCashFlowYieldTtm = freeCashFlowYieldTtm;
+    }
+
+    public BigDecimal getOperatingCashFlowRatioTtm() {
+        return operatingCashFlowRatioTtm;
+    }
+
+    public void setOperatingCashFlowRatioTtm(BigDecimal operatingCashFlowRatioTtm) {
+        this.operatingCashFlowRatioTtm = operatingCashFlowRatioTtm;
+    }
+
+    public BigDecimal getIncomeQualityTtm() {
+        return incomeQualityTtm;
+    }
+
+    public void setIncomeQualityTtm(BigDecimal incomeQualityTtm) {
+        this.incomeQualityTtm = incomeQualityTtm;
     }
 
     public String getSource() {

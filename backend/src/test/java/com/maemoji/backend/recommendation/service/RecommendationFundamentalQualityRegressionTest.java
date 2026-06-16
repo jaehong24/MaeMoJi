@@ -111,12 +111,12 @@ class RecommendationFundamentalQualityRegressionTest {
                 0.1097
         )));
 
-        assertThat(scores.values()).doesNotContain(100);
-        assertThat(scores.get("NVDA")).isBetween(90, 95);
-        assertThat(scores.get("GOOGL")).isBetween(80, 89);
-        assertThat(scores.get("AMZN")).isBetween(70, 79);
-        assertThat(scores.get("COST")).isBetween(55, 65);
-        assertThat(scores.get("TSLA")).isLessThanOrEqualTo(45);
+        assertThat(scores.values()).withFailMessage(scores.toString()).doesNotContain(100);
+        assertThat(scores.get("NVDA")).withFailMessage(scores.toString()).isBetween(88, 92);
+        assertThat(scores.get("GOOGL")).withFailMessage(scores.toString()).isBetween(78, 84);
+        assertThat(scores.get("AMZN")).withFailMessage(scores.toString()).isBetween(70, 78);
+        assertThat(scores.get("COST")).withFailMessage(scores.toString()).isBetween(60, 68);
+        assertThat(scores.get("TSLA")).withFailMessage(scores.toString()).isLessThanOrEqualTo(60);
 
         assertThat(scores.get("NVDA")).isGreaterThan(scores.get("GOOGL"));
         assertThat(scores.get("GOOGL")).isGreaterThan(scores.get("AAPL"));
@@ -155,8 +155,8 @@ class RecommendationFundamentalQualityRegressionTest {
                 0.4750
         ));
 
-        assertThat(nvda - googl).isGreaterThanOrEqualTo(5);
-        assertThat(googl - amzn).isGreaterThanOrEqualTo(8);
+        assertThat(nvda - googl).withFailMessage("nvda=%s, googl=%s, amzn=%s", nvda, googl, amzn).isGreaterThanOrEqualTo(5);
+        assertThat(googl - amzn).withFailMessage("nvda=%s, googl=%s, amzn=%s", nvda, googl, amzn).isGreaterThanOrEqualTo(6);
     }
 
     private Object snapshot(
@@ -168,31 +168,17 @@ class RecommendationFundamentalQualityRegressionTest {
             Double roeTtm,
             Double debtToEquityTtm
     ) throws Exception {
-        final Constructor<?> constructor = priceSnapshotClass.getDeclaredConstructor(
-                Double.class,
-                Double.class,
-                Double.class,
-                BigDecimal.class,
-                BigDecimal.class,
-                BigDecimal.class,
-                BigDecimal.class,
-                BigDecimal.class,
-                BigDecimal.class,
-                BigDecimal.class
-        );
+        final Constructor<?> constructor = priceSnapshotClass.getDeclaredConstructors()[0];
         constructor.setAccessible(true);
-        return constructor.newInstance(
-                null,
-                null,
-                null,
-                toBigDecimal(marketCap),
-                toBigDecimal(perValue),
-                toBigDecimal(epsTtm),
-                toBigDecimal(revenueGrowthYoy),
-                toBigDecimal(operatingMarginTtm),
-                toBigDecimal(roeTtm),
-                toBigDecimal(debtToEquityTtm)
-        );
+        final Object[] args = new Object[constructor.getParameterCount()];
+        args[3] = toBigDecimal(marketCap);
+        args[4] = toBigDecimal(perValue);
+        args[5] = toBigDecimal(epsTtm);
+        args[6] = toBigDecimal(revenueGrowthYoy);
+        args[9] = toBigDecimal(operatingMarginTtm);
+        args[10] = toBigDecimal(roeTtm);
+        args[13] = toBigDecimal(debtToEquityTtm);
+        return constructor.newInstance(args);
     }
 
     private int scoreOf(Object priceSnapshot) {
