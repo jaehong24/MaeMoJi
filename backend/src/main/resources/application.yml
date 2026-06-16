@@ -91,67 +91,73 @@ maemoji:
         stress30-score: 40
         fallback-score: 20
       fundamental:
-        base-score: 50
+        base-score: 42
         market-cap:
           mega-cap-min: 500000
-          mega-cap-adjustment: 20
+          mega-cap-adjustment: 12
           large-cap-min: 200000
-          large-cap-adjustment: 16
+          large-cap-adjustment: 8
           upper-mid-cap-min: 50000
-          upper-mid-cap-adjustment: 10
+          upper-mid-cap-adjustment: 4
           mid-cap-min: 10000
-          mid-cap-adjustment: 4
-          small-cap-adjustment: -4
+          mid-cap-adjustment: 0
+          small-cap-adjustment: -6
         per:
           attractive-max: 20
-          attractive-adjustment: 12
+          attractive-adjustment: 8
           fair-max: 35
-          fair-adjustment: 6
+          fair-adjustment: 3
           expensive-max: 60
-          expensive-adjustment: 0
-          very-expensive-adjustment: -10
-          negative-or-unclear-adjustment: -8
+          expensive-adjustment: -2
+          very-expensive-adjustment: -12
+          negative-or-unclear-adjustment: -10
         eps:
-          positive-adjustment: 8
-          negative-adjustment: -14
+          positive-adjustment: 5
+          negative-adjustment: -12
         revenue-growth:
+          exceptional-min: 0.4
           strong-min: 0.15
           healthy-min: 0.05
           flat-min: 0.0
-          strong-adjustment: 8
-          healthy-adjustment: 4
+          exceptional-adjustment: 10
+          strong-adjustment: 6
+          healthy-adjustment: 3
           flat-adjustment: 0
-          negative-adjustment: -8
+          negative-adjustment: -6
         operating-margin:
+          exceptional-min: 0.4
           strong-min: 0.25
           healthy-min: 0.15
           weak-min: 0.05
-          strong-adjustment: 8
-          healthy-adjustment: 4
+          exceptional-adjustment: 8
+          strong-adjustment: 5
+          healthy-adjustment: 2
           weak-adjustment: 0
-          negative-adjustment: -10
+          negative-adjustment: -6
         roe:
+          exceptional-min: 0.5
           strong-min: 0.20
           healthy-min: 0.10
           weak-min: 0.0
-          strong-adjustment: 6
-          healthy-adjustment: 3
+          exceptional-adjustment: 7
+          strong-adjustment: 4
+          healthy-adjustment: 2
           weak-adjustment: 0
-          negative-adjustment: -8
+          negative-adjustment: -6
         debt-to-equity:
           conservative-max: 0.8
           balanced-max: 1.5
           stretched-max: 3.0
-          conservative-adjustment: 4
+          conservative-adjustment: 3
           balanced-adjustment: 1
-          stretched-adjustment: -4
-          excessive-adjustment: -8
+          stretched-adjustment: -3
+          excessive-adjustment: -6
         combination:
           positive-market-cap-min: 50000
           positive-per-max: 35
-          positive-adjustment: 4
+          positive-adjustment: 2
           negative-market-cap-max: 10000
           negative-per-min: 60
-          negative-adjustment: -4
-          quality-stack-adjustment: 6
-          fragile-stack-adjustment: -6
+          negative-adjustment: -3
+          quality-stack-adjustment: 3
+          fragile-stack-adjustment: -5

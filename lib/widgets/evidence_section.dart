@@ -335,6 +335,8 @@ class _FundamentalMetricStrip extends StatelessWidget {
         return '주의';
       case 'STRONG':
         return '강함';
+      case 'EXCEPTIONAL':
+        return '매우강함';
       case 'HEALTHY':
         return '양호';
       case 'FLAT':

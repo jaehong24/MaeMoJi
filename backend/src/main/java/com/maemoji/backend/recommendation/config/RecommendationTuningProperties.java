@@ -244,7 +244,7 @@ public class RecommendationTuningProperties {
     }
 
     public static class Fundamental {
-        private int baseScore = 50;
+        private int baseScore = 42;
         private MarketCap marketCap = new MarketCap();
         private Per per = new Per();
         private Eps eps = new Eps();
@@ -329,14 +329,14 @@ public class RecommendationTuningProperties {
 
     public static class MarketCap {
         private double megaCapMin = 500_000;
-        private int megaCapAdjustment = 20;
+        private int megaCapAdjustment = 12;
         private double largeCapMin = 200_000;
-        private int largeCapAdjustment = 16;
+        private int largeCapAdjustment = 8;
         private double upperMidCapMin = 50_000;
-        private int upperMidCapAdjustment = 10;
+        private int upperMidCapAdjustment = 4;
         private double midCapMin = 10_000;
-        private int midCapAdjustment = 4;
-        private int smallCapAdjustment = -4;
+        private int midCapAdjustment = 0;
+        private int smallCapAdjustment = -6;
 
         public double getMegaCapMin() {
             return megaCapMin;
@@ -413,13 +413,13 @@ public class RecommendationTuningProperties {
 
     public static class Per {
         private double attractiveMax = 20;
-        private int attractiveAdjustment = 12;
+        private int attractiveAdjustment = 8;
         private double fairMax = 35;
-        private int fairAdjustment = 6;
+        private int fairAdjustment = 3;
         private double expensiveMax = 60;
-        private int expensiveAdjustment = 0;
-        private int veryExpensiveAdjustment = -10;
-        private int negativeOrUnclearAdjustment = -8;
+        private int expensiveAdjustment = -2;
+        private int veryExpensiveAdjustment = -12;
+        private int negativeOrUnclearAdjustment = -10;
 
         public double getAttractiveMax() {
             return attractiveMax;
@@ -489,12 +489,12 @@ public class RecommendationTuningProperties {
     public static class Combination {
         private double positiveMarketCapMin = 50_000;
         private double positivePerMax = 35;
-        private int positiveAdjustment = 4;
+        private int positiveAdjustment = 2;
         private double negativeMarketCapMax = 10_000;
         private double negativePerMin = 60;
-        private int negativeAdjustment = -4;
-        private int qualityStackAdjustment = 6;
-        private int fragileStackAdjustment = -6;
+        private int negativeAdjustment = -3;
+        private int qualityStackAdjustment = 3;
+        private int fragileStackAdjustment = -5;
 
         public double getPositiveMarketCapMin() {
             return positiveMarketCapMin;
@@ -562,8 +562,8 @@ public class RecommendationTuningProperties {
     }
 
     public static class Eps {
-        private int positiveAdjustment = 8;
-        private int negativeAdjustment = -14;
+        private int positiveAdjustment = 5;
+        private int negativeAdjustment = -12;
 
         public int getPositiveAdjustment() {
             return positiveAdjustment;
@@ -583,13 +583,23 @@ public class RecommendationTuningProperties {
     }
 
     public static class RevenueGrowth {
+        private double exceptionalMin = 0.40;
         private double strongMin = 0.15;
         private double healthyMin = 0.05;
         private double flatMin = 0.0;
-        private int strongAdjustment = 8;
-        private int healthyAdjustment = 4;
+        private int exceptionalAdjustment = 10;
+        private int strongAdjustment = 6;
+        private int healthyAdjustment = 3;
         private int flatAdjustment = 0;
-        private int negativeAdjustment = -8;
+        private int negativeAdjustment = -6;
+
+        public double getExceptionalMin() {
+            return exceptionalMin;
+        }
+
+        public void setExceptionalMin(double exceptionalMin) {
+            this.exceptionalMin = exceptionalMin;
+        }
 
         public double getStrongMin() {
             return strongMin;
@@ -623,6 +633,14 @@ public class RecommendationTuningProperties {
             this.strongAdjustment = strongAdjustment;
         }
 
+        public int getExceptionalAdjustment() {
+            return exceptionalAdjustment;
+        }
+
+        public void setExceptionalAdjustment(int exceptionalAdjustment) {
+            this.exceptionalAdjustment = exceptionalAdjustment;
+        }
+
         public int getHealthyAdjustment() {
             return healthyAdjustment;
         }
@@ -649,13 +667,23 @@ public class RecommendationTuningProperties {
     }
 
     public static class OperatingMargin {
+        private double exceptionalMin = 0.40;
         private double strongMin = 0.25;
         private double healthyMin = 0.15;
         private double weakMin = 0.05;
-        private int strongAdjustment = 8;
-        private int healthyAdjustment = 4;
+        private int exceptionalAdjustment = 8;
+        private int strongAdjustment = 5;
+        private int healthyAdjustment = 2;
         private int weakAdjustment = 0;
-        private int negativeAdjustment = -10;
+        private int negativeAdjustment = -6;
+
+        public double getExceptionalMin() {
+            return exceptionalMin;
+        }
+
+        public void setExceptionalMin(double exceptionalMin) {
+            this.exceptionalMin = exceptionalMin;
+        }
 
         public double getStrongMin() {
             return strongMin;
@@ -687,6 +715,14 @@ public class RecommendationTuningProperties {
 
         public void setStrongAdjustment(int strongAdjustment) {
             this.strongAdjustment = strongAdjustment;
+        }
+
+        public int getExceptionalAdjustment() {
+            return exceptionalAdjustment;
+        }
+
+        public void setExceptionalAdjustment(int exceptionalAdjustment) {
+            this.exceptionalAdjustment = exceptionalAdjustment;
         }
 
         public int getHealthyAdjustment() {
@@ -715,13 +751,23 @@ public class RecommendationTuningProperties {
     }
 
     public static class Roe {
+        private double exceptionalMin = 0.50;
         private double strongMin = 0.20;
         private double healthyMin = 0.10;
         private double weakMin = 0.0;
-        private int strongAdjustment = 6;
-        private int healthyAdjustment = 3;
+        private int exceptionalAdjustment = 7;
+        private int strongAdjustment = 4;
+        private int healthyAdjustment = 2;
         private int weakAdjustment = 0;
-        private int negativeAdjustment = -8;
+        private int negativeAdjustment = -6;
+
+        public double getExceptionalMin() {
+            return exceptionalMin;
+        }
+
+        public void setExceptionalMin(double exceptionalMin) {
+            this.exceptionalMin = exceptionalMin;
+        }
 
         public double getStrongMin() {
             return strongMin;
@@ -753,6 +799,14 @@ public class RecommendationTuningProperties {
 
         public void setStrongAdjustment(int strongAdjustment) {
             this.strongAdjustment = strongAdjustment;
+        }
+
+        public int getExceptionalAdjustment() {
+            return exceptionalAdjustment;
+        }
+
+        public void setExceptionalAdjustment(int exceptionalAdjustment) {
+            this.exceptionalAdjustment = exceptionalAdjustment;
         }
 
         public int getHealthyAdjustment() {
@@ -784,10 +838,10 @@ public class RecommendationTuningProperties {
         private double conservativeMax = 0.8;
         private double balancedMax = 1.5;
         private double stretchedMax = 3.0;
-        private int conservativeAdjustment = 4;
+        private int conservativeAdjustment = 3;
         private int balancedAdjustment = 1;
-        private int stretchedAdjustment = -4;
-        private int excessiveAdjustment = -8;
+        private int stretchedAdjustment = -3;
+        private int excessiveAdjustment = -6;
 
         public double getConservativeMax() {
             return conservativeMax;

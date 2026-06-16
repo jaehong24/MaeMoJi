@@ -2081,7 +2081,10 @@ public class RecommendationService {
         }
         if (priceSnapshot.revenueGrowthYoy() != null) {
             final double revenueGrowth = priceSnapshot.revenueGrowthYoy().doubleValue();
-            if (revenueGrowth >= revenueGrowthRule.getStrongMin()) {
+            if (revenueGrowth >= revenueGrowthRule.getExceptionalMin()) {
+                revenueGrowthAdjustment = revenueGrowthRule.getExceptionalAdjustment();
+                revenueGrowthBand = "EXCEPTIONAL";
+            } else if (revenueGrowth >= revenueGrowthRule.getStrongMin()) {
                 revenueGrowthAdjustment = revenueGrowthRule.getStrongAdjustment();
                 revenueGrowthBand = "STRONG";
             } else if (revenueGrowth >= revenueGrowthRule.getHealthyMin()) {
@@ -2098,7 +2101,10 @@ public class RecommendationService {
         }
         if (priceSnapshot.operatingMarginTtm() != null) {
             final double operatingMargin = priceSnapshot.operatingMarginTtm().doubleValue();
-            if (operatingMargin >= operatingMarginRule.getStrongMin()) {
+            if (operatingMargin >= operatingMarginRule.getExceptionalMin()) {
+                operatingMarginAdjustment = operatingMarginRule.getExceptionalAdjustment();
+                operatingMarginBand = "EXCEPTIONAL";
+            } else if (operatingMargin >= operatingMarginRule.getStrongMin()) {
                 operatingMarginAdjustment = operatingMarginRule.getStrongAdjustment();
                 operatingMarginBand = "STRONG";
             } else if (operatingMargin >= operatingMarginRule.getHealthyMin()) {
@@ -2115,7 +2121,10 @@ public class RecommendationService {
         }
         if (priceSnapshot.roeTtm() != null) {
             final double roe = priceSnapshot.roeTtm().doubleValue();
-            if (roe >= roeRule.getStrongMin()) {
+            if (roe >= roeRule.getExceptionalMin()) {
+                roeAdjustment = roeRule.getExceptionalAdjustment();
+                roeBand = "EXCEPTIONAL";
+            } else if (roe >= roeRule.getStrongMin()) {
                 roeAdjustment = roeRule.getStrongAdjustment();
                 roeBand = "STRONG";
             } else if (roe >= roeRule.getHealthyMin()) {
@@ -2257,6 +2266,7 @@ public class RecommendationService {
         }
         if (revenueGrowthBand != null) {
             parts.add(switch (revenueGrowthBand) {
+                case "EXCEPTIONAL" -> "매출 성장세가 매우 강해 상위권 가점을 줬어요.";
                 case "STRONG" -> "매출 성장세가 강해 성장 점수를 높였어요.";
                 case "HEALTHY" -> "매출이 안정적으로 성장 중이에요.";
                 case "FLAT" -> "매출 성장률은 크지 않아 중립으로 봤어요.";
@@ -2266,6 +2276,7 @@ public class RecommendationService {
         }
         if (operatingMarginBand != null) {
             parts.add(switch (operatingMarginBand) {
+                case "EXCEPTIONAL" -> "영업이익률이 매우 높아 수익성이 탁월해요.";
                 case "STRONG" -> "영업이익률이 높아 수익성이 탄탄해요.";
                 case "HEALTHY" -> "영업이익률이 양호한 편이에요.";
                 case "WEAK" -> "영업이익률이 낮아 추가 확인이 필요해요.";
@@ -2275,6 +2286,7 @@ public class RecommendationService {
         }
         if (roeBand != null) {
             parts.add(switch (roeBand) {
+                case "EXCEPTIONAL" -> "ROE가 매우 높아 자본 효율이 뛰어나요.";
                 case "STRONG" -> "ROE가 높아 자본 효율이 좋아요.";
                 case "HEALTHY" -> "ROE가 무난한 편이에요.";
                 case "WEAK" -> "ROE는 중립 수준으로 봤어요.";
@@ -2619,6 +2631,7 @@ public class RecommendationService {
                 default -> "";
             });
             appendBandSentence(parts, node.path("revenueGrowthBand").asText(""), switch (node.path("revenueGrowthBand").asText("")) {
+                case "EXCEPTIONAL" -> "매출 성장세가 매우 강해 상위권 성장 동력으로 봤어요.";
                 case "STRONG" -> "매출 성장세가 강해 성장 동력을 높게 평가했어요.";
                 case "HEALTHY" -> "매출이 안정적으로 늘고 있어요.";
                 case "FLAT" -> "매출 성장은 크지 않아 중립으로 반영했어요.";
@@ -2626,6 +2639,7 @@ public class RecommendationService {
                 default -> "";
             });
             appendBandSentence(parts, node.path("operatingMarginBand").asText(""), switch (node.path("operatingMarginBand").asText("")) {
+                case "EXCEPTIONAL" -> "영업이익률이 매우 높아 수익성이 탁월해요.";
                 case "STRONG" -> "영업이익률이 높아 수익성이 탄탄해요.";
                 case "HEALTHY" -> "영업이익률이 무난하게 유지되고 있어요.";
                 case "WEAK" -> "영업이익률은 다소 낮아 추가 확인이 필요해요.";
@@ -2633,6 +2647,7 @@ public class RecommendationService {
                 default -> "";
             });
             appendBandSentence(parts, node.path("roeBand").asText(""), switch (node.path("roeBand").asText("")) {
+                case "EXCEPTIONAL" -> "ROE가 매우 높아 자본 효율이 탁월해요.";
                 case "STRONG" -> "ROE가 높아 자본 효율이 좋아요.";
                 case "HEALTHY" -> "ROE는 양호한 편이에요.";
                 case "WEAK" -> "ROE는 중립 수준으로 반영했어요.";
@@ -2795,15 +2810,21 @@ public class RecommendationService {
         }
         if ("STRONG".equals(assessment.revenueGrowthBand())) {
             points.add("강한 매출 성장");
+        } else if ("EXCEPTIONAL".equals(assessment.revenueGrowthBand())) {
+            points.add("매우 강한 매출 성장");
         } else if ("HEALTHY".equals(assessment.revenueGrowthBand())) {
             points.add("안정적 매출 성장");
         }
-        if ("STRONG".equals(assessment.operatingMarginBand())) {
+        if ("EXCEPTIONAL".equals(assessment.operatingMarginBand())) {
+            points.add("탁월한 수익성");
+        } else if ("STRONG".equals(assessment.operatingMarginBand())) {
             points.add("높은 수익성");
         } else if ("HEALTHY".equals(assessment.operatingMarginBand())) {
             points.add("양호한 수익성");
         }
-        if ("STRONG".equals(assessment.roeBand()) || "HEALTHY".equals(assessment.roeBand())) {
+        if ("EXCEPTIONAL".equals(assessment.roeBand())) {
+            points.add("매우 높은 자본 효율");
+        } else if ("STRONG".equals(assessment.roeBand()) || "HEALTHY".equals(assessment.roeBand())) {
             points.add("좋은 자본 효율");
         }
         if ("CONSERVATIVE".equals(assessment.debtToEquityBand())) {
