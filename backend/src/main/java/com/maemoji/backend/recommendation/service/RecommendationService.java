@@ -2154,11 +2154,11 @@ public class RecommendationService {
         }
 
         final Integer baseScore = weightedAverageScores(
-                assessment.growthScore(), 30,
-                assessment.profitabilityScore(), 25,
-                assessment.cashFlowScore(), 25,
-                assessment.efficiencyScore(), 10,
-                assessment.safetyScore(), 10
+                assessment.growthScore(), 26,
+                assessment.profitabilityScore(), 26,
+                assessment.cashFlowScore(), 26,
+                assessment.efficiencyScore(), 8,
+                assessment.safetyScore(), 14
         );
         if (baseScore == null) {
             return null;
@@ -2227,12 +2227,32 @@ public class RecommendationService {
             adjustment += 3;
         }
         if (assessment.growthScore() != null
+                && assessment.growthScore() >= 70
+                && assessment.profitabilityScore() != null
+                && assessment.profitabilityScore() >= 82
+                && assessment.cashFlowScore() != null
+                && assessment.cashFlowScore() >= 82) {
+            adjustment += 2;
+        }
+        if (assessment.growthScore() != null
                 && assessment.growthScore() >= 82
                 && ((assessment.cashFlowScore() != null
                 && assessment.cashFlowScore() <= 60)
                 || (assessment.profitabilityScore() != null
                 && assessment.profitabilityScore() <= 55))) {
             adjustment -= 10;
+        }
+        if (assessment.revenueGrowthYoy() != null
+                && assessment.revenueGrowthYoy().doubleValue() >= 0.20
+                && assessment.cashFlowScore() != null
+                && assessment.cashFlowScore() <= 55) {
+            adjustment -= 6;
+        }
+        if (assessment.revenueGrowthYoy() != null
+                && assessment.revenueGrowthYoy().doubleValue() >= 0.20
+                && assessment.profitabilityScore() != null
+                && assessment.profitabilityScore() <= 60) {
+            adjustment -= 5;
         }
         if (assessment.growthScore() != null
                 && assessment.growthScore() <= 45
@@ -3148,9 +3168,10 @@ public class RecommendationService {
         );
         efficiencyScore = averageScores(assetTurnoverMetricScore);
         valuationScore = weightedAverageScores(
-                perMetricScore, 75,
-                freeCashFlowYieldMetricScore, 15,
-                marketCapMetricScore, 10
+                perMetricScore, 65,
+                freeCashFlowYieldMetricScore, 20,
+                operatingCashFlowRatioMetricScore, 10,
+                marketCapMetricScore, 5
         );
 
         if (profitabilityScore != null && profitabilityScore >= 80
@@ -3189,16 +3210,42 @@ public class RecommendationService {
             valuationScore = clampScore(valuationScore - 8);
         }
         if (valuationScore != null
+                && valuationScore <= 45
+                && cashFlowScore != null
+                && cashFlowScore <= 55) {
+            valuationScore = clampScore(valuationScore - 5);
+        }
+        if (valuationScore != null
                 && valuationScore >= 78
                 && cashFlowScore != null
                 && cashFlowScore >= 68) {
             valuationScore = clampScore(valuationScore + 1);
+        }
+        if (valuationScore != null
+                && valuationScore >= 72
+                && cashFlowScore != null
+                && cashFlowScore >= 78
+                && profitabilityScore != null
+                && profitabilityScore >= 78) {
+            valuationScore = clampScore(valuationScore + 2);
         }
         if (priceSnapshot.perValue() != null
                 && priceSnapshot.perValue().doubleValue() >= 100
                 && growthScore != null
                 && growthScore < 80) {
             valuationScore = clampScore(zeroIfNull(valuationScore) - 6);
+        }
+        if (priceSnapshot.perValue() != null
+                && priceSnapshot.perValue().doubleValue() >= 45
+                && cashFlowScore != null
+                && cashFlowScore <= 55) {
+            valuationScore = clampScore(zeroIfNull(valuationScore) - 4);
+        }
+        if (priceSnapshot.perValue() != null
+                && priceSnapshot.perValue().doubleValue() >= 30
+                && profitabilityScore != null
+                && profitabilityScore <= 60) {
+            valuationScore = clampScore(zeroIfNull(valuationScore) - 3);
         }
 
         final int weightedScore = weightedAverageScores(
@@ -3967,11 +4014,17 @@ public class RecommendationService {
         }
 
         final String perText = "현재 PER은 " + formatDecimal(assessment.perValue(), 1) + "배예요.";
+        final boolean strongCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() >= 78;
+        final boolean weakCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() <= 55;
         return switch (blankToEmpty(assessment.perBand())) {
             case "ATTRACTIVE" -> perText + " 이익 대비 가격 부담이 낮아 긍정적으로 반영했어요.";
             case "FAIR" -> perText + " 과도하게 비싸지 않은 구간으로 봤어요.";
-            case "EXPENSIVE" -> perText + " 기업 체력이 좋아도 지금 가격은 다소 선반영된 구간으로 봤어요.";
-            case "VERY_EXPENSIVE" -> perText + " 성장 기대가 높더라도 현재 가격 부담은 크게 반영했어요.";
+            case "EXPENSIVE" -> strongCashSupport
+                    ? perText + " 가격은 다소 올라와 있지만 현금창출력이 받쳐줘 부담을 일부 완화했어요."
+                    : perText + " 기업 체력이 좋아도 지금 가격은 다소 선반영된 구간으로 봤어요.";
+            case "VERY_EXPENSIVE" -> weakCashSupport
+                    ? perText + " 높은 기대가 이미 많이 반영된 데다 현금흐름 뒷받침도 약해 가격 부담을 크게 반영했어요."
+                    : perText + " 성장 기대가 높더라도 현재 가격 부담은 크게 반영했어요.";
             default -> perText + " 밸류에이션은 보수적으로 해석했어요.";
         };
     }
@@ -3997,6 +4050,12 @@ public class RecommendationService {
                             ? "현금흐름이 이익을 잘 뒷받침하고 있어요."
                             : "이익 대비 현금흐름은 조금 더 확인이 필요해요."
             );
+        }
+        if (assessment.cashFlowScore() != null && assessment.cashFlowScore() <= 55) {
+            parts.add("성장률에 비해 현금 전환력은 아직 더 확인이 필요해요.");
+        }
+        if (assessment.profitabilityScore() != null && assessment.profitabilityScore() >= 82) {
+            parts.add("성장이 수익성으로 이어지는 힘은 강한 편이에요.");
         }
         if (assessment.safetyScore() != null && assessment.safetyScore() <= 45) {
             parts.add("성장 수치는 좋아도 재무 안정성은 함께 보수적으로 반영했어요.");

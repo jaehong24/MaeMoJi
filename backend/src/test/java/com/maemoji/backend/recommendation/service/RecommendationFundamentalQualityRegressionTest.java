@@ -193,6 +193,7 @@ class RecommendationFundamentalQualityRegressionTest {
 
         assertThat(googlValuation).isGreaterThan(costValuation);
         assertThat(costValuation).isGreaterThan(tslaValuation);
+        assertThat(googlValuation - costValuation).isGreaterThanOrEqualTo(8);
     }
 
     @Test
@@ -227,6 +228,33 @@ class RecommendationFundamentalQualityRegressionTest {
 
         assertThat(nvdaQualityOfGrowth).isGreaterThan(amznQualityOfGrowth);
         assertThat(amznQualityOfGrowth).isGreaterThan(tslaQualityOfGrowth);
+        assertThat(nvdaQualityOfGrowth - amznQualityOfGrowth).isGreaterThanOrEqualTo(8);
+        assertThat(amznQualityOfGrowth - tslaQualityOfGrowth).isGreaterThanOrEqualTo(10);
+    }
+
+    @Test
+    void qualityOfGrowthRewardsProfitableCashSupportedCompoundingOverThinGrowth() throws Exception {
+        final int durableCompounder = qualityOfGrowthScoreOf(snapshot(
+                4_384_323.0,
+                35.7685,
+                8.3324,
+                0.0643,
+                0.3264,
+                1.4669,
+                0.7955
+        ));
+        final int thinHighGrowth = qualityOfGrowthScoreOf(snapshot(
+                1_544_165.8,
+                399.8358,
+                1.1985,
+                -0.0293,
+                0.0500,
+                0.0479,
+                0.1097
+        ));
+
+        assertThat(durableCompounder).isGreaterThan(thinHighGrowth);
+        assertThat(durableCompounder - thinHighGrowth).isGreaterThanOrEqualTo(12);
     }
 
     @Test
