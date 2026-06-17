@@ -259,6 +259,7 @@ public class StockPriceSnapshotBatchService {
                         symbol
                 )
                 : null;
+        final JsonNode metricNode = metrics == null ? null : metrics.path("metric");
         final JsonNode keyMetrics = fetchMetrics && hasText(fmpApiKey)
                 ? getJsonOrNull(
                         "https://financialmodelingprep.com/stable/key-metrics-ttm?symbol="
@@ -294,27 +295,69 @@ public class StockPriceSnapshotBatchService {
                 readPositiveDouble(quote, "c"),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "marketCap"),
-                        readNullableDouble(metrics == null ? null : metrics.path("metric"), "marketCapitalization")
+                        readNullableDouble(metricNode, "marketCapitalization")
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "priceToEarningsRatioTTM"),
-                        readNullableDouble(metrics == null ? null : metrics.path("metric"), "peTTM")
+                        readNullableDouble(metricNode, "peTTM")
                 ),
-                readNullableDouble(ratioNode, "netIncomePerShareTTM"),
-                readNullableDouble(growthNode, "growthRevenue"),
-                readNullableDouble(ratioNode, "grossProfitMarginTTM"),
-                readNullableDouble(ratioNode, "netProfitMarginTTM"),
-                readNullableDouble(ratioNode, "operatingProfitMarginTTM"),
-                readNullableDouble(keyMetricNode, "returnOnEquityTTM"),
-                readNullableDouble(keyMetricNode, "returnOnAssetsTTM"),
-                readNullableDouble(keyMetricNode, "returnOnInvestedCapitalTTM"),
-                readNullableDouble(ratioNode, "debtToEquityRatioTTM"),
-                readNullableDouble(ratioNode, "currentRatioTTM"),
-                readNullableDouble(ratioNode, "quickRatioTTM"),
-                readNullableDouble(ratioNode, "assetTurnoverTTM"),
-                readNullableDouble(keyMetricNode, "freeCashFlowYieldTTM"),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "netIncomePerShareTTM"),
+                        readNullableDouble(metricNode, "epsTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(growthNode, "growthRevenue"),
+                        readNormalizedPercentage(metricNode, "revenueGrowthTTMYoy")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "grossProfitMarginTTM"),
+                        readNormalizedPercentage(metricNode, "grossMarginTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "netProfitMarginTTM"),
+                        readNormalizedPercentage(metricNode, "netProfitMarginTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "operatingProfitMarginTTM"),
+                        readNormalizedPercentage(metricNode, "operatingMarginTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(keyMetricNode, "returnOnEquityTTM"),
+                        readNormalizedPercentage(metricNode, "roeTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(keyMetricNode, "returnOnAssetsTTM"),
+                        readNormalizedPercentage(metricNode, "roaTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(keyMetricNode, "returnOnInvestedCapitalTTM"),
+                        readNormalizedPercentage(metricNode, "roiTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "debtToEquityRatioTTM"),
+                        readNullableDouble(metricNode, "totalDebt/totalEquityAnnual")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "currentRatioTTM"),
+                        readNullableDouble(metricNode, "currentRatioAnnual")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "quickRatioTTM"),
+                        readNullableDouble(metricNode, "quickRatioAnnual")
+                ),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "assetTurnoverTTM"),
+                        readNullableDouble(metricNode, "assetTurnoverTTM")
+                ),
+                firstNonNull(
+                        readNullableDouble(keyMetricNode, "freeCashFlowYieldTTM"),
+                        deriveFreeCashFlowYield(metricNode)
+                ),
                 readNullableDouble(ratioNode, "operatingCashFlowRatioTTM"),
-                readNullableDouble(keyMetricNode, "incomeQualityTTM")
+                firstNonNull(
+                        readNullableDouble(keyMetricNode, "incomeQualityTTM"),
+                        deriveIncomeQuality(metricNode)
+                )
         );
     }
 
@@ -404,6 +447,38 @@ public class StockPriceSnapshotBatchService {
         }
         final double value = node.path(fieldName).asDouble(Double.NaN);
         return Double.isNaN(value) ? null : value;
+    }
+
+    private Double readNormalizedPercentage(JsonNode node, String fieldName) {
+        final Double value = readNullableDouble(node, fieldName);
+        if (value == null) {
+            return null;
+        }
+        return normalizePercent(value);
+    }
+
+    private Double normalizePercent(Double value) {
+        if (value == null) {
+            return null;
+        }
+        return Math.abs(value) > 1.0 ? value / 100.0 : value;
+    }
+
+    private Double deriveFreeCashFlowYield(JsonNode metricNode) {
+        final Double evToFcf = readNullableDouble(metricNode, "currentEv/freeCashFlowTTM");
+        if (evToFcf == null || evToFcf <= 0) {
+            return null;
+        }
+        return 1 / evToFcf;
+    }
+
+    private Double deriveIncomeQuality(JsonNode metricNode) {
+        final Double cashFlowPerShare = readNullableDouble(metricNode, "cashFlowPerShareTTM");
+        final Double epsTtm = readNullableDouble(metricNode, "epsTTM");
+        if (cashFlowPerShare == null || epsTtm == null || epsTtm == 0) {
+            return null;
+        }
+        return cashFlowPerShare / epsTtm;
     }
 
     private Double firstNonNull(Double primary, Double fallback) {
