@@ -2,6 +2,7 @@ package com.maemoji.backend.stock.controller;
 
 import com.maemoji.backend.batch.security.BatchAdminAuthorizer;
 import com.maemoji.backend.common.api.ApiResponse;
+import com.maemoji.backend.stock.dto.PriceHistoryBackfillResult;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,5 +33,15 @@ public class PriceSnapshotBatchAdminController {
     ) {
         authorizer.authorize(batchSecret);
         return ApiResponse.ok(stockPriceSnapshotBatchService.syncSnapshots(limit, false));
+    }
+
+    @PostMapping("/history-backfill")
+    public ApiResponse<PriceHistoryBackfillResult> backfillPriceHistory(
+            @RequestHeader(name = "X-Batch-Secret", required = false) String batchSecret,
+            @RequestParam(name = "limit", required = false) Integer limit,
+            @RequestParam(name = "days", required = false) Integer days
+    ) {
+        authorizer.authorize(batchSecret);
+        return ApiResponse.ok(stockPriceSnapshotBatchService.backfillHistoricalSnapshots(limit, days));
     }
 }

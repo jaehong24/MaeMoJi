@@ -152,7 +152,21 @@ public class RecommendationScoreCalculator {
                 FactorCode.FUNDAMENTAL_QUALITY,
                 input.fundamentalQualityScore(),
                 input.fundamentalQualityWeight(),
-                "기업 체력과 밸류에이션"
+                "기업 체력"
+        );
+        addFactorResult(
+                appliedFactors,
+                FactorCode.VALUATION,
+                input.valuationScore(),
+                input.valuationWeight(),
+                "현재 밸류에이션 부담"
+        );
+        addFactorResult(
+                appliedFactors,
+                FactorCode.QUALITY_OF_GROWTH,
+                input.qualityOfGrowthScore(),
+                input.qualityOfGrowthWeight(),
+                "성장의 질과 지속 가능성"
         );
         addFactorResult(
                 appliedFactors,
@@ -364,6 +378,10 @@ public class RecommendationScoreCalculator {
             int newsSentimentWeight,
             Integer fundamentalQualityScore,
             int fundamentalQualityWeight,
+            Integer valuationScore,
+            int valuationWeight,
+            Integer qualityOfGrowthScore,
+            int qualityOfGrowthWeight,
             Integer userFitScore,
             int userFitWeight,
             int crossFactorAdjustment,
@@ -378,6 +396,8 @@ public class RecommendationScoreCalculator {
             priceStabilityWeight = Math.max(priceStabilityWeight, 0);
             newsSentimentWeight = Math.max(newsSentimentWeight, 0);
             fundamentalQualityWeight = Math.max(fundamentalQualityWeight, 0);
+            valuationWeight = Math.max(valuationWeight, 0);
+            qualityOfGrowthWeight = Math.max(qualityOfGrowthWeight, 0);
             userFitWeight = Math.max(userFitWeight, 0);
         }
     }
@@ -387,6 +407,8 @@ public class RecommendationScoreCalculator {
         PRICE_STABILITY,
         NEWS_SENTIMENT,
         FUNDAMENTAL_QUALITY,
+        VALUATION,
+        QUALITY_OF_GROWTH,
         USER_FIT
     }
 

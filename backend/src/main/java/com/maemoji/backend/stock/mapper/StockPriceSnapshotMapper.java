@@ -12,7 +12,11 @@ import java.util.List;
 @Mapper
 public interface StockPriceSnapshotMapper {
 
-    List<Stock> findActiveStocksForSnapshot(@Param("limit") Integer limit);
+    List<Stock> findActivePortfolioStocksForSnapshot();
+
+    List<Stock> findActiveNonPortfolioStocksForSnapshot(@Param("limit") Integer limit);
+
+    Stock findStockForSnapshotById(@Param("stockId") Long stockId);
 
     List<Long> findActivePortfolioStockIds();
 
@@ -53,6 +57,16 @@ public interface StockPriceSnapshotMapper {
             @Param("freeCashFlowYieldTtm") BigDecimal freeCashFlowYieldTtm,
             @Param("operatingCashFlowRatioTtm") BigDecimal operatingCashFlowRatioTtm,
             @Param("incomeQualityTtm") BigDecimal incomeQualityTtm,
+            @Param("source") String source
+    );
+
+    void upsertHistoricalPriceSnapshot(
+            @Param("stockId") Long stockId,
+            @Param("snapshotDate") LocalDate snapshotDate,
+            @Param("currentPrice") BigDecimal currentPrice,
+            @Param("changeRate1d") BigDecimal changeRate1d,
+            @Param("changeRate7d") BigDecimal changeRate7d,
+            @Param("changeRate30d") BigDecimal changeRate30d,
             @Param("source") String source
     );
 }

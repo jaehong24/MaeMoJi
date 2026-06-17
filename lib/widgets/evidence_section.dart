@@ -198,19 +198,32 @@ class _FactorCard extends StatelessWidget {
               color: MaeMojiColors.inkSoft,
             ),
           ),
-          if (item.evidenceType == 'FACTOR_FUNDAMENTAL_QUALITY') ...[
+          if (_supportsMetricStrip(item.evidenceType)) ...[
             const SizedBox(height: 12),
-            _FundamentalMetricStrip(rawDataJson: item.rawDataJson),
+            _FactorMetricStrip(
+              evidenceType: item.evidenceType,
+              rawDataJson: item.rawDataJson,
+            ),
           ],
         ],
       ),
     );
   }
+
+  bool _supportsMetricStrip(String evidenceType) {
+    return evidenceType == 'FACTOR_FUNDAMENTAL_QUALITY' ||
+        evidenceType == 'FACTOR_VALUATION' ||
+        evidenceType == 'FACTOR_QUALITY_OF_GROWTH';
+  }
 }
 
-class _FundamentalMetricStrip extends StatelessWidget {
-  const _FundamentalMetricStrip({required this.rawDataJson});
+class _FactorMetricStrip extends StatelessWidget {
+  const _FactorMetricStrip({
+    required this.evidenceType,
+    required this.rawDataJson,
+  });
 
+  final String evidenceType;
   final String? rawDataJson;
 
   @override
@@ -282,40 +295,90 @@ class _FundamentalMetricStrip extends StatelessWidget {
         return const [];
       }
 
-      final metrics = <_FundamentalMetricChip>[
-        if (decoded['epsTtm'] is num)
-          _FundamentalMetricChip(
-            label: 'EPS',
-            value: (decoded['epsTtm'] as num).toStringAsFixed(2),
-            caption: _bandLabel(decoded['epsBand']?.toString()),
-          ),
-        if (decoded['revenueGrowthYoy'] is num)
-          _FundamentalMetricChip(
-            label: '매출 성장',
-            value: _formatPercent(decoded['revenueGrowthYoy'] as num),
-            caption: _bandLabel(decoded['revenueGrowthBand']?.toString()),
-          ),
-        if (decoded['operatingMarginTtm'] is num)
-          _FundamentalMetricChip(
-            label: '영업이익률',
-            value: _formatPercent(decoded['operatingMarginTtm'] as num),
-            caption: _bandLabel(decoded['operatingMarginBand']?.toString()),
-          ),
-        if (decoded['roeTtm'] is num)
-          _FundamentalMetricChip(
-            label: 'ROE',
-            value: _formatPercent(decoded['roeTtm'] as num),
-            caption: _bandLabel(decoded['roeBand']?.toString()),
-          ),
-        if (decoded['debtToEquityTtm'] is num)
-          _FundamentalMetricChip(
-            label: '부채비율',
-            value: (decoded['debtToEquityTtm'] as num).toStringAsFixed(2),
-            caption: _bandLabel(decoded['debtToEquityBand']?.toString()),
-          ),
-      ];
-
-      return metrics;
+      return switch (evidenceType) {
+        'FACTOR_VALUATION' => [
+          if (decoded['perValue'] is num)
+            _FundamentalMetricChip(
+              label: 'PER',
+              value: (decoded['perValue'] as num).toStringAsFixed(1),
+              caption: _bandLabel(decoded['perBand']?.toString()),
+            ),
+          if (decoded['valuationScore'] is num)
+            _FundamentalMetricChip(
+              label: '가치 점수',
+              value: '${(decoded['valuationScore'] as num).round()}점',
+            ),
+          if (decoded['marketCapUsdMillion'] is num)
+            _FundamentalMetricChip(
+              label: '시가총액',
+              value: _formatMarketCap(decoded['marketCapUsdMillion'] as num),
+              caption: _marketCapLabel(decoded['marketCapTier']?.toString()),
+            ),
+        ],
+        'FACTOR_QUALITY_OF_GROWTH' => [
+          if (decoded['epsTtm'] is num)
+            _FundamentalMetricChip(
+              label: 'EPS',
+              value: (decoded['epsTtm'] as num).toStringAsFixed(2),
+              caption: _bandLabel(decoded['epsBand']?.toString()),
+            ),
+          if (decoded['revenueGrowthYoy'] is num)
+            _FundamentalMetricChip(
+              label: '매출 성장',
+              value: _formatPercent(decoded['revenueGrowthYoy'] as num),
+              caption: _bandLabel(decoded['revenueGrowthBand']?.toString()),
+            ),
+          if (decoded['operatingMarginTtm'] is num)
+            _FundamentalMetricChip(
+              label: '영업이익률',
+              value: _formatPercent(decoded['operatingMarginTtm'] as num),
+              caption: _bandLabel(decoded['operatingMarginBand']?.toString()),
+            ),
+          if (decoded['incomeQualityTtm'] is num)
+            _FundamentalMetricChip(
+              label: '현금흐름 품질',
+              value: (decoded['incomeQualityTtm'] as num).toStringAsFixed(2),
+              caption: _bandLabel(decoded['incomeQualityBand']?.toString()),
+            ),
+          if (decoded['qualityOfGrowthScore'] is num)
+            _FundamentalMetricChip(
+              label: '성장 질 점수',
+              value: '${(decoded['qualityOfGrowthScore'] as num).round()}점',
+            ),
+        ],
+        _ => [
+          if (decoded['epsTtm'] is num)
+            _FundamentalMetricChip(
+              label: 'EPS',
+              value: (decoded['epsTtm'] as num).toStringAsFixed(2),
+              caption: _bandLabel(decoded['epsBand']?.toString()),
+            ),
+          if (decoded['revenueGrowthYoy'] is num)
+            _FundamentalMetricChip(
+              label: '매출 성장',
+              value: _formatPercent(decoded['revenueGrowthYoy'] as num),
+              caption: _bandLabel(decoded['revenueGrowthBand']?.toString()),
+            ),
+          if (decoded['operatingMarginTtm'] is num)
+            _FundamentalMetricChip(
+              label: '영업이익률',
+              value: _formatPercent(decoded['operatingMarginTtm'] as num),
+              caption: _bandLabel(decoded['operatingMarginBand']?.toString()),
+            ),
+          if (decoded['roeTtm'] is num)
+            _FundamentalMetricChip(
+              label: 'ROE',
+              value: _formatPercent(decoded['roeTtm'] as num),
+              caption: _bandLabel(decoded['roeBand']?.toString()),
+            ),
+          if (decoded['debtToEquityTtm'] is num)
+            _FundamentalMetricChip(
+              label: '부채비율',
+              value: (decoded['debtToEquityTtm'] as num).toStringAsFixed(2),
+              caption: _bandLabel(decoded['debtToEquityBand']?.toString()),
+            ),
+        ],
+      };
     } catch (_) {
       return const [];
     }
@@ -362,6 +425,33 @@ class _FundamentalMetricStrip extends StatelessWidget {
       default:
         return null;
     }
+  }
+
+  String? _marketCapLabel(String? tier) {
+    switch ((tier ?? '').toUpperCase()) {
+      case 'MEGA_CAP':
+        return '초대형';
+      case 'LARGE_CAP':
+        return '대형';
+      case 'UPPER_MID_CAP':
+        return '중대형';
+      case 'MID_CAP':
+        return '중형';
+      case 'SMALL_CAP':
+        return '소형';
+      default:
+        return null;
+    }
+  }
+
+  String _formatMarketCap(num millionUsd) {
+    if (millionUsd >= 1000000) {
+      return '${(millionUsd / 1000000).toStringAsFixed(2)}조달러';
+    }
+    if (millionUsd >= 1000) {
+      return '${(millionUsd / 1000).toStringAsFixed(1)}십억달러';
+    }
+    return '${millionUsd.toStringAsFixed(0)}백만달러';
   }
 }
 

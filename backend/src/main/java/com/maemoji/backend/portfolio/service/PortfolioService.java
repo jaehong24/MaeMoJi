@@ -3,11 +3,10 @@ package com.maemoji.backend.portfolio.service;
 import com.maemoji.backend.portfolio.dto.PortfolioCreateRequest;
 import com.maemoji.backend.portfolio.dto.PortfolioItemSummaryResponse;
 import com.maemoji.backend.portfolio.mapper.PortfolioMapper;
-import com.maemoji.backend.recommendation.service.RecommendationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -19,18 +18,17 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Service
 public class PortfolioService {
 
-    private static final Logger log = LoggerFactory.getLogger(PortfolioService.class);
     private static final int MAX_PORTFOLIO_ITEMS = 5;
 
     private final PortfolioMapper portfolioMapper;
-    private final RecommendationService recommendationService;
+    private final PortfolioWarmupService portfolioWarmupService;
 
     public PortfolioService(
             PortfolioMapper portfolioMapper,
-            RecommendationService recommendationService
+            PortfolioWarmupService portfolioWarmupService
     ) {
         this.portfolioMapper = portfolioMapper;
-        this.recommendationService = recommendationService;
+        this.portfolioWarmupService = portfolioWarmupService;
     }
 
     @Transactional
@@ -60,18 +58,7 @@ public class PortfolioService {
             portfolioMapper.updatePortfolioItem(portfolioItemId, request);
         }
 
-        try {
-            recommendationService.warmUpLatestNewsForUserStock(userId, request.stockId());
-        } catch (Exception exception) {
-            log.warn(
-                    "포트폴리오 저장 직후 뉴스 선분석에 실패했습니다. userId={}, stockId={}",
-                    userId,
-                    request.stockId(),
-                    exception
-            );
-        }
-
-        recommendationService.generateLatestRecommendationsFromCachedData(userId);
+        registerAfterCommitWarmup(userId, request.stockId());
         return portfolioMapper.findPortfolioItemsByUserId(userId);
     }
 
@@ -95,8 +82,22 @@ public class PortfolioService {
                 && request.dailyInvestAmount().compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new ResponseStatusException(
                     BAD_REQUEST,
-                    "매일 모으기 금액은 최대 100달러까지만 입력할 수 있습니다."
+                "매일 모으기 금액은 최대 100달러까지만 입력할 수 있습니다."
             );
         }
+    }
+
+    private void registerAfterCommitWarmup(Long userId, Long stockId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            portfolioWarmupService.warmUpAfterPortfolioSaved(userId, stockId);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                portfolioWarmupService.warmUpAfterPortfolioSaved(userId, stockId);
+            }
+        });
     }
 }

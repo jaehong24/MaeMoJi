@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.recommendation.config.RecommendationTuningProperties;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
+import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -31,6 +32,7 @@ class RecommendationFundamentalQualityRegressionTest {
                 mock(NewsSentimentService.class),
                 new RecommendationScoreCalculator(tuningProperties),
                 mock(StockPriceSnapshotMapper.class),
+                mock(StockPriceSnapshotBatchService.class),
                 tuningProperties,
                 mock(PlatformTransactionManager.class)
         );
@@ -115,7 +117,7 @@ class RecommendationFundamentalQualityRegressionTest {
         assertThat(scores.get("NVDA")).withFailMessage(scores.toString()).isBetween(88, 92);
         assertThat(scores.get("GOOGL")).withFailMessage(scores.toString()).isBetween(78, 84);
         assertThat(scores.get("AMZN")).withFailMessage(scores.toString()).isBetween(70, 78);
-        assertThat(scores.get("COST")).withFailMessage(scores.toString()).isBetween(60, 68);
+        assertThat(scores.get("COST")).withFailMessage(scores.toString()).isBetween(60, 70);
         assertThat(scores.get("TSLA")).withFailMessage(scores.toString()).isLessThanOrEqualTo(60);
 
         assertThat(scores.get("NVDA")).isGreaterThan(scores.get("GOOGL"));
@@ -159,6 +161,74 @@ class RecommendationFundamentalQualityRegressionTest {
         assertThat(googl - amzn).withFailMessage("nvda=%s, googl=%s, amzn=%s", nvda, googl, amzn).isGreaterThanOrEqualTo(6);
     }
 
+    @Test
+    void valuationSeparatesPremiumGrowthFromReasonableCashGenerators() throws Exception {
+        final int tslaValuation = valuationScoreOf(snapshot(
+                1_544_165.8,
+                399.8358,
+                1.1985,
+                -0.0293,
+                0.0500,
+                0.0479,
+                0.1097
+        ));
+        final int googlValuation = valuationScoreOf(snapshot(
+                4_519_631.5,
+                28.2110,
+                13.2414,
+                0.1513,
+                0.3270,
+                0.3898,
+                0.1890
+        ));
+        final int costValuation = valuationScoreOf(snapshot(
+                440_057.38,
+                49.7915,
+                19.9089,
+                0.0817,
+                0.0382,
+                0.2827,
+                0.2457
+        ));
+
+        assertThat(googlValuation).isGreaterThan(costValuation);
+        assertThat(costValuation).isGreaterThan(tslaValuation);
+    }
+
+    @Test
+    void qualityOfGrowthSeparatesEfficientGrowthFromWeakGrowth() throws Exception {
+        final int nvdaQualityOfGrowth = qualityOfGrowthScoreOf(snapshot(
+                5_061_067.0,
+                31.7084,
+                6.5722,
+                0.6547,
+                0.6402,
+                1.1166,
+                0.0656
+        ));
+        final int amznQualityOfGrowth = qualityOfGrowthScoreOf(snapshot(
+                2_671_420.5,
+                29.4216,
+                8.4518,
+                0.1238,
+                0.1150,
+                0.2334,
+                0.4750
+        ));
+        final int tslaQualityOfGrowth = qualityOfGrowthScoreOf(snapshot(
+                1_544_165.8,
+                399.8358,
+                1.1985,
+                -0.0293,
+                0.0500,
+                0.0479,
+                0.1097
+        ));
+
+        assertThat(nvdaQualityOfGrowth).isGreaterThan(amznQualityOfGrowth);
+        assertThat(amznQualityOfGrowth).isGreaterThan(tslaQualityOfGrowth);
+    }
+
     private Object snapshot(
             Double marketCap,
             Double perValue,
@@ -182,12 +252,39 @@ class RecommendationFundamentalQualityRegressionTest {
     }
 
     private int scoreOf(Object priceSnapshot) {
-        final Object assessment =
-                ReflectionTestUtils.invokeMethod(recommendationService, "resolveFundamentalQualityAssessment", priceSnapshot);
+        final Object assessment = assessmentOf(priceSnapshot);
         assertThat(assessment).isNotNull();
         final Integer score = (Integer) ReflectionTestUtils.invokeMethod(assessment, "score");
         assertThat(score).isNotNull();
         return score;
+    }
+
+    private int valuationScoreOf(Object priceSnapshot) {
+        final Object assessment = assessmentOf(priceSnapshot);
+        assertThat(assessment).isNotNull();
+        final Integer score = (Integer) ReflectionTestUtils.invokeMethod(assessment, "valuationScore");
+        assertThat(score).isNotNull();
+        return score;
+    }
+
+    private int qualityOfGrowthScoreOf(Object priceSnapshot) {
+        final Object assessment = assessmentOf(priceSnapshot);
+        assertThat(assessment).isNotNull();
+        final Integer score = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolveQualityOfGrowthScore",
+                assessment
+        );
+        assertThat(score).isNotNull();
+        return score;
+    }
+
+    private Object assessmentOf(Object priceSnapshot) {
+        return ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolveFundamentalQualityAssessment",
+                priceSnapshot
+        );
     }
 
     private BigDecimal toBigDecimal(Double value) {

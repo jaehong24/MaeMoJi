@@ -7,6 +7,7 @@ import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
+import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -27,6 +28,7 @@ class RecommendationServiceQueryFlowTest {
     private final NewsSentimentService newsSentimentService = mock(NewsSentimentService.class);
     private final RecommendationScoreCalculator scoreCalculator = mock(RecommendationScoreCalculator.class);
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper = mock(StockPriceSnapshotMapper.class);
+    private final StockPriceSnapshotBatchService stockPriceSnapshotBatchService = mock(StockPriceSnapshotBatchService.class);
     private final RecommendationTuningProperties tuningProperties = new RecommendationTuningProperties();
     private final RecommendationService recommendationService = new RecommendationService(
             recommendationMapper,
@@ -34,6 +36,7 @@ class RecommendationServiceQueryFlowTest {
             newsSentimentService,
             scoreCalculator,
             stockPriceSnapshotMapper,
+            stockPriceSnapshotBatchService,
             tuningProperties,
             mock(PlatformTransactionManager.class)
     );

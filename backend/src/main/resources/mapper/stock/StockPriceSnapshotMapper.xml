@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper">
 
-    <select id="findActiveStocksForSnapshot" resultType="com.maemoji.backend.stock.domain.Stock">
+    <select id="findActivePortfolioStocksForSnapshot" resultType="com.maemoji.backend.stock.domain.Stock">
         select
             id,
             ticker,
@@ -24,13 +24,48 @@
         from stocks s
         where s.is_active = true
           and s.finnhub_symbol is not null
+          and exists (
+              select 1
+              from portfolio_items pi
+              where pi.stock_id = s.id
+                and pi.is_active = true
+          )
         order by
-            exists (
-                select 1
-                from portfolio_items pi
-                where pi.stock_id = s.id
-                  and pi.is_active = true
-            ) desc,
+            (
+                select max(sps.snapshot_date)
+                from stock_price_snapshots sps
+                where sps.stock_id = s.id
+            ) asc nulls first,
+            s.id asc
+    </select>
+
+    <select id="findActiveNonPortfolioStocksForSnapshot" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            is_active,
+            created_at,
+            updated_at
+        from stocks s
+        where s.is_active = true
+          and s.finnhub_symbol is not null
+          and not exists (
+              select 1
+              from portfolio_items pi
+              where pi.stock_id = s.id
+                and pi.is_active = true
+          )
+        order by
             (
                 select max(sps.snapshot_date)
                 from stock_price_snapshots sps
@@ -46,6 +81,30 @@
         select distinct stock_id
         from portfolio_items
         where is_active = true
+    </select>
+
+    <select id="findStockForSnapshotById" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            is_active,
+            created_at,
+            updated_at
+        from stocks
+        where id = #{stockId}
+          and is_active = true
+          and finnhub_symbol is not null
+        limit 1
     </select>
 
     <select id="findLatestSnapshotByStockId" resultType="com.maemoji.backend.stock.domain.StockPriceSnapshotRecord">
@@ -178,6 +237,33 @@
             free_cash_flow_yield_ttm = excluded.free_cash_flow_yield_ttm,
             operating_cash_flow_ratio_ttm = excluded.operating_cash_flow_ratio_ttm,
             income_quality_ttm = excluded.income_quality_ttm,
+            source = excluded.source
+    </insert>
+
+    <insert id="upsertHistoricalPriceSnapshot">
+        insert into stock_price_snapshots (
+            stock_id,
+            snapshot_date,
+            current_price,
+            change_rate_1d,
+            change_rate_7d,
+            change_rate_30d,
+            source
+        ) values (
+            #{stockId},
+            #{snapshotDate},
+            #{currentPrice},
+            #{changeRate1d},
+            #{changeRate7d},
+            #{changeRate30d},
+            #{source}
+        )
+        on conflict (stock_id, snapshot_date) do update
+        set
+            current_price = excluded.current_price,
+            change_rate_1d = excluded.change_rate_1d,
+            change_rate_7d = excluded.change_rate_7d,
+            change_rate_30d = excluded.change_rate_30d,
             source = excluded.source
     </insert>
 </mapper>

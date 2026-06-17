@@ -9,6 +9,7 @@ public class PriceSnapshotBatchProperties {
     private String cron = "0 40 6 * * *";
     private int delayMillis = 1200;
     private int defaultLimit = 500;
+    private int historyLookbackDays = 45;
 
     public boolean isEnabled() {
         return enabled;
@@ -40,5 +41,13 @@ public class PriceSnapshotBatchProperties {
 
     public void setDefaultLimit(int defaultLimit) {
         this.defaultLimit = defaultLimit;
+    }
+
+    public int getHistoryLookbackDays() {
+        return historyLookbackDays;
+    }
+
+    public void setHistoryLookbackDays(int historyLookbackDays) {
+        this.historyLookbackDays = historyLookbackDays;
     }
 }

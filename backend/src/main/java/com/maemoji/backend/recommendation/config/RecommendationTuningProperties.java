@@ -55,11 +55,13 @@ public class RecommendationTuningProperties {
     }
 
     public static class FactorWeights {
-        private int priceMomentum = 25;
-        private int priceStability = 15;
-        private int newsSentiment = 25;
-        private int fundamentalQuality = 20;
-        private int userFit = 15;
+        private int priceMomentum = 20;
+        private int priceStability = 12;
+        private int newsSentiment = 22;
+        private int fundamentalQuality = 14;
+        private int valuation = 12;
+        private int qualityOfGrowth = 12;
+        private int userFit = 8;
 
         public int getPriceMomentum() {
             return priceMomentum;
@@ -91,6 +93,22 @@ public class RecommendationTuningProperties {
 
         public void setFundamentalQuality(int fundamentalQuality) {
             this.fundamentalQuality = fundamentalQuality;
+        }
+
+        public int getValuation() {
+            return valuation;
+        }
+
+        public void setValuation(int valuation) {
+            this.valuation = valuation;
+        }
+
+        public int getQualityOfGrowth() {
+            return qualityOfGrowth;
+        }
+
+        public void setQualityOfGrowth(int qualityOfGrowth) {
+            this.qualityOfGrowth = qualityOfGrowth;
         }
 
         public int getUserFit() {

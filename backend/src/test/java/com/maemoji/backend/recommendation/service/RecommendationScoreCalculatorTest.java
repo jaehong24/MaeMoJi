@@ -75,6 +75,10 @@ class RecommendationScoreCalculatorTest {
                         25,
                         70,
                         20,
+                        62,
+                        10,
+                        68,
+                        10,
                         54,
                         15,
                         -3,
@@ -89,7 +93,7 @@ class RecommendationScoreCalculatorTest {
         assertThat(result.formulaVersion()).isEqualTo(RecommendationScoreCalculator.FORMULA_VERSION_V4);
         assertThat(result.rawScore()).isBetween(0, 100);
         assertThat(result.finalScore()).isBetween(0, 100);
-        assertThat(result.factors()).hasSize(5);
+        assertThat(result.factors()).hasSize(7);
         assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
     }
 
@@ -105,6 +109,10 @@ class RecommendationScoreCalculatorTest {
                         25,
                         75,
                         20,
+                        64,
+                        10,
+                        70,
+                        10,
                         70,
                         15,
                         0,
@@ -133,6 +141,10 @@ class RecommendationScoreCalculatorTest {
                         25,
                         70,
                         20,
+                        55,
+                        10,
+                        63,
+                        10,
                         60,
                         15,
                         0,
@@ -160,6 +172,10 @@ class RecommendationScoreCalculatorTest {
                         25,
                         70,
                         20,
+                        62,
+                        10,
+                        68,
+                        10,
                         54,
                         15,
                         0,
@@ -180,6 +196,10 @@ class RecommendationScoreCalculatorTest {
                         25,
                         70,
                         20,
+                        62,
+                        10,
+                        68,
+                        10,
                         54,
                         15,
                         0,
@@ -208,6 +228,10 @@ class RecommendationScoreCalculatorTest {
                         25,
                         72,
                         20,
+                        58,
+                        10,
+                        66,
+                        10,
                         60,
                         15,
                         0,

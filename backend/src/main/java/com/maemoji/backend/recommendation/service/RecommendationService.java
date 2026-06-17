@@ -21,6 +21,7 @@ import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
+import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -74,6 +75,7 @@ public class RecommendationService {
     private final NewsSentimentService newsSentimentService;
     private final RecommendationScoreCalculator scoreCalculator;
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
+    private final StockPriceSnapshotBatchService stockPriceSnapshotBatchService;
     private final RecommendationTuningProperties tuningProperties;
     private final HttpClient httpClient;
     private final TransactionTemplate transactionTemplate;
@@ -84,6 +86,7 @@ public class RecommendationService {
             NewsSentimentService newsSentimentService,
             RecommendationScoreCalculator scoreCalculator,
             StockPriceSnapshotMapper stockPriceSnapshotMapper,
+            StockPriceSnapshotBatchService stockPriceSnapshotBatchService,
             RecommendationTuningProperties tuningProperties,
             PlatformTransactionManager transactionManager
     ) {
@@ -92,6 +95,7 @@ public class RecommendationService {
         this.newsSentimentService = newsSentimentService;
         this.scoreCalculator = scoreCalculator;
         this.stockPriceSnapshotMapper = stockPriceSnapshotMapper;
+        this.stockPriceSnapshotBatchService = stockPriceSnapshotBatchService;
         this.tuningProperties = tuningProperties;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.httpClient = HttpClient.newBuilder()
@@ -1710,6 +1714,12 @@ public class RecommendationService {
             case FUNDAMENTAL_QUALITY -> buildFundamentalFactorSummary(
                     v4Context == null ? null : v4Context.fundamentalQualityAssessment()
             );
+            case VALUATION -> buildValuationFactorSummary(
+                    v4Context == null ? null : v4Context.fundamentalQualityAssessment()
+            );
+            case QUALITY_OF_GROWTH -> buildQualityOfGrowthFactorSummary(
+                    v4Context == null ? null : v4Context.fundamentalQualityAssessment()
+            );
             case USER_FIT -> v4Context != null && v4Context.userFitAssessment() != null
                     ? blankToEmpty(v4Context.userFitAssessment().summary())
                     : factor.summary();
@@ -1760,6 +1770,24 @@ public class RecommendationService {
                             node,
                             v4Context == null ? null : v4Context.fundamentalQualityAssessment()
                     );
+                }
+                case VALUATION -> {
+                    node.put("scoreKind", "VALUATION_V1");
+                    appendFundamentalQualityJson(
+                            node,
+                            v4Context == null ? null : v4Context.fundamentalQualityAssessment()
+                    );
+                    putNullable(node, "valuationScore",
+                            v4Context == null ? null : v4Context.valuationScore());
+                }
+                case QUALITY_OF_GROWTH -> {
+                    node.put("scoreKind", "QUALITY_OF_GROWTH_V1");
+                    appendFundamentalQualityJson(
+                            node,
+                            v4Context == null ? null : v4Context.fundamentalQualityAssessment()
+                    );
+                    putNullable(node, "qualityOfGrowthScore",
+                            v4Context == null ? null : v4Context.qualityOfGrowthScore());
                 }
                 case USER_FIT -> {
                     node.put("scoreKind", "USER_FIT_V1");
@@ -1968,6 +1996,33 @@ public class RecommendationService {
         return (int) Math.round(sum / (double) count);
     }
 
+    private int clampScore(int score) {
+        return Math.max(0, Math.min(score, 100));
+    }
+
+    private int interpolatePiecewise(double value, double[] breakpoints, int[] scores) {
+        if (breakpoints.length != scores.length || breakpoints.length == 0) {
+            throw new IllegalArgumentException("breakpoints and scores must have same non-zero length");
+        }
+        if (value <= breakpoints[0]) {
+            return scores[0];
+        }
+        for (int index = 0; index < breakpoints.length - 1; index++) {
+            final double left = breakpoints[index];
+            final double right = breakpoints[index + 1];
+            final int leftScore = scores[index];
+            final int rightScore = scores[index + 1];
+            if (value <= right) {
+                if (Double.compare(left, right) == 0) {
+                    return clampScore(rightScore);
+                }
+                final double ratio = (value - left) / (right - left);
+                return clampScore((int) Math.round(leftScore + ((rightScore - leftScore) * ratio)));
+            }
+        }
+        return clampScore(scores[scores.length - 1]);
+    }
+
     private int weightedAverageScores(Object... valuesAndWeights) {
         double weightedSum = 0;
         int totalWeight = 0;
@@ -1992,6 +2047,8 @@ public class RecommendationService {
             case "PRICE_STABILITY" -> "가격 안정성";
             case "NEWS_SENTIMENT" -> "관련 뉴스 분석";
             case "FUNDAMENTAL_QUALITY" -> "기업 체력";
+            case "VALUATION" -> "밸류에이션";
+            case "QUALITY_OF_GROWTH" -> "성장의 질";
             case "USER_FIT" -> "내 투자 상황";
             default -> "추천 팩터";
         };
@@ -2003,7 +2060,9 @@ public class RecommendationService {
             case "PRICE_STABILITY" -> 2;
             case "NEWS_SENTIMENT" -> 3;
             case "FUNDAMENTAL_QUALITY" -> 4;
-            case "USER_FIT" -> 5;
+            case "VALUATION" -> 5;
+            case "QUALITY_OF_GROWTH" -> 6;
+            case "USER_FIT" -> 7;
             default -> 99;
         };
     }
@@ -2022,9 +2081,11 @@ public class RecommendationService {
                 : normalizeToScore(newsSentiment.weightedSentimentScore());
         final FundamentalQualityAssessment fundamentalQualityAssessment =
                 resolveFundamentalQualityAssessment(priceSnapshot);
-        final Integer fundamentalQualityScore = fundamentalQualityAssessment == null
+        final Integer fundamentalQualityScore = resolveFundamentalCoreScore(fundamentalQualityAssessment);
+        final Integer valuationScore = fundamentalQualityAssessment == null
                 ? null
-                : fundamentalQualityAssessment.score();
+                : fundamentalQualityAssessment.valuationScore();
+        final Integer qualityOfGrowthScore = resolveQualityOfGrowthScore(fundamentalQualityAssessment);
         final String effectiveRiskProfile = resolveEffectiveRiskProfile(target);
         final UserFitAssessment userFitAssessment = resolveUserFitAssessment(
                 target,
@@ -2050,6 +2111,10 @@ public class RecommendationService {
                         newsScore == null ? 0 : tuningProperties.getFactorWeights().getNewsSentiment(),
                         fundamentalQualityScore,
                         fundamentalQualityScore == null ? 0 : tuningProperties.getFactorWeights().getFundamentalQuality(),
+                        valuationScore,
+                        valuationScore == null ? 0 : tuningProperties.getFactorWeights().getValuation(),
+                        qualityOfGrowthScore,
+                        qualityOfGrowthScore == null ? 0 : tuningProperties.getFactorWeights().getQualityOfGrowth(),
                         userFitScore,
                         userFitScore == null ? 0 : tuningProperties.getFactorWeights().getUserFit(),
                         crossFactorAdjustment,
@@ -2066,9 +2131,131 @@ public class RecommendationService {
                 priceStabilityScore,
                 newsScore,
                 fundamentalQualityScore,
+                valuationScore,
+                qualityOfGrowthScore,
                 userFitScore,
                 fundamentalQualityAssessment,
                 userFitAssessment
+        );
+    }
+
+    private Integer resolveFundamentalCoreScore(FundamentalQualityAssessment assessment) {
+        if (assessment == null) {
+            return null;
+        }
+        return weightedAverageScores(
+                assessment.scaleScore(), 15,
+                assessment.profitabilityScore(), 35,
+                assessment.safetyScore(), 20,
+                assessment.cashFlowScore(), 20,
+                assessment.efficiencyScore(), 10
+        );
+    }
+
+    private Integer resolveQualityOfGrowthScore(FundamentalQualityAssessment assessment) {
+        if (assessment == null) {
+            return null;
+        }
+
+        final Integer baseScore = weightedAverageScores(
+                assessment.growthScore(), 35,
+                assessment.profitabilityScore(), 25,
+                assessment.cashFlowScore(), 25,
+                assessment.efficiencyScore(), 10,
+                assessment.safetyScore(), 5
+        );
+        if (baseScore == null) {
+            return null;
+        }
+
+        int adjustment = 0;
+        if (assessment.revenueGrowthYoy() != null) {
+            final double revenueGrowth = assessment.revenueGrowthYoy().doubleValue();
+            if (revenueGrowth >= 0.40) {
+                adjustment += 6;
+            } else if (revenueGrowth >= 0.20) {
+                adjustment += 4;
+            } else if (revenueGrowth >= 0.10) {
+                adjustment += 2;
+            } else if (revenueGrowth < -0.10) {
+                adjustment -= 10;
+            } else if (revenueGrowth < 0.0) {
+                adjustment -= 5;
+            }
+        }
+        if (assessment.epsTtm() != null) {
+            adjustment += assessment.epsTtm().doubleValue() > 0 ? 2 : -10;
+        }
+        if (assessment.operatingMarginTtm() != null) {
+            final double operatingMargin = assessment.operatingMarginTtm().doubleValue();
+            if (operatingMargin >= 0.30) {
+                adjustment += 4;
+            } else if (operatingMargin >= 0.15) {
+                adjustment += 2;
+            } else if (operatingMargin < 0.0) {
+                adjustment -= 8;
+            } else if (operatingMargin < 0.05) {
+                adjustment -= 4;
+            }
+        }
+        if (assessment.incomeQualityTtm() != null) {
+            final double incomeQuality = assessment.incomeQualityTtm().doubleValue();
+            if (incomeQuality >= 1.10) {
+                adjustment += 3;
+            } else if (incomeQuality >= 0.95) {
+                adjustment += 1;
+            } else if (incomeQuality < 0.80) {
+                adjustment -= 8;
+            }
+        }
+        if (assessment.freeCashFlowYieldTtm() != null) {
+            final double freeCashFlowYield = assessment.freeCashFlowYieldTtm().doubleValue();
+            if (freeCashFlowYield >= 0.05) {
+                adjustment += 3;
+            } else if (freeCashFlowYield >= 0.02) {
+                adjustment += 1;
+            } else if (freeCashFlowYield < 0.0) {
+                adjustment -= 6;
+            }
+        }
+        if (assessment.growthScore() != null
+                && assessment.growthScore() >= 80
+                && assessment.profitabilityScore() != null
+                && assessment.profitabilityScore() >= 78
+                && assessment.cashFlowScore() != null
+                && assessment.cashFlowScore() >= 68) {
+            adjustment += 4;
+        }
+        if (assessment.growthScore() != null
+                && assessment.growthScore() >= 80
+                && assessment.cashFlowScore() != null
+                && assessment.cashFlowScore() <= 55) {
+            adjustment -= 12;
+        }
+        if (assessment.growthScore() != null
+                && assessment.growthScore() <= 45
+                && assessment.profitabilityScore() != null
+                && assessment.profitabilityScore() <= 45) {
+            adjustment -= 6;
+        }
+        int finalScore = clampScore(baseScore + adjustment);
+        if (assessment.revenueGrowthYoy() != null) {
+            final int growthDrivenCeiling = resolveGrowthDrivenCeiling(assessment.revenueGrowthYoy().doubleValue());
+            if (assessment.profitabilityScore() != null && assessment.profitabilityScore() >= 82
+                    && assessment.cashFlowScore() != null && assessment.cashFlowScore() >= 78) {
+                finalScore = Math.min(finalScore, clampScore(growthDrivenCeiling + 2));
+            } else {
+                finalScore = Math.min(finalScore, growthDrivenCeiling);
+            }
+        }
+        return finalScore;
+    }
+
+    private int resolveGrowthDrivenCeiling(double revenueGrowthYoy) {
+        return interpolatePiecewise(
+                revenueGrowthYoy,
+                new double[]{-0.10, 0.0, 0.05, 0.10, 0.20, 0.40, 0.80},
+                new int[]{52, 64, 72, 79, 86, 92, 97}
         );
     }
 
@@ -2198,23 +2385,47 @@ public class RecommendationService {
             if (marketCap >= marketCapRule.getMegaCapMin()) {
                 marketCapAdjustment = marketCapRule.getMegaCapAdjustment();
                 marketCapTier = "MEGA_CAP";
-                marketCapMetricScore = 90;
+                marketCapMetricScore = interpolatePiecewise(
+                        marketCap,
+                        new double[]{
+                                marketCapRule.getMegaCapMin(),
+                                marketCapRule.getMegaCapMin() * 2.0,
+                                marketCapRule.getMegaCapMin() * 5.0
+                        },
+                        new int[]{82, 85, 88}
+                );
             } else if (marketCap >= marketCapRule.getLargeCapMin()) {
                 marketCapAdjustment = marketCapRule.getLargeCapAdjustment();
                 marketCapTier = "LARGE_CAP";
-                marketCapMetricScore = 78;
+                marketCapMetricScore = interpolatePiecewise(
+                        marketCap,
+                        new double[]{marketCapRule.getLargeCapMin(), marketCapRule.getMegaCapMin()},
+                        new int[]{72, 82}
+                );
             } else if (marketCap >= marketCapRule.getUpperMidCapMin()) {
                 marketCapAdjustment = marketCapRule.getUpperMidCapAdjustment();
                 marketCapTier = "UPPER_MID_CAP";
-                marketCapMetricScore = 65;
+                marketCapMetricScore = interpolatePiecewise(
+                        marketCap,
+                        new double[]{marketCapRule.getUpperMidCapMin(), marketCapRule.getLargeCapMin()},
+                        new int[]{60, 72}
+                );
             } else if (marketCap >= marketCapRule.getMidCapMin()) {
                 marketCapAdjustment = marketCapRule.getMidCapAdjustment();
                 marketCapTier = "MID_CAP";
-                marketCapMetricScore = 52;
+                marketCapMetricScore = interpolatePiecewise(
+                        marketCap,
+                        new double[]{marketCapRule.getMidCapMin(), marketCapRule.getUpperMidCapMin()},
+                        new int[]{48, 60}
+                );
             } else {
                 marketCapAdjustment = marketCapRule.getSmallCapAdjustment();
                 marketCapTier = "SMALL_CAP";
-                marketCapMetricScore = 38;
+                marketCapMetricScore = interpolatePiecewise(
+                        Math.max(0, marketCap),
+                        new double[]{0, marketCapRule.getMidCapMin()},
+                        new int[]{34, 48}
+                );
             }
         }
         if (priceSnapshot.perValue() != null) {
@@ -2222,19 +2433,35 @@ public class RecommendationService {
             if (per > 0 && per <= perRule.getAttractiveMax()) {
                 perAdjustment = perRule.getAttractiveAdjustment();
                 perBand = "ATTRACTIVE";
-                perMetricScore = 88;
+                perMetricScore = interpolatePiecewise(
+                        per,
+                        new double[]{1, Math.max(8, perRule.getAttractiveMax() * 0.6), perRule.getAttractiveMax()},
+                        new int[]{90, 86, 80}
+                );
             } else if (per > 0 && per <= perRule.getFairMax()) {
                 perAdjustment = perRule.getFairAdjustment();
                 perBand = "FAIR";
-                perMetricScore = 74;
+                perMetricScore = interpolatePiecewise(
+                        per,
+                        new double[]{perRule.getAttractiveMax(), perRule.getFairMax()},
+                        new int[]{80, 66}
+                );
             } else if (per > 0 && per <= perRule.getExpensiveMax()) {
                 perAdjustment = perRule.getExpensiveAdjustment();
                 perBand = "EXPENSIVE";
-                perMetricScore = 52;
+                perMetricScore = interpolatePiecewise(
+                        per,
+                        new double[]{perRule.getFairMax(), perRule.getExpensiveMax()},
+                        new int[]{66, 42}
+                );
             } else if (per > perRule.getExpensiveMax()) {
                 perAdjustment = perRule.getVeryExpensiveAdjustment();
                 perBand = "VERY_EXPENSIVE";
-                perMetricScore = 22;
+                perMetricScore = interpolatePiecewise(
+                        per,
+                        new double[]{perRule.getExpensiveMax(), perRule.getExpensiveMax() * 1.6, perRule.getExpensiveMax() * 4.0},
+                        new int[]{42, 24, 10}
+                );
             } else {
                 perAdjustment = perRule.getNegativeOrUnclearAdjustment();
                 perBand = "NEGATIVE_OR_UNCLEAR";
@@ -2257,23 +2484,43 @@ public class RecommendationService {
             if (revenueGrowth >= revenueGrowthRule.getExceptionalMin()) {
                 revenueGrowthAdjustment = revenueGrowthRule.getExceptionalAdjustment();
                 revenueGrowthBand = "EXCEPTIONAL";
-                revenueMetricScore = 96;
+                revenueMetricScore = interpolatePiecewise(
+                        revenueGrowth,
+                        new double[]{revenueGrowthRule.getExceptionalMin(), 0.80, 1.20},
+                        new int[]{90, 96, 100}
+                );
             } else if (revenueGrowth >= revenueGrowthRule.getStrongMin()) {
                 revenueGrowthAdjustment = revenueGrowthRule.getStrongAdjustment();
                 revenueGrowthBand = "STRONG";
-                revenueMetricScore = 82;
+                revenueMetricScore = interpolatePiecewise(
+                        revenueGrowth,
+                        new double[]{revenueGrowthRule.getStrongMin(), revenueGrowthRule.getExceptionalMin()},
+                        new int[]{76, 90}
+                );
             } else if (revenueGrowth >= revenueGrowthRule.getHealthyMin()) {
                 revenueGrowthAdjustment = revenueGrowthRule.getHealthyAdjustment();
                 revenueGrowthBand = "HEALTHY";
-                revenueMetricScore = 68;
+                revenueMetricScore = interpolatePiecewise(
+                        revenueGrowth,
+                        new double[]{revenueGrowthRule.getHealthyMin(), revenueGrowthRule.getStrongMin()},
+                        new int[]{62, 76}
+                );
             } else if (revenueGrowth >= revenueGrowthRule.getFlatMin()) {
                 revenueGrowthAdjustment = revenueGrowthRule.getFlatAdjustment();
                 revenueGrowthBand = "FLAT";
-                revenueMetricScore = 52;
+                revenueMetricScore = interpolatePiecewise(
+                        revenueGrowth,
+                        new double[]{revenueGrowthRule.getFlatMin(), revenueGrowthRule.getHealthyMin()},
+                        new int[]{50, 62}
+                );
             } else {
                 revenueGrowthAdjustment = revenueGrowthRule.getNegativeAdjustment();
                 revenueGrowthBand = "NEGATIVE";
-                revenueMetricScore = 20;
+                revenueMetricScore = interpolatePiecewise(
+                        revenueGrowth,
+                        new double[]{-0.30, -0.10, revenueGrowthRule.getFlatMin()},
+                        new int[]{12, 32, 50}
+                );
             }
         }
         if (priceSnapshot.grossMarginTtm() != null) {
@@ -2281,23 +2528,43 @@ public class RecommendationService {
             if (grossMargin >= 0.60) {
                 grossMarginBand = "EXCEPTIONAL";
                 grossMarginAdjustment = 5;
-                grossMarginMetricScore = 92;
+                grossMarginMetricScore = interpolatePiecewise(
+                        grossMargin,
+                        new double[]{0.60, 0.80},
+                        new int[]{90, 96}
+                );
             } else if (grossMargin >= 0.45) {
                 grossMarginBand = "STRONG";
                 grossMarginAdjustment = 3;
-                grossMarginMetricScore = 80;
+                grossMarginMetricScore = interpolatePiecewise(
+                        grossMargin,
+                        new double[]{0.45, 0.60},
+                        new int[]{76, 90}
+                );
             } else if (grossMargin >= 0.25) {
                 grossMarginBand = "HEALTHY";
                 grossMarginAdjustment = 1;
-                grossMarginMetricScore = 66;
+                grossMarginMetricScore = interpolatePiecewise(
+                        grossMargin,
+                        new double[]{0.25, 0.45},
+                        new int[]{60, 76}
+                );
             } else if (grossMargin >= 0.10) {
                 grossMarginBand = "WEAK";
                 grossMarginAdjustment = -1;
-                grossMarginMetricScore = 48;
+                grossMarginMetricScore = interpolatePiecewise(
+                        grossMargin,
+                        new double[]{0.10, 0.25},
+                        new int[]{40, 60}
+                );
             } else {
                 grossMarginBand = "NEGATIVE";
                 grossMarginAdjustment = -4;
-                grossMarginMetricScore = 25;
+                grossMarginMetricScore = interpolatePiecewise(
+                        grossMargin,
+                        new double[]{-0.10, 0.10},
+                        new int[]{18, 40}
+                );
             }
         }
         if (priceSnapshot.netMarginTtm() != null) {
@@ -2305,23 +2572,43 @@ public class RecommendationService {
             if (netMargin >= 0.25) {
                 netMarginBand = "EXCEPTIONAL";
                 netMarginAdjustment = 5;
-                netMarginMetricScore = 92;
+                netMarginMetricScore = interpolatePiecewise(
+                        netMargin,
+                        new double[]{0.25, 0.40},
+                        new int[]{88, 96}
+                );
             } else if (netMargin >= 0.15) {
                 netMarginBand = "STRONG";
                 netMarginAdjustment = 3;
-                netMarginMetricScore = 80;
+                netMarginMetricScore = interpolatePiecewise(
+                        netMargin,
+                        new double[]{0.15, 0.25},
+                        new int[]{74, 88}
+                );
             } else if (netMargin >= 0.08) {
                 netMarginBand = "HEALTHY";
                 netMarginAdjustment = 1;
-                netMarginMetricScore = 66;
+                netMarginMetricScore = interpolatePiecewise(
+                        netMargin,
+                        new double[]{0.08, 0.15},
+                        new int[]{60, 74}
+                );
             } else if (netMargin >= 0.03) {
                 netMarginBand = "WEAK";
                 netMarginAdjustment = -1;
-                netMarginMetricScore = 48;
+                netMarginMetricScore = interpolatePiecewise(
+                        netMargin,
+                        new double[]{0.03, 0.08},
+                        new int[]{42, 60}
+                );
             } else {
                 netMarginBand = "NEGATIVE";
                 netMarginAdjustment = -4;
-                netMarginMetricScore = 25;
+                netMarginMetricScore = interpolatePiecewise(
+                        netMargin,
+                        new double[]{-0.10, 0.03},
+                        new int[]{18, 42}
+                );
             }
         }
         if (priceSnapshot.operatingMarginTtm() != null) {
@@ -2329,23 +2616,43 @@ public class RecommendationService {
             if (operatingMargin >= operatingMarginRule.getExceptionalMin()) {
                 operatingMarginAdjustment = operatingMarginRule.getExceptionalAdjustment();
                 operatingMarginBand = "EXCEPTIONAL";
-                operatingMarginMetricScore = 94;
+                operatingMarginMetricScore = interpolatePiecewise(
+                        operatingMargin,
+                        new double[]{operatingMarginRule.getExceptionalMin(), 0.60},
+                        new int[]{90, 96}
+                );
             } else if (operatingMargin >= operatingMarginRule.getStrongMin()) {
                 operatingMarginAdjustment = operatingMarginRule.getStrongAdjustment();
                 operatingMarginBand = "STRONG";
-                operatingMarginMetricScore = 82;
+                operatingMarginMetricScore = interpolatePiecewise(
+                        operatingMargin,
+                        new double[]{operatingMarginRule.getStrongMin(), operatingMarginRule.getExceptionalMin()},
+                        new int[]{76, 90}
+                );
             } else if (operatingMargin >= operatingMarginRule.getHealthyMin()) {
                 operatingMarginAdjustment = operatingMarginRule.getHealthyAdjustment();
                 operatingMarginBand = "HEALTHY";
-                operatingMarginMetricScore = 68;
+                operatingMarginMetricScore = interpolatePiecewise(
+                        operatingMargin,
+                        new double[]{operatingMarginRule.getHealthyMin(), operatingMarginRule.getStrongMin()},
+                        new int[]{62, 76}
+                );
             } else if (operatingMargin >= operatingMarginRule.getWeakMin()) {
                 operatingMarginAdjustment = operatingMarginRule.getWeakAdjustment();
                 operatingMarginBand = "WEAK";
-                operatingMarginMetricScore = 50;
+                operatingMarginMetricScore = interpolatePiecewise(
+                        operatingMargin,
+                        new double[]{operatingMarginRule.getWeakMin(), operatingMarginRule.getHealthyMin()},
+                        new int[]{42, 62}
+                );
             } else {
                 operatingMarginAdjustment = operatingMarginRule.getNegativeAdjustment();
                 operatingMarginBand = "NEGATIVE";
-                operatingMarginMetricScore = 20;
+                operatingMarginMetricScore = interpolatePiecewise(
+                        operatingMargin,
+                        new double[]{-0.20, operatingMarginRule.getWeakMin()},
+                        new int[]{12, 42}
+                );
             }
         }
         if (priceSnapshot.roeTtm() != null) {
@@ -2353,23 +2660,43 @@ public class RecommendationService {
             if (roe >= roeRule.getExceptionalMin()) {
                 roeAdjustment = roeRule.getExceptionalAdjustment();
                 roeBand = "EXCEPTIONAL";
-                roeMetricScore = 94;
+                roeMetricScore = interpolatePiecewise(
+                        roe,
+                        new double[]{roeRule.getExceptionalMin(), 0.90, 1.30},
+                        new int[]{90, 96, 100}
+                );
             } else if (roe >= roeRule.getStrongMin()) {
                 roeAdjustment = roeRule.getStrongAdjustment();
                 roeBand = "STRONG";
-                roeMetricScore = 82;
+                roeMetricScore = interpolatePiecewise(
+                        roe,
+                        new double[]{roeRule.getStrongMin(), roeRule.getExceptionalMin()},
+                        new int[]{76, 90}
+                );
             } else if (roe >= roeRule.getHealthyMin()) {
                 roeAdjustment = roeRule.getHealthyAdjustment();
                 roeBand = "HEALTHY";
-                roeMetricScore = 68;
+                roeMetricScore = interpolatePiecewise(
+                        roe,
+                        new double[]{roeRule.getHealthyMin(), roeRule.getStrongMin()},
+                        new int[]{62, 76}
+                );
             } else if (roe >= roeRule.getWeakMin()) {
                 roeAdjustment = roeRule.getWeakAdjustment();
                 roeBand = "WEAK";
-                roeMetricScore = 50;
+                roeMetricScore = interpolatePiecewise(
+                        roe,
+                        new double[]{roeRule.getWeakMin(), roeRule.getHealthyMin()},
+                        new int[]{42, 62}
+                );
             } else {
                 roeAdjustment = roeRule.getNegativeAdjustment();
                 roeBand = "NEGATIVE";
-                roeMetricScore = 20;
+                roeMetricScore = interpolatePiecewise(
+                        roe,
+                        new double[]{-0.30, roeRule.getWeakMin()},
+                        new int[]{10, 42}
+                );
             }
         }
         if (priceSnapshot.roaTtm() != null) {
@@ -2377,23 +2704,43 @@ public class RecommendationService {
             if (roa >= 0.15) {
                 roaBand = "EXCEPTIONAL";
                 roaAdjustment = 5;
-                roaMetricScore = 90;
+                roaMetricScore = interpolatePiecewise(
+                        roa,
+                        new double[]{0.15, 0.25},
+                        new int[]{86, 94}
+                );
             } else if (roa >= 0.08) {
                 roaBand = "STRONG";
                 roaAdjustment = 3;
-                roaMetricScore = 78;
+                roaMetricScore = interpolatePiecewise(
+                        roa,
+                        new double[]{0.08, 0.15},
+                        new int[]{72, 86}
+                );
             } else if (roa >= 0.04) {
                 roaBand = "HEALTHY";
                 roaAdjustment = 1;
-                roaMetricScore = 65;
+                roaMetricScore = interpolatePiecewise(
+                        roa,
+                        new double[]{0.04, 0.08},
+                        new int[]{60, 72}
+                );
             } else if (roa >= 0.0) {
                 roaBand = "WEAK";
                 roaAdjustment = -1;
-                roaMetricScore = 48;
+                roaMetricScore = interpolatePiecewise(
+                        roa,
+                        new double[]{0.0, 0.04},
+                        new int[]{42, 60}
+                );
             } else {
                 roaBand = "NEGATIVE";
                 roaAdjustment = -4;
-                roaMetricScore = 20;
+                roaMetricScore = interpolatePiecewise(
+                        roa,
+                        new double[]{-0.10, 0.0},
+                        new int[]{14, 42}
+                );
             }
         }
         if (priceSnapshot.roicTtm() != null) {
@@ -2401,23 +2748,43 @@ public class RecommendationService {
             if (roic >= 0.20) {
                 roicBand = "EXCEPTIONAL";
                 roicAdjustment = 6;
-                roicMetricScore = 92;
+                roicMetricScore = interpolatePiecewise(
+                        roic,
+                        new double[]{0.20, 0.35},
+                        new int[]{88, 96}
+                );
             } else if (roic >= 0.12) {
                 roicBand = "STRONG";
                 roicAdjustment = 4;
-                roicMetricScore = 80;
+                roicMetricScore = interpolatePiecewise(
+                        roic,
+                        new double[]{0.12, 0.20},
+                        new int[]{74, 88}
+                );
             } else if (roic >= 0.06) {
                 roicBand = "HEALTHY";
                 roicAdjustment = 2;
-                roicMetricScore = 68;
+                roicMetricScore = interpolatePiecewise(
+                        roic,
+                        new double[]{0.06, 0.12},
+                        new int[]{62, 74}
+                );
             } else if (roic >= 0.0) {
                 roicBand = "WEAK";
                 roicAdjustment = -1;
-                roicMetricScore = 50;
+                roicMetricScore = interpolatePiecewise(
+                        roic,
+                        new double[]{0.0, 0.06},
+                        new int[]{44, 62}
+                );
             } else {
                 roicBand = "NEGATIVE";
                 roicAdjustment = -5;
-                roicMetricScore = 20;
+                roicMetricScore = interpolatePiecewise(
+                        roic,
+                        new double[]{-0.15, 0.0},
+                        new int[]{12, 44}
+                );
             }
         }
         if (priceSnapshot.debtToEquityTtm() != null) {
@@ -2425,19 +2792,35 @@ public class RecommendationService {
             if (debtToEquity <= debtRule.getConservativeMax()) {
                 debtToEquityAdjustment = debtRule.getConservativeAdjustment();
                 debtToEquityBand = "CONSERVATIVE";
-                debtMetricScore = 84;
+                debtMetricScore = interpolatePiecewise(
+                        debtToEquity,
+                        new double[]{0.0, debtRule.getConservativeMax()},
+                        new int[]{88, 78}
+                );
             } else if (debtToEquity <= debtRule.getBalancedMax()) {
                 debtToEquityAdjustment = debtRule.getBalancedAdjustment();
                 debtToEquityBand = "BALANCED";
-                debtMetricScore = 66;
+                debtMetricScore = interpolatePiecewise(
+                        debtToEquity,
+                        new double[]{debtRule.getConservativeMax(), debtRule.getBalancedMax()},
+                        new int[]{78, 60}
+                );
             } else if (debtToEquity <= debtRule.getStretchedMax()) {
                 debtToEquityAdjustment = debtRule.getStretchedAdjustment();
                 debtToEquityBand = "STRETCHED";
-                debtMetricScore = 40;
+                debtMetricScore = interpolatePiecewise(
+                        debtToEquity,
+                        new double[]{debtRule.getBalancedMax(), debtRule.getStretchedMax()},
+                        new int[]{60, 32}
+                );
             } else {
                 debtToEquityAdjustment = debtRule.getExcessiveAdjustment();
                 debtToEquityBand = "EXCESSIVE";
-                debtMetricScore = 18;
+                debtMetricScore = interpolatePiecewise(
+                        debtToEquity,
+                        new double[]{debtRule.getStretchedMax(), debtRule.getStretchedMax() * 2.0},
+                        new int[]{32, 12}
+                );
             }
         }
         if (priceSnapshot.currentRatioTtm() != null) {
@@ -2445,19 +2828,35 @@ public class RecommendationService {
             if (currentRatio >= 1.5) {
                 currentRatioBand = "STRONG";
                 currentRatioAdjustment = 3;
-                currentRatioMetricScore = 82;
+                currentRatioMetricScore = interpolatePiecewise(
+                        currentRatio,
+                        new double[]{1.5, 3.0},
+                        new int[]{78, 88}
+                );
             } else if (currentRatio >= 1.0) {
                 currentRatioBand = "HEALTHY";
                 currentRatioAdjustment = 1;
-                currentRatioMetricScore = 68;
+                currentRatioMetricScore = interpolatePiecewise(
+                        currentRatio,
+                        new double[]{1.0, 1.5},
+                        new int[]{62, 78}
+                );
             } else if (currentRatio >= 0.8) {
                 currentRatioBand = "WEAK";
                 currentRatioAdjustment = -1;
-                currentRatioMetricScore = 48;
+                currentRatioMetricScore = interpolatePiecewise(
+                        currentRatio,
+                        new double[]{0.8, 1.0},
+                        new int[]{42, 62}
+                );
             } else {
                 currentRatioBand = "NEGATIVE";
                 currentRatioAdjustment = -4;
-                currentRatioMetricScore = 22;
+                currentRatioMetricScore = interpolatePiecewise(
+                        currentRatio,
+                        new double[]{0.2, 0.8},
+                        new int[]{14, 42}
+                );
             }
         }
         if (priceSnapshot.quickRatioTtm() != null) {
@@ -2465,19 +2864,35 @@ public class RecommendationService {
             if (quickRatio >= 1.0) {
                 quickRatioBand = "STRONG";
                 quickRatioAdjustment = 3;
-                quickRatioMetricScore = 82;
+                quickRatioMetricScore = interpolatePiecewise(
+                        quickRatio,
+                        new double[]{1.0, 2.0},
+                        new int[]{78, 88}
+                );
             } else if (quickRatio >= 0.7) {
                 quickRatioBand = "HEALTHY";
                 quickRatioAdjustment = 1;
-                quickRatioMetricScore = 68;
+                quickRatioMetricScore = interpolatePiecewise(
+                        quickRatio,
+                        new double[]{0.7, 1.0},
+                        new int[]{62, 78}
+                );
             } else if (quickRatio >= 0.5) {
                 quickRatioBand = "WEAK";
                 quickRatioAdjustment = -1;
-                quickRatioMetricScore = 48;
+                quickRatioMetricScore = interpolatePiecewise(
+                        quickRatio,
+                        new double[]{0.5, 0.7},
+                        new int[]{42, 62}
+                );
             } else {
                 quickRatioBand = "NEGATIVE";
                 quickRatioAdjustment = -4;
-                quickRatioMetricScore = 22;
+                quickRatioMetricScore = interpolatePiecewise(
+                        quickRatio,
+                        new double[]{0.1, 0.5},
+                        new int[]{14, 42}
+                );
             }
         }
         if (priceSnapshot.assetTurnoverTtm() != null) {
@@ -2485,19 +2900,35 @@ public class RecommendationService {
             if (assetTurnover >= 1.0) {
                 assetTurnoverBand = "STRONG";
                 assetTurnoverAdjustment = 3;
-                assetTurnoverMetricScore = 80;
+                assetTurnoverMetricScore = interpolatePiecewise(
+                        assetTurnover,
+                        new double[]{1.0, 2.0},
+                        new int[]{74, 88}
+                );
             } else if (assetTurnover >= 0.6) {
                 assetTurnoverBand = "HEALTHY";
                 assetTurnoverAdjustment = 1;
-                assetTurnoverMetricScore = 66;
+                assetTurnoverMetricScore = interpolatePiecewise(
+                        assetTurnover,
+                        new double[]{0.6, 1.0},
+                        new int[]{60, 74}
+                );
             } else if (assetTurnover >= 0.3) {
                 assetTurnoverBand = "WEAK";
                 assetTurnoverAdjustment = -1;
-                assetTurnoverMetricScore = 48;
+                assetTurnoverMetricScore = interpolatePiecewise(
+                        assetTurnover,
+                        new double[]{0.3, 0.6},
+                        new int[]{42, 60}
+                );
             } else {
                 assetTurnoverBand = "NEGATIVE";
                 assetTurnoverAdjustment = -4;
-                assetTurnoverMetricScore = 24;
+                assetTurnoverMetricScore = interpolatePiecewise(
+                        assetTurnover,
+                        new double[]{0.0, 0.3},
+                        new int[]{18, 42}
+                );
             }
         }
         if (priceSnapshot.freeCashFlowYieldTtm() != null) {
@@ -2505,19 +2936,35 @@ public class RecommendationService {
             if (freeCashFlowYield >= 0.05) {
                 freeCashFlowYieldBand = "STRONG";
                 freeCashFlowYieldAdjustment = 4;
-                freeCashFlowYieldMetricScore = 84;
+                freeCashFlowYieldMetricScore = interpolatePiecewise(
+                        freeCashFlowYield,
+                        new double[]{0.05, 0.10},
+                        new int[]{80, 92}
+                );
             } else if (freeCashFlowYield >= 0.02) {
                 freeCashFlowYieldBand = "HEALTHY";
                 freeCashFlowYieldAdjustment = 2;
-                freeCashFlowYieldMetricScore = 68;
+                freeCashFlowYieldMetricScore = interpolatePiecewise(
+                        freeCashFlowYield,
+                        new double[]{0.02, 0.05},
+                        new int[]{62, 80}
+                );
             } else if (freeCashFlowYield >= 0.0) {
                 freeCashFlowYieldBand = "WEAK";
                 freeCashFlowYieldAdjustment = 0;
-                freeCashFlowYieldMetricScore = 52;
+                freeCashFlowYieldMetricScore = interpolatePiecewise(
+                        freeCashFlowYield,
+                        new double[]{0.0, 0.02},
+                        new int[]{48, 62}
+                );
             } else {
                 freeCashFlowYieldBand = "NEGATIVE";
                 freeCashFlowYieldAdjustment = -5;
-                freeCashFlowYieldMetricScore = 22;
+                freeCashFlowYieldMetricScore = interpolatePiecewise(
+                        freeCashFlowYield,
+                        new double[]{-0.10, 0.0},
+                        new int[]{12, 48}
+                );
             }
         }
         if (priceSnapshot.operatingCashFlowRatioTtm() != null) {
@@ -2525,19 +2972,35 @@ public class RecommendationService {
             if (operatingCashFlowRatio >= 1.0) {
                 operatingCashFlowRatioBand = "STRONG";
                 operatingCashFlowRatioAdjustment = 4;
-                operatingCashFlowRatioMetricScore = 84;
+                operatingCashFlowRatioMetricScore = interpolatePiecewise(
+                        operatingCashFlowRatio,
+                        new double[]{1.0, 1.5},
+                        new int[]{80, 92}
+                );
             } else if (operatingCashFlowRatio >= 0.8) {
                 operatingCashFlowRatioBand = "HEALTHY";
                 operatingCashFlowRatioAdjustment = 2;
-                operatingCashFlowRatioMetricScore = 68;
+                operatingCashFlowRatioMetricScore = interpolatePiecewise(
+                        operatingCashFlowRatio,
+                        new double[]{0.8, 1.0},
+                        new int[]{62, 80}
+                );
             } else if (operatingCashFlowRatio >= 0.5) {
                 operatingCashFlowRatioBand = "WEAK";
                 operatingCashFlowRatioAdjustment = -1;
-                operatingCashFlowRatioMetricScore = 50;
+                operatingCashFlowRatioMetricScore = interpolatePiecewise(
+                        operatingCashFlowRatio,
+                        new double[]{0.5, 0.8},
+                        new int[]{42, 62}
+                );
             } else {
                 operatingCashFlowRatioBand = "NEGATIVE";
                 operatingCashFlowRatioAdjustment = -5;
-                operatingCashFlowRatioMetricScore = 22;
+                operatingCashFlowRatioMetricScore = interpolatePiecewise(
+                        operatingCashFlowRatio,
+                        new double[]{0.0, 0.5},
+                        new int[]{14, 42}
+                );
             }
         }
         if (priceSnapshot.incomeQualityTtm() != null) {
@@ -2545,24 +3008,39 @@ public class RecommendationService {
             if (incomeQuality >= 1.10) {
                 incomeQualityBand = "STRONG";
                 incomeQualityAdjustment = 4;
-                incomeQualityMetricScore = 84;
+                incomeQualityMetricScore = interpolatePiecewise(
+                        incomeQuality,
+                        new double[]{1.10, 1.40},
+                        new int[]{80, 92}
+                );
             } else if (incomeQuality >= 0.95) {
                 incomeQualityBand = "HEALTHY";
                 incomeQualityAdjustment = 2;
-                incomeQualityMetricScore = 68;
+                incomeQualityMetricScore = interpolatePiecewise(
+                        incomeQuality,
+                        new double[]{0.95, 1.10},
+                        new int[]{62, 80}
+                );
             } else if (incomeQuality >= 0.80) {
                 incomeQualityBand = "WEAK";
                 incomeQualityAdjustment = -1;
-                incomeQualityMetricScore = 50;
+                incomeQualityMetricScore = interpolatePiecewise(
+                        incomeQuality,
+                        new double[]{0.80, 0.95},
+                        new int[]{44, 62}
+                );
             } else {
                 incomeQualityBand = "NEGATIVE";
                 incomeQualityAdjustment = -5;
-                incomeQualityMetricScore = 22;
+                incomeQualityMetricScore = interpolatePiecewise(
+                        incomeQuality,
+                        new double[]{0.40, 0.80},
+                        new int[]{14, 44}
+                );
             }
         }
 
         scaleScore = marketCapMetricScore;
-        valuationScore = perMetricScore;
         growthScore = averageScores(epsMetricScore, revenueMetricScore);
         profitabilityScore = averageScores(
                 grossMarginMetricScore,
@@ -2579,6 +3057,11 @@ public class RecommendationService {
                 incomeQualityMetricScore
         );
         efficiencyScore = averageScores(assetTurnoverMetricScore);
+        valuationScore = weightedAverageScores(
+                perMetricScore, 75,
+                freeCashFlowYieldMetricScore, 15,
+                marketCapMetricScore, 10
+        );
 
         if (profitabilityScore != null && profitabilityScore >= 80
                 && safetyScore != null && safetyScore >= 72
@@ -2600,6 +3083,26 @@ public class RecommendationService {
         if (valuationScore != null && valuationScore <= 30
                 && growthScore != null && growthScore <= 55) {
             combinationAdjustment -= 3;
+        }
+        if (valuationScore != null
+                && valuationScore <= 35
+                && growthScore != null
+                && growthScore >= 78
+                && profitabilityScore != null
+                && profitabilityScore >= 74) {
+            valuationScore = clampScore(valuationScore + 4);
+        }
+        if (valuationScore != null
+                && valuationScore <= 35
+                && cashFlowScore != null
+                && cashFlowScore <= 45) {
+            valuationScore = clampScore(valuationScore - 8);
+        }
+        if (valuationScore != null
+                && valuationScore >= 78
+                && cashFlowScore != null
+                && cashFlowScore >= 68) {
+            valuationScore = clampScore(valuationScore + 2);
         }
 
         final int weightedScore = weightedAverageScores(
@@ -3029,6 +3532,15 @@ public class RecommendationService {
                     factorRawJson
             );
         }
+        if ("VALUATION".equals(blankToEmpty(factorCode))
+                || "QUALITY_OF_GROWTH".equals(blankToEmpty(factorCode))) {
+            return blankToEmpty(factorSummary)
+                    + " 점수 "
+                    + zeroIfNull(factorScore)
+                    + "점, 가중치 "
+                    + zeroIfNull(factorWeight)
+                    + "을 반영했어요.";
+        }
         if ("USER_FIT".equals(blankToEmpty(factorCode))) {
             return buildUserFitEvidenceBody(
                     factorSummary,
@@ -3327,6 +3839,66 @@ public class RecommendationService {
                 : assessment.summary();
     }
 
+    private String buildValuationFactorSummary(FundamentalQualityAssessment assessment) {
+        if (assessment == null || assessment.perValue() == null) {
+            return "현재 밸류에이션 정보가 부족해 가격 부담은 중립적으로 봤어요.";
+        }
+
+        final String perText = "현재 PER은 " + formatDecimal(assessment.perValue(), 1) + "배예요.";
+        return switch (blankToEmpty(assessment.perBand())) {
+            case "ATTRACTIVE" -> perText + " 이익 대비 가격 부담이 낮아 긍정적으로 반영했어요.";
+            case "FAIR" -> perText + " 과도하게 비싸지 않은 구간으로 봤어요.";
+            case "EXPENSIVE" -> perText + " 좋은 기업이어도 가격 부담은 조금 있다고 판단했어요.";
+            case "VERY_EXPENSIVE" -> perText + " 기대가 높더라도 현재 가격 부담은 큰 편이에요.";
+            default -> perText + " 밸류에이션은 보수적으로 해석했어요.";
+        };
+    }
+
+    private String buildQualityOfGrowthFactorSummary(FundamentalQualityAssessment assessment) {
+        if (assessment == null) {
+            return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
+        }
+
+        final List<String> parts = new ArrayList<>();
+        if (assessment.revenueGrowthYoy() != null) {
+            parts.add("매출 성장률은 " + formatPercent(assessment.revenueGrowthYoy()) + "예요.");
+        }
+        if (assessment.epsTtm() != null) {
+            parts.add("EPS는 " + formatDecimal(assessment.epsTtm(), 2) + "예요.");
+        }
+        if (assessment.operatingMarginTtm() != null) {
+            parts.add("영업이익률은 " + formatPercent(assessment.operatingMarginTtm()) + "예요.");
+        }
+        if (assessment.incomeQualityTtm() != null) {
+            parts.add(
+                    assessment.incomeQualityTtm().doubleValue() >= 1.0
+                            ? "현금흐름이 이익을 잘 뒷받침하고 있어요."
+                            : "이익 대비 현금흐름은 조금 더 확인이 필요해요."
+            );
+        }
+
+        if (parts.isEmpty()) {
+            return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
+        }
+        return String.join(" ", parts);
+    }
+
+    private String formatDecimal(BigDecimal value, int scale) {
+        if (value == null) {
+            return "-";
+        }
+        return value.setScale(scale, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String formatPercent(BigDecimal value) {
+        if (value == null) {
+            return "-";
+        }
+        final BigDecimal percent = value.multiply(BigDecimal.valueOf(100));
+        final String prefix = percent.compareTo(BigDecimal.ZERO) > 0 ? "+" : "";
+        return prefix + percent.setScale(1, RoundingMode.HALF_UP).toPlainString() + "%";
+    }
+
     private String formatUsdAmount(double value) {
         return BigDecimal.valueOf(value)
                 .setScale(2, RoundingMode.HALF_UP)
@@ -3450,8 +4022,23 @@ public class RecommendationService {
     }
 
     private PriceSnapshot fetchPriceSnapshot(RecommendationTarget target, boolean allowExternalPriceFetch) {
-        final StockPriceSnapshotRecord latestSnapshot =
+        StockPriceSnapshotRecord latestSnapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
+        if (allowExternalPriceFetch && target.getStockId() != null) {
+            try {
+                final boolean refreshed = stockPriceSnapshotBatchService.ensureRecommendationSnapshot(target.getStockId());
+                if (refreshed) {
+                    latestSnapshot = stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
+                }
+            } catch (Exception exception) {
+                log.warn(
+                        "추천 계산 직전 가격 스냅샷 보강에 실패했습니다. stockId={}, ticker={}",
+                        target.getStockId(),
+                        target.getTicker(),
+                        exception
+                );
+            }
+        }
         if (latestSnapshot != null
                 && latestSnapshot.getCurrentPrice() != null
                 && latestSnapshot.getCurrentPrice().doubleValue() > 0) {
@@ -3743,6 +4330,8 @@ public class RecommendationService {
             Integer priceStabilityScore,
             Integer newsScore,
             Integer fundamentalQualityScore,
+            Integer valuationScore,
+            Integer qualityOfGrowthScore,
             Integer userFitScore,
             FundamentalQualityAssessment fundamentalQualityAssessment,
             UserFitAssessment userFitAssessment
@@ -3761,6 +4350,14 @@ public class RecommendationService {
 
         int fundamentalQualityScoreOrZero() {
             return fundamentalQualityScore == null ? 0 : fundamentalQualityScore;
+        }
+
+        int valuationScoreOrZero() {
+            return valuationScore == null ? 0 : valuationScore;
+        }
+
+        int qualityOfGrowthScoreOrZero() {
+            return qualityOfGrowthScore == null ? 0 : qualityOfGrowthScore;
         }
 
         int userFitScoreOrZero() {
