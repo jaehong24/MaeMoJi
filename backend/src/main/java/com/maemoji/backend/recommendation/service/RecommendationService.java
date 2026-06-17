@@ -1242,21 +1242,17 @@ public class RecommendationService {
                     .toList();
         }
 
-        final List<RecommendationEvidenceResponse> responses = new ArrayList<>();
-        responses.addAll(
-                factorDetailRecords.stream()
-                        .map(this::toEvidenceResponse)
-                        .toList()
-        );
-        responses.addAll(
-                evidenceRecords.stream()
-                        .filter(evidenceRecord -> !LEGACY_V4_EVIDENCE_TYPES.contains(
-                                blankToEmpty(evidenceRecord.getEvidenceType())
-                        ))
-                        .map(this::toEvidenceResponse)
-                        .toList()
-        );
-        return responses;
+        final LinkedHashMap<String, RecommendationEvidenceResponse> deduplicated = new LinkedHashMap<>();
+        factorDetailRecords.stream()
+                .map(this::toEvidenceResponse)
+                .forEach(response -> deduplicated.putIfAbsent(response.evidenceType(), response));
+        evidenceRecords.stream()
+                .filter(evidenceRecord -> !LEGACY_V4_EVIDENCE_TYPES.contains(
+                        blankToEmpty(evidenceRecord.getEvidenceType())
+                ))
+                .map(this::toEvidenceResponse)
+                .forEach(response -> deduplicated.putIfAbsent(response.evidenceType(), response));
+        return new ArrayList<>(deduplicated.values());
     }
 
     private List<RecommendationEvidenceResponse> buildGeneratedEvidenceResponses(
@@ -1681,7 +1677,7 @@ public class RecommendationService {
             return List.of();
         }
 
-        final List<RecommendationFactorDetailSaveCommand> commands = new ArrayList<>();
+        final LinkedHashMap<String, RecommendationFactorDetailSaveCommand> commandsByFactor = new LinkedHashMap<>();
         for (RecommendationScoreCalculator.FactorResult factor : v4ScoreResult.factors()) {
             final RecommendationFactorDetailSaveCommand command =
                     new RecommendationFactorDetailSaveCommand();
@@ -1691,9 +1687,9 @@ public class RecommendationService {
             command.setFactorWeight(factor.appliedWeight());
             command.setFactorSummary(factorSummary);
             command.setFactorRawJson(buildFactorRawJson(factor, v4ScoreResult, v4Context));
-            commands.add(command);
+            commandsByFactor.put(command.getFactorCode(), command);
         }
-        return commands;
+        return new ArrayList<>(commandsByFactor.values());
     }
 
     private String resolveFactorSummary(
@@ -2158,11 +2154,11 @@ public class RecommendationService {
         }
 
         final Integer baseScore = weightedAverageScores(
-                assessment.growthScore(), 35,
+                assessment.growthScore(), 30,
                 assessment.profitabilityScore(), 25,
                 assessment.cashFlowScore(), 25,
                 assessment.efficiencyScore(), 10,
-                assessment.safetyScore(), 5
+                assessment.safetyScore(), 10
         );
         if (baseScore == null) {
             return null;
@@ -2172,78 +2168,90 @@ public class RecommendationService {
         if (assessment.revenueGrowthYoy() != null) {
             final double revenueGrowth = assessment.revenueGrowthYoy().doubleValue();
             if (revenueGrowth >= 0.40) {
-                adjustment += 6;
-            } else if (revenueGrowth >= 0.20) {
                 adjustment += 4;
-            } else if (revenueGrowth >= 0.10) {
+            } else if (revenueGrowth >= 0.20) {
                 adjustment += 2;
+            } else if (revenueGrowth >= 0.10) {
+                adjustment += 1;
             } else if (revenueGrowth < -0.10) {
-                adjustment -= 10;
+                adjustment -= 12;
             } else if (revenueGrowth < 0.0) {
-                adjustment -= 5;
+                adjustment -= 6;
             }
         }
         if (assessment.epsTtm() != null) {
-            adjustment += assessment.epsTtm().doubleValue() > 0 ? 2 : -10;
+            adjustment += assessment.epsTtm().doubleValue() > 0 ? 1 : -12;
         }
         if (assessment.operatingMarginTtm() != null) {
             final double operatingMargin = assessment.operatingMarginTtm().doubleValue();
             if (operatingMargin >= 0.30) {
-                adjustment += 4;
+                adjustment += 3;
             } else if (operatingMargin >= 0.15) {
-                adjustment += 2;
+                adjustment += 1;
             } else if (operatingMargin < 0.0) {
-                adjustment -= 8;
+                adjustment -= 10;
             } else if (operatingMargin < 0.05) {
-                adjustment -= 4;
+                adjustment -= 5;
             }
         }
         if (assessment.incomeQualityTtm() != null) {
             final double incomeQuality = assessment.incomeQualityTtm().doubleValue();
-            if (incomeQuality >= 1.10) {
-                adjustment += 3;
-            } else if (incomeQuality >= 0.95) {
+            if (incomeQuality >= 1.15) {
+                adjustment += 2;
+            } else if (incomeQuality >= 1.0) {
                 adjustment += 1;
-            } else if (incomeQuality < 0.80) {
-                adjustment -= 8;
+            } else if (incomeQuality < 0.75) {
+                adjustment -= 10;
+            } else if (incomeQuality < 0.90) {
+                adjustment -= 4;
             }
         }
         if (assessment.freeCashFlowYieldTtm() != null) {
             final double freeCashFlowYield = assessment.freeCashFlowYieldTtm().doubleValue();
             if (freeCashFlowYield >= 0.05) {
-                adjustment += 3;
+                adjustment += 2;
             } else if (freeCashFlowYield >= 0.02) {
                 adjustment += 1;
             } else if (freeCashFlowYield < 0.0) {
-                adjustment -= 6;
+                adjustment -= 8;
+            } else if (freeCashFlowYield < 0.01) {
+                adjustment -= 3;
             }
         }
         if (assessment.growthScore() != null
-                && assessment.growthScore() >= 80
+                && assessment.growthScore() >= 82
                 && assessment.profitabilityScore() != null
-                && assessment.profitabilityScore() >= 78
+                && assessment.profitabilityScore() >= 80
                 && assessment.cashFlowScore() != null
-                && assessment.cashFlowScore() >= 68) {
-            adjustment += 4;
+                && assessment.cashFlowScore() >= 75) {
+            adjustment += 3;
         }
         if (assessment.growthScore() != null
-                && assessment.growthScore() >= 80
-                && assessment.cashFlowScore() != null
-                && assessment.cashFlowScore() <= 55) {
-            adjustment -= 12;
+                && assessment.growthScore() >= 82
+                && ((assessment.cashFlowScore() != null
+                && assessment.cashFlowScore() <= 60)
+                || (assessment.profitabilityScore() != null
+                && assessment.profitabilityScore() <= 55))) {
+            adjustment -= 10;
         }
         if (assessment.growthScore() != null
                 && assessment.growthScore() <= 45
                 && assessment.profitabilityScore() != null
                 && assessment.profitabilityScore() <= 45) {
-            adjustment -= 6;
+            adjustment -= 8;
+        }
+        if (assessment.growthScore() != null
+                && assessment.growthScore() >= 80
+                && assessment.safetyScore() != null
+                && assessment.safetyScore() <= 45) {
+            adjustment -= 5;
         }
         int finalScore = clampScore(baseScore + adjustment);
         if (assessment.revenueGrowthYoy() != null) {
             final int growthDrivenCeiling = resolveGrowthDrivenCeiling(assessment.revenueGrowthYoy().doubleValue());
             if (assessment.profitabilityScore() != null && assessment.profitabilityScore() >= 82
                     && assessment.cashFlowScore() != null && assessment.cashFlowScore() >= 78) {
-                finalScore = Math.min(finalScore, clampScore(growthDrivenCeiling + 2));
+                finalScore = Math.min(finalScore, clampScore(growthDrivenCeiling + 1));
             } else {
                 finalScore = Math.min(finalScore, growthDrivenCeiling);
             }
@@ -2255,14 +2263,63 @@ public class RecommendationService {
         return interpolatePiecewise(
                 revenueGrowthYoy,
                 new double[]{-0.10, 0.0, 0.05, 0.10, 0.20, 0.40, 0.80},
-                new int[]{52, 64, 72, 79, 86, 92, 97}
+                new int[]{50, 60, 69, 76, 83, 89, 94}
         );
     }
 
     private Integer resolvePriceMomentumScore(PriceSnapshot priceSnapshot) {
-        return priceSnapshot.hasThirtyDayReturn()
-                ? scoreCalculator.calculatePriceScore(priceSnapshot.thirtyDayReturn())
-                : null;
+        if (priceSnapshot == null || !priceSnapshot.hasThirtyDayReturn()) {
+            return null;
+        }
+
+        final RecommendationTuningProperties.PriceMomentum momentum =
+                tuningProperties.getPriceMomentum();
+        final double return30d = priceSnapshot.thirtyDayReturn();
+        int score;
+        if (return30d <= -35) {
+            score = momentum.getSevereDrawdownScore();
+        } else if (return30d <= -20) {
+            score = momentum.getDeepPullbackScore();
+        } else if (return30d <= -10) {
+            score = momentum.getPullbackScore();
+        } else if (return30d < -3) {
+            score = momentum.getSoftPullbackScore();
+        } else if (return30d <= 8) {
+            score = momentum.getNeutralScore();
+        } else if (return30d <= 15) {
+            score = momentum.getHealthyUptrendScore();
+        } else if (return30d <= 25) {
+            score = momentum.getWarmUptrendScore();
+        } else if (return30d <= 40) {
+            score = momentum.getOverheatedScore();
+        } else {
+            score = momentum.getEuphoricScore();
+        }
+
+        if (priceSnapshot.changeRate7d() != null) {
+            final double return7d = priceSnapshot.changeRate7d();
+            if (return7d >= 12) {
+                score -= momentum.getSharpWeeklySurgePenalty();
+            } else if (return7d >= 7) {
+                score -= momentum.getWeeklySurgePenalty();
+            } else if (return7d <= -10) {
+                score -= momentum.getSharpWeeklyDropPenalty();
+            } else if (return7d <= -5) {
+                score -= momentum.getWeeklyDropPenalty();
+            }
+
+            if (return30d >= -18 && return30d <= -5 && return7d >= 3) {
+                score += momentum.getReboundBonus();
+            }
+            if (return30d >= 0 && return30d <= 12 && return7d >= 1 && return7d <= 4) {
+                score += momentum.getStableTrendBonus();
+            }
+            if (return30d >= 20 && return7d >= 8) {
+                score -= momentum.getOverheatPenalty();
+            }
+        }
+
+        return clampScore(score);
     }
 
     private Integer resolvePriceStabilityScore(PriceSnapshot priceSnapshot) {
@@ -2270,23 +2327,46 @@ public class RecommendationService {
             return null;
         }
 
-        final double day7 = priceSnapshot.changeRate7d() == null ? 0 : Math.abs(priceSnapshot.changeRate7d());
-        final double day30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.abs(priceSnapshot.thirtyDayReturn());
-        final double stress = (day7 * 0.6) + (day30 * 0.4);
         final RecommendationTuningProperties.PriceStability stability = tuningProperties.getPriceStability();
+        final double abs7 = priceSnapshot.changeRate7d() == null ? 0 : Math.abs(priceSnapshot.changeRate7d());
+        final double abs30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.abs(priceSnapshot.thirtyDayReturn());
+        final double downside7 = priceSnapshot.changeRate7d() == null ? 0 : Math.max(0, -priceSnapshot.changeRate7d());
+        final double downside30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.max(0, -priceSnapshot.thirtyDayReturn());
+
+        double stress = (abs7 * 0.45) + (abs30 * 0.25) + (downside7 * 0.20) + (downside30 * 0.10);
+        if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 25) {
+            stress += 6;
+        }
+        if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 10) {
+            stress += 5;
+        }
+        if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() <= -10) {
+            stress += 6;
+        }
+
+        int score;
         if (stress <= 5) {
-            return stability.getStress5Score();
+            score = stability.getStress5Score();
+        } else if (stress <= 10) {
+            score = stability.getStress10Score();
+        } else if (stress <= 20) {
+            score = stability.getStress20Score();
+        } else if (stress <= 30) {
+            score = stability.getStress30Score();
+        } else {
+            score = stability.getFallbackScore();
         }
-        if (stress <= 10) {
-            return stability.getStress10Score();
+
+        if (downside30 >= 20) {
+            score -= 12;
+        } else if (downside30 >= 10) {
+            score -= 6;
         }
-        if (stress <= 20) {
-            return stability.getStress20Score();
+        if (abs7 <= 3 && abs30 <= 10) {
+            score += 4;
         }
-        if (stress <= 30) {
-            return stability.getStress30Score();
-        }
-        return stability.getFallbackScore();
+
+        return clampScore(score);
     }
 
     private FundamentalQualityAssessment resolveFundamentalQualityAssessment(PriceSnapshot priceSnapshot) {
@@ -3087,10 +3167,10 @@ public class RecommendationService {
         if (valuationScore != null
                 && valuationScore <= 35
                 && growthScore != null
-                && growthScore >= 78
+                && growthScore >= 80
                 && profitabilityScore != null
-                && profitabilityScore >= 74) {
-            valuationScore = clampScore(valuationScore + 4);
+                && profitabilityScore >= 76) {
+            valuationScore = clampScore(valuationScore + 2);
         }
         if (valuationScore != null
                 && valuationScore <= 35
@@ -3102,7 +3182,13 @@ public class RecommendationService {
                 && valuationScore >= 78
                 && cashFlowScore != null
                 && cashFlowScore >= 68) {
-            valuationScore = clampScore(valuationScore + 2);
+            valuationScore = clampScore(valuationScore + 1);
+        }
+        if (priceSnapshot.perValue() != null
+                && priceSnapshot.perValue().doubleValue() >= 100
+                && growthScore != null
+                && growthScore < 80) {
+            valuationScore = clampScore(zeroIfNull(valuationScore) - 6);
         }
 
         final int weightedScore = weightedAverageScores(
@@ -3704,17 +3790,27 @@ public class RecommendationService {
             return "최근 가격 흐름 데이터가 부족해 모멘텀 평가는 보수적으로 반영했어요.";
         }
         final Double return30d = priceSnapshot.thirtyDayReturn();
+        final Double return7d = priceSnapshot.changeRate7d();
         if (return30d == null) {
             return "최근 가격 흐름 데이터가 부족해 모멘텀 평가는 보수적으로 반영했어요.";
         }
+        if (return30d >= 25 && return7d != null && return7d >= 8) {
+            return "최근 30일 상승 폭에 더해 7일 흐름도 가팔라 단기 과열 가능성을 크게 반영했어요.";
+        }
         if (return30d >= 15) {
-            return "최근 30일 상승 폭이 커 단기 과열 가능성을 함께 봤어요.";
+            return "최근 30일 흐름은 강하지만, 지금은 추격 매수보다 가격 부담을 함께 보는 구간이에요.";
+        }
+        if (return30d >= 5 && return7d != null && return7d >= 1 && return7d <= 4) {
+            return "최근 30일과 7일 흐름이 함께 완만하게 우상향해 무리하지 않은 상승으로 봤어요.";
         }
         if (return30d >= 5) {
-            return "최근 30일 흐름이 완만하게 우상향하고 있어요.";
+            return "최근 30일 흐름이 우상향이지만, 단기 속도는 함께 확인했어요.";
+        }
+        if (return30d <= -10 && return7d != null && return7d >= 3) {
+            return "최근 30일 조정 이후 7일 반등 흐름이 보여 과도한 약세로만 보지는 않았어요.";
         }
         if (return30d <= -10) {
-            return "최근 30일 조정 폭이 커 단기 약세 흐름을 반영했어요.";
+            return "최근 30일 조정 폭이 커 아직 약세 흐름을 더 확인해야 하는 구간이에요.";
         }
         if (return30d <= -3) {
             return "최근 30일 흐름이 다소 약해 보수적으로 반영했어요.";
@@ -3729,12 +3825,19 @@ public class RecommendationService {
         if (priceSnapshot.hasSevereDrop()) {
             return "최근 낙폭이 커 하방 리스크를 높게 반영했어요.";
         }
+        final Double abs7d = absoluteOrNull(priceSnapshot.changeRate7d());
         final Double abs30d = absoluteOrNull(priceSnapshot.thirtyDayReturn());
-        if (abs30d != null && abs30d <= 5) {
-            return "최근 가격 변동이 크지 않아 안정성은 좋은 편이에요.";
+        if (abs7d != null && abs30d != null && abs7d <= 3 && abs30d <= 10) {
+            return "최근 7일과 30일 변동폭이 모두 크지 않아 가격 안정성은 좋은 편이에요.";
         }
-        if (abs30d != null && abs30d >= 20) {
-            return "최근 가격 변동 폭이 커 안정성 점수는 보수적으로 반영했어요.";
+        if (abs30d != null && abs30d <= 5) {
+            return "최근 가격 변동이 크지 않아 안정성은 무난한 편이에요.";
+        }
+        if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() <= -10) {
+            return "최근 하락 구간의 낙폭이 커 하방 안정성은 보수적으로 봤어요.";
+        }
+        if ((abs7d != null && abs7d >= 10) || (abs30d != null && abs30d >= 20)) {
+            return "최근 가격 흔들림이 커 안정성 점수는 보수적으로 반영했어요.";
         }
         return "변동성과 하방 리스크를 기준으로 안정성을 평가했어요.";
     }
@@ -3848,8 +3951,8 @@ public class RecommendationService {
         return switch (blankToEmpty(assessment.perBand())) {
             case "ATTRACTIVE" -> perText + " 이익 대비 가격 부담이 낮아 긍정적으로 반영했어요.";
             case "FAIR" -> perText + " 과도하게 비싸지 않은 구간으로 봤어요.";
-            case "EXPENSIVE" -> perText + " 좋은 기업이어도 가격 부담은 조금 있다고 판단했어요.";
-            case "VERY_EXPENSIVE" -> perText + " 기대가 높더라도 현재 가격 부담은 큰 편이에요.";
+            case "EXPENSIVE" -> perText + " 기업 체력이 좋아도 지금 가격은 다소 선반영된 구간으로 봤어요.";
+            case "VERY_EXPENSIVE" -> perText + " 성장 기대가 높더라도 현재 가격 부담은 크게 반영했어요.";
             default -> perText + " 밸류에이션은 보수적으로 해석했어요.";
         };
     }
@@ -3876,11 +3979,15 @@ public class RecommendationService {
                             : "이익 대비 현금흐름은 조금 더 확인이 필요해요."
             );
         }
+        if (assessment.safetyScore() != null && assessment.safetyScore() <= 45) {
+            parts.add("성장 수치는 좋아도 재무 안정성은 함께 보수적으로 반영했어요.");
+        }
 
         if (parts.isEmpty()) {
             return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
         }
-        return String.join(" ", parts);
+        return String.join(" ", parts)
+                + " 단순 성장률만이 아니라, 그 성장이 수익성과 현금흐름으로 이어지는지도 함께 봤어요.";
     }
 
     private String formatDecimal(BigDecimal value, int scale) {

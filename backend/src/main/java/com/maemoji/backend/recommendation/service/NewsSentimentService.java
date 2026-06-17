@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 public class NewsSentimentService {
 
     private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
+    private static final String DEFAULT_GEMINI_TRANSLATION_MODEL = "gemini-2.5-flash-lite";
     private static final int MAX_GEMINI_CANDIDATES = 6;
     private static final int MAX_GEMINI_ATTEMPTS = 3;
     private static final long GEMINI_RETRY_DELAY_MILLIS = 2500;
@@ -668,7 +669,9 @@ public class NewsSentimentService {
                 '실적은 좋지만 가이던스 하향', '기대치 상회지만 이미 주가 반영',
                 '산업 수혜지만 해당 기업 직접 관련성 낮음' 같은 혼합 문맥을 구분해야 합니다.
                 sentimentScore는 -100(강한 악재)부터 100(강한 호재), relevanceScore는 직접 관련성 0~100입니다.
-                impactLevel은 주가 영향 예상 강도이며 reason에는 판단 근거를 한국어 한 문장으로 작성하세요.
+                impactLevel은 주가 영향 예상 강도입니다.
+                summaryKo와 reason은 반드시 자연스러운 한국어로만 작성하세요.
+                영어 문장을 그대로 복사하지 말고, 한국어 투자 앱에 표시할 짧은 문장으로 정리하세요.
                 """);
         prompt.append("\n대상 회사: ").append(companyName);
         prompt.append("\n티커: ").append(symbol).append("\n\n");
@@ -703,7 +706,7 @@ public class NewsSentimentService {
             GeminiBatchResult geminiResult,
             String analysisBatchHash
     ) {
-        final List<AnalyzedNewsItem> analyzedCandidates = new ArrayList<>();
+        final List<IntermediateAnalyzedNewsItem> analyzedCandidates = new ArrayList<>();
         final Set<String> hardNegativeContentHashes = new LinkedHashSet<>();
 
         for (int index = 0; index < candidates.size(); index++) {
@@ -747,17 +750,11 @@ public class NewsSentimentService {
             final double impactWeight = impactWeight(impactLevel);
             final double articleWeight = (relevanceScore / 100.0) * recencyWeight * impactWeight;
             final double weightedScore = sentimentScore * articleWeight;
-            final String summaryKo = ensureKoreanSummary(
-                    defaultIfBlank(decision.summaryKo(), fallbackSummary(item)),
-                    item
-            );
-            final String reasonKo = ensureKoreanReason(reason, item, relevanceScore);
-
-            analyzedCandidates.add(new AnalyzedNewsItem(
+            analyzedCandidates.add(new IntermediateAnalyzedNewsItem(
                     item.newsId(),
                     symbol,
                     item.headline(),
-                    summaryKo,
+                    defaultIfBlank(decision.summaryKo(), ""),
                     item.sourceName(),
                     item.url(),
                     item.publishedAt(),
@@ -766,16 +763,17 @@ public class NewsSentimentService {
                     item.keywordScore(),
                     relevanceScore,
                     impactLevel,
-                    reasonKo,
+                    defaultIfBlank(reason, ""),
                     decimal(recencyWeight),
                     decimal(impactWeight),
                     decimal(weightedScore),
                     item.contentHash(),
-                    analysisBatchHash
+                    analysisBatchHash,
+                    item.summary()
             ));
         }
 
-        final List<AnalyzedNewsItem> analyzedNews = analyzedCandidates.stream()
+        final List<AnalyzedNewsItem> analyzedNews = finalizeKoreanNewsContent(analyzedCandidates).stream()
                 .sorted((left, right) -> {
                     final int byImpact = right.weightedScore().abs().compareTo(left.weightedScore().abs());
                     if (byImpact != 0) {
@@ -810,7 +808,8 @@ public class NewsSentimentService {
             List<RawNewsItem> candidates,
             String analysisBatchHash
     ) {
-        final List<AnalyzedNewsItem> analyzedNews = candidates.stream()
+        final List<AnalyzedNewsItem> analyzedNews = finalizeKoreanNewsContent(
+                candidates.stream()
                 .map(item -> {
                     final int relevanceScore = clamp(item.heuristicRelevanceScore(), 0, 100);
                     if (relevanceScore < MIN_FINAL_RELEVANCE) {
@@ -831,14 +830,11 @@ public class NewsSentimentService {
                     final double impactWeight = impactWeight(impactLevel);
                     final double articleWeight = (relevanceScore / 100.0) * recencyWeight * impactWeight;
                     final double weightedScore = sentimentScore * articleWeight;
-                    final String summaryKo = ensureKoreanSummary(fallbackSummary(item), item);
-                    final String reasonKo = ensureKoreanReason(reason, item, relevanceScore);
-
-                    return new AnalyzedNewsItem(
+                    return new IntermediateAnalyzedNewsItem(
                             item.newsId(),
                             symbol,
                             item.headline(),
-                            summaryKo,
+                            "",
                             item.sourceName(),
                             item.url(),
                             item.publishedAt(),
@@ -847,15 +843,18 @@ public class NewsSentimentService {
                             item.keywordScore(),
                             relevanceScore,
                             impactLevel,
-                            reasonKo,
+                            "",
                             decimal(recencyWeight),
                             decimal(impactWeight),
                             decimal(weightedScore),
                             item.contentHash(),
-                            analysisBatchHash
+                            analysisBatchHash,
+                            item.summary()
                     );
                 })
                 .filter(item -> item != null)
+                .toList()
+        ).stream()
                 .sorted((left, right) -> {
                     final int byImpact = right.weightedScore().abs().compareTo(left.weightedScore().abs());
                     if (byImpact != 0) {
@@ -1152,72 +1151,184 @@ public class NewsSentimentService {
 
     private String fallbackReason(int keywordScore, int relevanceScore) {
         if (keywordScore > 0) {
-            return "긍정 키워드가 확인되었고 종목 관련성 점수는 " + relevanceScore + "점입니다.";
+            return "기사 제목과 요약에서 긍정 신호가 확인됐고, 종목 직접 관련성은 "
+                    + relevanceScore
+                    + "점으로 높게 봤습니다.";
         }
         if (keywordScore < 0) {
-            return "부정 키워드가 확인되었고 종목 관련성 점수는 " + relevanceScore + "점입니다.";
+            return "기사 제목과 요약에서 부정 신호가 확인됐고, 종목 직접 관련성은 "
+                    + relevanceScore
+                    + "점으로 판단했습니다.";
         }
-        return "명확한 방향성 키워드가 적어 중립으로 판단했습니다.";
+        return "기사 내용의 방향성은 중립에 가깝지만 종목 직접 관련성은 "
+                + relevanceScore
+                + "점으로 반영했습니다.";
     }
 
     private String fallbackSummary(RawNewsItem item) {
         return !item.summary().isBlank() ? item.summary() : item.headline();
     }
 
-    private String ensureKoreanSummary(String candidate, RawNewsItem item) {
-        final String normalized = defaultIfBlank(candidate, "").trim();
-        if (normalized.isBlank()) {
-            return buildGenericKoreanSummary(item);
-        }
-        if (containsHangul(normalized)) {
-            return normalized;
+    private List<AnalyzedNewsItem> finalizeKoreanNewsContent(List<IntermediateAnalyzedNewsItem> candidates) {
+        if (candidates.isEmpty()) {
+            return List.of();
         }
 
-        final String translated = translateToKorean(
-                """
-                아래 미국 주식 뉴스 요약을 자연스러운 한국어 1~2문장으로만 바꿔주세요.
-                불필요한 영어 표현은 남기지 말고 핵심만 간단히 정리하세요.
-                
-                제목: %s
-                요약: %s
-                """.formatted(item.headline(), normalized)
-        );
-        if (!isBlank(translated) && containsHangul(translated)) {
-            return translated;
+        final Map<Integer, BatchTranslationDecision> translatedByIndex =
+                batchTranslateMissingNewsFields(candidates);
+        final List<AnalyzedNewsItem> finalized = new ArrayList<>();
+        for (int index = 0; index < candidates.size(); index++) {
+            final IntermediateAnalyzedNewsItem item = candidates.get(index);
+            final BatchTranslationDecision translated = translatedByIndex.get(index + 1);
+            final String summaryKo = resolveSummaryKo(item, translated);
+            final String reasonKo = resolveReasonKo(item, translated);
+            finalized.add(new AnalyzedNewsItem(
+                    item.newsId(),
+                    item.symbol(),
+                    item.headline(),
+                    summaryKo,
+                    item.sourceName(),
+                    item.newsUrl(),
+                    item.newsPublishedAt(),
+                    item.sentimentLabel(),
+                    item.sentimentScore(),
+                    item.keywordScore(),
+                    item.relevanceScore(),
+                    item.impactLevel(),
+                    reasonKo,
+                    item.recencyWeight(),
+                    item.impactWeight(),
+                    item.weightedScore(),
+                    item.contentHash(),
+                    item.analysisBatchHash()
+            ));
         }
-        return buildGenericKoreanSummary(item);
+        return finalized;
     }
 
-    private String ensureKoreanReason(String candidate, RawNewsItem item, int relevanceScore) {
-        final String normalized = defaultIfBlank(candidate, "").trim();
-        if (normalized.isBlank()) {
-            return fallbackReason(item.keywordScore(), relevanceScore);
+    private String resolveSummaryKo(IntermediateAnalyzedNewsItem item, BatchTranslationDecision translated) {
+        final String primary = defaultIfBlank(item.summary(), "").trim();
+        if (containsHangul(primary)) {
+            return primary;
         }
-        if (containsHangul(normalized)) {
-            return normalized;
+        final String translatedSummary = translated == null ? "" : defaultIfBlank(translated.summaryKo(), "").trim();
+        if (containsHangul(translatedSummary)) {
+            return translatedSummary;
         }
-
-        final String translated = translateToKorean(
-                """
-                아래 미국 주식 뉴스 판단 이유를 자연스러운 한국어 한 문장으로만 바꿔주세요.
-                투자 판단 근거 느낌으로 짧고 분명하게 작성하세요.
-                
-                제목: %s
-                판단 이유: %s
-                """.formatted(item.headline(), normalized)
-        );
-        if (!isBlank(translated) && containsHangul(translated)) {
-            return translated;
-        }
-        return fallbackReason(item.keywordScore(), relevanceScore);
+        return buildGenericKoreanSummary(item.headline(), item.rawSummary());
     }
 
-    private String buildGenericKoreanSummary(RawNewsItem item) {
-        return "해당 기사의 핵심 내용을 한국어로 다시 정리 중이며, 원문 기준으로 관련 뉴스 분석에 반영했습니다.";
+    private String resolveReasonKo(IntermediateAnalyzedNewsItem item, BatchTranslationDecision translated) {
+        final String primary = defaultIfBlank(item.reason(), "").trim();
+        if (containsHangul(primary)) {
+            return primary;
+        }
+        final String translatedReason = translated == null ? "" : defaultIfBlank(translated.reasonKo(), "").trim();
+        if (containsHangul(translatedReason)) {
+            return translatedReason;
+        }
+        return fallbackReason(item.keywordScore(), item.relevanceScore());
+    }
+
+    private String buildGenericKoreanSummary(String headline, String rawSummary) {
+        final String normalizedHeadline = defaultIfBlank(headline, "").trim();
+        final String normalizedSummary = defaultIfBlank(rawSummary, "").trim();
+
+        if (!normalizedHeadline.isBlank() && !normalizedSummary.isBlank()) {
+            return "이 기사는 " + quoteHeadline(normalizedHeadline) + "와 관련된 내용을 다루며, 원문 요약 기준 핵심 흐름을 뉴스 판단에 반영했습니다.";
+        }
+        if (!normalizedHeadline.isBlank()) {
+            return "이 기사는 " + quoteHeadline(normalizedHeadline) + "를 중심으로 한 내용이라 관련 뉴스로 반영했습니다.";
+        }
+        if (!normalizedSummary.isBlank()) {
+            return "원문 요약 기준 종목과 직접 연결되는 내용이 확인되어 관련 뉴스로 반영했습니다.";
+        }
+        return "기사 원문 기준으로 종목 관련성이 확인되어 뉴스 분석에 반영했습니다.";
+    }
+
+    private String quoteHeadline(String headline) {
+        return "'" + headline + "'";
     }
 
     private boolean containsHangul(String value) {
         return !isBlank(value) && HANGUL_PATTERN.matcher(value).find();
+    }
+
+    private Map<Integer, BatchTranslationDecision> batchTranslateMissingNewsFields(
+            List<IntermediateAnalyzedNewsItem> candidates
+    ) {
+        final List<Integer> indexesToTranslate = new ArrayList<>();
+        for (int index = 0; index < candidates.size(); index++) {
+            final IntermediateAnalyzedNewsItem item = candidates.get(index);
+            final boolean summaryNeedsTranslation = !containsHangul(defaultIfBlank(item.summary(), "").trim());
+            final boolean reasonNeedsTranslation = !containsHangul(defaultIfBlank(item.reason(), "").trim());
+            if (summaryNeedsTranslation || reasonNeedsTranslation) {
+                indexesToTranslate.add(index + 1);
+            }
+        }
+        if (indexesToTranslate.isEmpty()) {
+            return Map.of();
+        }
+
+        final String prompt = buildBatchTranslationPrompt(candidates, indexesToTranslate);
+        final String responseText = translateToKorean(prompt);
+        if (isBlank(responseText)) {
+            return Map.of();
+        }
+
+        try {
+            final JsonNode root = objectMapper.readTree(responseText);
+            final JsonNode articlesNode = root.path("articles");
+            if (!articlesNode.isArray()) {
+                return Map.of();
+            }
+
+            final Map<Integer, BatchTranslationDecision> decisions = new LinkedHashMap<>();
+            for (JsonNode articleNode : articlesNode) {
+                final int index = articleNode.path("index").asInt(-1);
+                if (index < 1) {
+                    continue;
+                }
+                decisions.put(index, new BatchTranslationDecision(
+                        articleNode.path("summaryKo").asText(""),
+                        articleNode.path("reasonKo").asText("")
+                ));
+            }
+            return decisions;
+        } catch (Exception exception) {
+            log.warn("뉴스 한국어 배치 보정 응답 파싱에 실패했습니다.", exception);
+            return Map.of();
+        }
+    }
+
+    private String buildBatchTranslationPrompt(
+            List<IntermediateAnalyzedNewsItem> candidates,
+            List<Integer> indexesToTranslate
+    ) {
+        final StringBuilder prompt = new StringBuilder();
+        prompt.append("""
+                아래 미국 주식 뉴스 항목들을 한국어 투자 앱용으로 짧게 정리하세요.
+                반드시 JSON만 반환하세요.
+                형식:
+                {
+                  "articles": [
+                    { "index": 1, "summaryKo": "...", "reasonKo": "..." }
+                  ]
+                }
+                summaryKo는 기사 핵심을 자연스러운 한국어 1~2문장으로,
+                reasonKo는 투자 판단 이유를 자연스러운 한국어 1문장으로 작성하세요.
+                영어를 그대로 복사하지 말고 한국어로만 작성하세요.
+                
+                """);
+        for (Integer index : indexesToTranslate) {
+            final IntermediateAnalyzedNewsItem item = candidates.get(index - 1);
+            prompt.append("index: ").append(index).append('\n')
+                    .append("headline: ").append(trimForPrompt(item.headline(), 220)).append('\n')
+                    .append("summary: ").append(trimForPrompt(item.rawSummary(), 320)).append('\n')
+                    .append("draftSummary: ").append(trimForPrompt(item.summary(), 220)).append('\n')
+                    .append("draftReason: ").append(trimForPrompt(item.reason(), 220)).append("\n\n");
+        }
+        return prompt.toString();
     }
 
     private String translateToKorean(String prompt) {
@@ -1228,11 +1339,14 @@ public class NewsSentimentService {
 
         try {
             final String uri = "https://generativelanguage.googleapis.com/v1beta/models/"
-                    + resolveGeminiModel()
+                    + resolveGeminiTranslationModel()
                     + ":generateContent?key="
                     + encode(geminiApiKey);
 
             final String requestBody = objectMapper.writeValueAsString(Map.of(
+                    "generationConfig", Map.of(
+                            "responseMimeType", "application/json"
+                    ),
                     "contents", List.of(
                             Map.of("parts", List.of(
                                     Map.of("text", prompt)
@@ -1354,6 +1468,13 @@ public class NewsSentimentService {
         return defaultIfBlank(System.getenv("GEMINI_MODEL"), DEFAULT_GEMINI_MODEL);
     }
 
+    private String resolveGeminiTranslationModel() {
+        return defaultIfBlank(
+                System.getenv("GEMINI_TRANSLATION_MODEL"),
+                DEFAULT_GEMINI_TRANSLATION_MODEL
+        );
+    }
+
     private record RawNewsItem(
             String newsId,
             String headline,
@@ -1420,6 +1541,35 @@ public class NewsSentimentService {
             BigDecimal weightedScore,
             String contentHash,
             String analysisBatchHash
+    ) {
+    }
+
+    private record IntermediateAnalyzedNewsItem(
+            String newsId,
+            String symbol,
+            String headline,
+            String summary,
+            String sourceName,
+            String newsUrl,
+            OffsetDateTime newsPublishedAt,
+            String sentimentLabel,
+            int sentimentScore,
+            int keywordScore,
+            int relevanceScore,
+            String impactLevel,
+            String reason,
+            BigDecimal recencyWeight,
+            BigDecimal impactWeight,
+            BigDecimal weightedScore,
+            String contentHash,
+            String analysisBatchHash,
+            String rawSummary
+    ) {
+    }
+
+    private record BatchTranslationDecision(
+            String summaryKo,
+            String reasonKo
     ) {
     }
 

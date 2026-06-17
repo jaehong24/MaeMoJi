@@ -50,6 +50,25 @@ class StockPriceSnapshotLiveValidationTest {
             "MCD",
             "NEE"
     );
+    private static final List<String> SAMPLE_SET_PRICE_BACKFILL_SYMBOLS = List.of(
+            "ADBE",
+            "AMD",
+            "ARM",
+            "AVGO",
+            "CAT",
+            "CRM",
+            "DELL",
+            "GS",
+            "HD",
+            "MSFT",
+            "NOW",
+            "ORCL",
+            "PG",
+            "PLTR",
+            "UNH",
+            "WMT",
+            "XOM"
+    );
 
     @Autowired
     private StockPriceSnapshotBatchService stockPriceSnapshotBatchService;
@@ -184,6 +203,32 @@ class StockPriceSnapshotLiveValidationTest {
         assertThat(stocksWithThirtyDayReturn)
                 .as("active portfolio stocks with 30 day return")
                 .isGreaterThan(0);
+    }
+
+    @Test
+    void backfillsThirtyDayHistoryForExpandedSampleSet() throws Exception {
+        final List<Long> stockIds = SAMPLE_SET_PRICE_BACKFILL_SYMBOLS.stream()
+                .map(symbol -> {
+                    try {
+                        return findStockId(symbol);
+                    } catch (Exception exception) {
+                        throw new IllegalStateException(exception);
+                    }
+                })
+                .toList();
+
+        final int savedRows = stockPriceSnapshotBatchService.backfillHistoricalSnapshotsForStockIds(stockIds, 45);
+        assertThat(savedRows).isGreaterThan(0);
+
+        for (String symbol : SAMPLE_SET_PRICE_BACKFILL_SYMBOLS) {
+            final SnapshotValidationRow latestSnapshot = findLatestSnapshot(symbol);
+            assertThat(latestSnapshot)
+                    .as("latest snapshot row for %s", symbol)
+                    .isNotNull();
+            assertThat(latestSnapshot.changeRate30d())
+                    .as("30 day return for %s", symbol)
+                    .isNotNull();
+        }
     }
 
     private Long findStockId(String symbol) throws Exception {

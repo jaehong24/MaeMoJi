@@ -37,6 +37,8 @@ class RecommendationSampleSetReportTest {
             "AAPL", "MSFT", "COST", "MCD", "PG",
             "TSLA", "AVGO", "PLTR", "ARM",
             "CAT", "DELL", "JPM", "GS", "HD",
+            "AMD", "ADBE", "CRM", "ORCL", "NOW",
+            "UNH", "XOM", "KO", "NEE", "WMT",
             "QQQ", "SPY", "VOO", "SCHD", "SOXX"
     );
 

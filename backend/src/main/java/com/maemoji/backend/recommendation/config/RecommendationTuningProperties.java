@@ -7,6 +7,7 @@ public class RecommendationTuningProperties {
 
     private FactorWeights factorWeights = new FactorWeights();
     private RiskProfiles riskProfiles = new RiskProfiles();
+    private PriceMomentum priceMomentum = new PriceMomentum();
     private PriceStability priceStability = new PriceStability();
     private Fundamental fundamental = new Fundamental();
 
@@ -32,6 +33,14 @@ public class RecommendationTuningProperties {
 
     public void setPriceStability(PriceStability priceStability) {
         this.priceStability = priceStability;
+    }
+
+    public PriceMomentum getPriceMomentum() {
+        return priceMomentum;
+    }
+
+    public void setPriceMomentum(PriceMomentum priceMomentum) {
+        this.priceMomentum = priceMomentum;
     }
 
     public Fundamental getFundamental() {
@@ -121,10 +130,10 @@ public class RecommendationTuningProperties {
     }
 
     public static class RiskProfiles {
-        private RiskProfileRule safeFirst = new RiskProfileRule(90, 68, 42, -5);
-        private RiskProfileRule balanced = new RiskProfileRule(85, 60, 35, 0);
-        private RiskProfileRule growthSeeker = new RiskProfileRule(82, 56, 32, 2);
-        private RiskProfileRule aggressive = new RiskProfileRule(78, 52, 28, 5);
+        private RiskProfileRule safeFirst = new RiskProfileRule(90, 68, 42, -5, 78, 3, 72);
+        private RiskProfileRule balanced = new RiskProfileRule(85, 60, 35, 0, 72, 3, 68);
+        private RiskProfileRule growthSeeker = new RiskProfileRule(82, 56, 32, 2, 68, 2, 65);
+        private RiskProfileRule aggressive = new RiskProfileRule(78, 52, 28, 5, 65, 2, 62);
 
         public RiskProfileRule getSafeFirst() {
             return safeFirst;
@@ -164,6 +173,9 @@ public class RecommendationTuningProperties {
         private int maintainThreshold;
         private int reduceThreshold;
         private int userAdjustment;
+        private int minConfidenceForIncrease;
+        private int minStrongFactorCount;
+        private int strongFactorScoreThreshold;
 
         public RiskProfileRule() {
         }
@@ -172,12 +184,18 @@ public class RecommendationTuningProperties {
                 int increaseThreshold,
                 int maintainThreshold,
                 int reduceThreshold,
-                int userAdjustment
+                int userAdjustment,
+                int minConfidenceForIncrease,
+                int minStrongFactorCount,
+                int strongFactorScoreThreshold
         ) {
             this.increaseThreshold = increaseThreshold;
             this.maintainThreshold = maintainThreshold;
             this.reduceThreshold = reduceThreshold;
             this.userAdjustment = userAdjustment;
+            this.minConfidenceForIncrease = minConfidenceForIncrease;
+            this.minStrongFactorCount = minStrongFactorCount;
+            this.strongFactorScoreThreshold = strongFactorScoreThreshold;
         }
 
         public int getIncreaseThreshold() {
@@ -210,6 +228,177 @@ public class RecommendationTuningProperties {
 
         public void setUserAdjustment(int userAdjustment) {
             this.userAdjustment = userAdjustment;
+        }
+
+        public int getMinConfidenceForIncrease() {
+            return minConfidenceForIncrease;
+        }
+
+        public void setMinConfidenceForIncrease(int minConfidenceForIncrease) {
+            this.minConfidenceForIncrease = minConfidenceForIncrease;
+        }
+
+        public int getMinStrongFactorCount() {
+            return minStrongFactorCount;
+        }
+
+        public void setMinStrongFactorCount(int minStrongFactorCount) {
+            this.minStrongFactorCount = minStrongFactorCount;
+        }
+
+        public int getStrongFactorScoreThreshold() {
+            return strongFactorScoreThreshold;
+        }
+
+        public void setStrongFactorScoreThreshold(int strongFactorScoreThreshold) {
+            this.strongFactorScoreThreshold = strongFactorScoreThreshold;
+        }
+    }
+
+    public static class PriceMomentum {
+        private int severeDrawdownScore = 18;
+        private int deepPullbackScore = 34;
+        private int pullbackScore = 48;
+        private int softPullbackScore = 62;
+        private int neutralScore = 78;
+        private int healthyUptrendScore = 72;
+        private int warmUptrendScore = 58;
+        private int overheatedScore = 38;
+        private int euphoricScore = 22;
+        private int sharpWeeklySurgePenalty = 10;
+        private int weeklySurgePenalty = 6;
+        private int sharpWeeklyDropPenalty = 8;
+        private int weeklyDropPenalty = 4;
+        private int reboundBonus = 5;
+        private int stableTrendBonus = 4;
+        private int overheatPenalty = 12;
+
+        public int getSevereDrawdownScore() {
+            return severeDrawdownScore;
+        }
+
+        public void setSevereDrawdownScore(int severeDrawdownScore) {
+            this.severeDrawdownScore = severeDrawdownScore;
+        }
+
+        public int getDeepPullbackScore() {
+            return deepPullbackScore;
+        }
+
+        public void setDeepPullbackScore(int deepPullbackScore) {
+            this.deepPullbackScore = deepPullbackScore;
+        }
+
+        public int getPullbackScore() {
+            return pullbackScore;
+        }
+
+        public void setPullbackScore(int pullbackScore) {
+            this.pullbackScore = pullbackScore;
+        }
+
+        public int getSoftPullbackScore() {
+            return softPullbackScore;
+        }
+
+        public void setSoftPullbackScore(int softPullbackScore) {
+            this.softPullbackScore = softPullbackScore;
+        }
+
+        public int getNeutralScore() {
+            return neutralScore;
+        }
+
+        public void setNeutralScore(int neutralScore) {
+            this.neutralScore = neutralScore;
+        }
+
+        public int getHealthyUptrendScore() {
+            return healthyUptrendScore;
+        }
+
+        public void setHealthyUptrendScore(int healthyUptrendScore) {
+            this.healthyUptrendScore = healthyUptrendScore;
+        }
+
+        public int getWarmUptrendScore() {
+            return warmUptrendScore;
+        }
+
+        public void setWarmUptrendScore(int warmUptrendScore) {
+            this.warmUptrendScore = warmUptrendScore;
+        }
+
+        public int getOverheatedScore() {
+            return overheatedScore;
+        }
+
+        public void setOverheatedScore(int overheatedScore) {
+            this.overheatedScore = overheatedScore;
+        }
+
+        public int getEuphoricScore() {
+            return euphoricScore;
+        }
+
+        public void setEuphoricScore(int euphoricScore) {
+            this.euphoricScore = euphoricScore;
+        }
+
+        public int getSharpWeeklySurgePenalty() {
+            return sharpWeeklySurgePenalty;
+        }
+
+        public void setSharpWeeklySurgePenalty(int sharpWeeklySurgePenalty) {
+            this.sharpWeeklySurgePenalty = sharpWeeklySurgePenalty;
+        }
+
+        public int getWeeklySurgePenalty() {
+            return weeklySurgePenalty;
+        }
+
+        public void setWeeklySurgePenalty(int weeklySurgePenalty) {
+            this.weeklySurgePenalty = weeklySurgePenalty;
+        }
+
+        public int getSharpWeeklyDropPenalty() {
+            return sharpWeeklyDropPenalty;
+        }
+
+        public void setSharpWeeklyDropPenalty(int sharpWeeklyDropPenalty) {
+            this.sharpWeeklyDropPenalty = sharpWeeklyDropPenalty;
+        }
+
+        public int getWeeklyDropPenalty() {
+            return weeklyDropPenalty;
+        }
+
+        public void setWeeklyDropPenalty(int weeklyDropPenalty) {
+            this.weeklyDropPenalty = weeklyDropPenalty;
+        }
+
+        public int getReboundBonus() {
+            return reboundBonus;
+        }
+
+        public void setReboundBonus(int reboundBonus) {
+            this.reboundBonus = reboundBonus;
+        }
+
+        public int getStableTrendBonus() {
+            return stableTrendBonus;
+        }
+
+        public void setStableTrendBonus(int stableTrendBonus) {
+            this.stableTrendBonus = stableTrendBonus;
+        }
+
+        public int getOverheatPenalty() {
+            return overheatPenalty;
+        }
+
+        public void setOverheatPenalty(int overheatPenalty) {
+            this.overheatPenalty = overheatPenalty;
         }
     }
 

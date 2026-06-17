@@ -229,6 +229,26 @@ class RecommendationFundamentalQualityRegressionTest {
         assertThat(amznQualityOfGrowth).isGreaterThan(tslaQualityOfGrowth);
     }
 
+    @Test
+    void priceMomentumPenalizesOverheatedRalliesMoreThanStableUptrends() throws Exception {
+        final int stableUptrend = priceMomentumScoreOf(priceSnapshotWithReturns(3.0, 9.0));
+        final int overheatedRally = priceMomentumScoreOf(priceSnapshotWithReturns(11.0, 32.0));
+        final int reboundAfterPullback = priceMomentumScoreOf(priceSnapshotWithReturns(4.0, -12.0));
+
+        assertThat(stableUptrend).isGreaterThan(overheatedRally);
+        assertThat(reboundAfterPullback).isGreaterThan(35);
+    }
+
+    @Test
+    void priceStabilityPenalizesSharpDownsideMoreThanQuietTradingRange() throws Exception {
+        final int quietRange = priceStabilityScoreOf(priceSnapshotWithReturns(1.8, 6.5));
+        final int sharpSelloff = priceStabilityScoreOf(priceSnapshotWithReturns(-11.0, -24.0));
+
+        assertThat(quietRange).isGreaterThan(sharpSelloff);
+        assertThat(quietRange).isGreaterThanOrEqualTo(80);
+        assertThat(sharpSelloff).isLessThanOrEqualTo(55);
+    }
+
     private Object snapshot(
             Double marketCap,
             Double perValue,
@@ -248,6 +268,15 @@ class RecommendationFundamentalQualityRegressionTest {
         args[9] = toBigDecimal(operatingMarginTtm);
         args[10] = toBigDecimal(roeTtm);
         args[13] = toBigDecimal(debtToEquityTtm);
+        return constructor.newInstance(args);
+    }
+
+    private Object priceSnapshotWithReturns(Double changeRate7d, Double changeRate30d) throws Exception {
+        final Constructor<?> constructor = priceSnapshotClass.getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        final Object[] args = new Object[constructor.getParameterCount()];
+        args[1] = changeRate7d;
+        args[2] = changeRate30d;
         return constructor.newInstance(args);
     }
 
@@ -274,6 +303,26 @@ class RecommendationFundamentalQualityRegressionTest {
                 recommendationService,
                 "resolveQualityOfGrowthScore",
                 assessment
+        );
+        assertThat(score).isNotNull();
+        return score;
+    }
+
+    private int priceMomentumScoreOf(Object priceSnapshot) {
+        final Integer score = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceMomentumScore",
+                priceSnapshot
+        );
+        assertThat(score).isNotNull();
+        return score;
+    }
+
+    private int priceStabilityScoreOf(Object priceSnapshot) {
+        final Integer score = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceStabilityScore",
+                priceSnapshot
         );
         assertThat(score).isNotNull();
         return score;

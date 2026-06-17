@@ -300,14 +300,18 @@ public class RecommendationScoreCalculator {
     }
 
     private boolean isIncreaseEligible(V4Input input, List<FactorResult> appliedFactors) {
-        if (input.hardStopRisk() || input.hardNegativeNews() || input.confidence() < 70) {
+        final RecommendationTuningProperties.RiskProfileRule rule =
+                tuningProperties.ruleFor(input.effectiveRiskProfile());
+        if (input.hardStopRisk()
+                || input.hardNegativeNews()
+                || input.confidence() < rule.getMinConfidenceForIncrease()) {
             return false;
         }
 
         final long strongFactorCount = appliedFactors.stream()
-                .filter(factor -> factor.score() >= 65)
+                .filter(factor -> factor.score() >= rule.getStrongFactorScoreThreshold())
                 .count();
-        return strongFactorCount >= 2;
+        return strongFactorCount >= rule.getMinStrongFactorCount();
     }
 
     private Integer findFactorScore(V4ScoreResult result, FactorCode factorCode) {

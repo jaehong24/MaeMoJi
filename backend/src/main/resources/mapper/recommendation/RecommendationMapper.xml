@@ -242,6 +242,12 @@
             #{command.factorSummary},
             cast(#{command.factorRawJson} as jsonb)
         )
+        on conflict (recommendation_id, factor_code) do update
+        set
+            factor_score = excluded.factor_score,
+            factor_weight = excluded.factor_weight,
+            factor_summary = excluded.factor_summary,
+            factor_raw_json = excluded.factor_raw_json
     </insert>
 
     <delete id="deleteNewsAnalysisCacheByStockId">
@@ -425,15 +431,30 @@
     <select id="findRecommendationFactorDetailsByRecommendationId"
             resultType="com.maemoji.backend.recommendation.domain.RecommendationFactorDetailRecord">
         select
-            recommendation_id,
-            factor_code,
-            factor_score,
-            factor_weight,
-            factor_summary,
-            cast(factor_raw_json as text) as factor_raw_json
-        from recommendation_factor_details
-        where recommendation_id = #{recommendationId}
-        order by id asc
+            deduplicated.recommendation_id,
+            deduplicated.factor_code,
+            deduplicated.factor_score,
+            deduplicated.factor_weight,
+            deduplicated.factor_summary,
+            cast(deduplicated.factor_raw_json as text) as factor_raw_json
+        from (
+            select
+                recommendation_id,
+                factor_code,
+                factor_score,
+                factor_weight,
+                factor_summary,
+                factor_raw_json,
+                id,
+                row_number() over (
+                    partition by recommendation_id, factor_code
+                    order by id desc
+                ) as row_number
+            from recommendation_factor_details
+            where recommendation_id = #{recommendationId}
+        ) deduplicated
+        where deduplicated.row_number = 1
+        order by deduplicated.id asc
     </select>
 
     <select id="findLatestNewsAnalysisByStockId"

@@ -72,21 +72,50 @@ maemoji:
           maintain-threshold: 68
           reduce-threshold: 42
           user-adjustment: -5
+          min-confidence-for-increase: 78
+          min-strong-factor-count: 3
+          strong-factor-score-threshold: 72
         balanced:
           increase-threshold: 85
           maintain-threshold: 60
           reduce-threshold: 35
           user-adjustment: 0
+          min-confidence-for-increase: 72
+          min-strong-factor-count: 3
+          strong-factor-score-threshold: 68
         growth-seeker:
           increase-threshold: 82
           maintain-threshold: 56
           reduce-threshold: 32
           user-adjustment: 2
+          min-confidence-for-increase: 68
+          min-strong-factor-count: 2
+          strong-factor-score-threshold: 65
         aggressive:
           increase-threshold: 78
           maintain-threshold: 52
           reduce-threshold: 28
           user-adjustment: 5
+          min-confidence-for-increase: 65
+          min-strong-factor-count: 2
+          strong-factor-score-threshold: 62
+      price-momentum:
+        severe-drawdown-score: 18
+        deep-pullback-score: 34
+        pullback-score: 48
+        soft-pullback-score: 62
+        neutral-score: 78
+        healthy-uptrend-score: 72
+        warm-uptrend-score: 58
+        overheated-score: 38
+        euphoric-score: 22
+        sharp-weekly-surge-penalty: 10
+        weekly-surge-penalty: 6
+        sharp-weekly-drop-penalty: 8
+        weekly-drop-penalty: 4
+        rebound-bonus: 5
+        stable-trend-bonus: 4
+        overheat-penalty: 12
       price-stability:
         stress5-score: 85
         stress10-score: 75

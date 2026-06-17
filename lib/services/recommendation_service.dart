@@ -156,7 +156,7 @@ class RecommendationService {
     List<Map<String, dynamic>> items,
   ) {
     return items.map((item) {
-      final evidenceItems = (item['evidence'] as List<dynamic>? ?? const [])
+      final rawEvidenceItems = (item['evidence'] as List<dynamic>? ?? const [])
           .cast<Map<String, dynamic>>()
           .map(
             (evidence) => EvidenceItem(
@@ -169,8 +169,9 @@ class RecommendationService {
             ),
           )
           .toList();
+      final evidenceItems = _deduplicateEvidence(rawEvidenceItems);
 
-      final relatedNews = (item['relatedNews'] as List<dynamic>? ?? const [])
+      final rawRelatedNews = (item['relatedNews'] as List<dynamic>? ?? const [])
           .cast<Map<String, dynamic>>()
           .where(
             (news) =>
@@ -193,6 +194,7 @@ class RecommendationService {
             ),
           )
           .toList();
+      final relatedNews = _deduplicateNews(rawRelatedNews);
 
       final calculation =
           (item['calculation'] as Map<String, dynamic>?) ?? const {};
@@ -245,6 +247,28 @@ class RecommendationService {
         ),
       );
     }).toList();
+  }
+
+  List<EvidenceItem> _deduplicateEvidence(List<EvidenceItem> items) {
+    final deduplicated = <String, EvidenceItem>{};
+    for (final item in items) {
+      final key = '${item.evidenceType}|${item.title}|${item.body}';
+      deduplicated.putIfAbsent(key, () => item);
+    }
+    return deduplicated.values.toList();
+  }
+
+  List<RecommendationNewsItem> _deduplicateNews(
+    List<RecommendationNewsItem> items,
+  ) {
+    final deduplicated = <String, RecommendationNewsItem>{};
+    for (final item in items) {
+      final normalizedHeadline = item.headline.trim().toLowerCase();
+      final normalizedUrl = item.newsUrl.trim().toLowerCase();
+      final key = normalizedUrl.isNotEmpty ? normalizedUrl : normalizedHeadline;
+      deduplicated.putIfAbsent(key, () => item);
+    }
+    return deduplicated.values.toList();
   }
 
   String? _nullableText(dynamic value) {

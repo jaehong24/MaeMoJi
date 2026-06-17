@@ -68,6 +68,29 @@ public class RecommendationSchemaInitializer implements ApplicationRunner {
                 "ck_recommendations_news_sentiment_score",
                 "check (news_sentiment_score between -100 and 100)"
         );
+
+        jdbcTemplate.execute("""
+                delete from recommendation_factor_details details
+                using (
+                    select id
+                    from (
+                        select
+                            id,
+                            row_number() over (
+                                partition by recommendation_id, factor_code
+                                order by id desc
+                            ) as row_number
+                        from recommendation_factor_details
+                    ) ranked
+                    where ranked.row_number > 1
+                ) duplicated
+                where details.id = duplicated.id
+                """);
+
+        jdbcTemplate.execute("""
+                create unique index if not exists uk_recommendation_factor_details_recommendation_factor
+                    on recommendation_factor_details (recommendation_id, factor_code)
+                """);
     }
 
     private void addConstraintIfMissing(String constraintName, String definition) {

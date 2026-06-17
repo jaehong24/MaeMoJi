@@ -246,4 +246,59 @@ class RecommendationScoreCalculatorTest {
         assertThat(result.effectiveRiskProfile()).isEqualTo("AGGRESSIVE");
         assertThat(result.userAdjustment()).isEqualTo(5);
     }
+
+    @Test
+    void v4IncreaseEligibilityUsesRiskProfileSpecificConfidenceAndFactorRules() {
+        final RecommendationScoreCalculator.V4ScoreResult balanced = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        76,
+                        20,
+                        70,
+                        12,
+                        72,
+                        22,
+                        74,
+                        14,
+                        66,
+                        12,
+                        72,
+                        12,
+                        64,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        70
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult aggressive = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        76,
+                        20,
+                        70,
+                        12,
+                        72,
+                        22,
+                        74,
+                        14,
+                        66,
+                        12,
+                        72,
+                        12,
+                        64,
+                        8,
+                        0,
+                        0,
+                        "AGGRESSIVE",
+                        false,
+                        false,
+                        70
+                )
+        );
+
+        assertThat(balanced.increaseEligible()).isFalse();
+        assertThat(aggressive.increaseEligible()).isTrue();
+    }
 }
