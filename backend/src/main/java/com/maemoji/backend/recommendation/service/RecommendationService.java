@@ -4017,15 +4017,15 @@ public class RecommendationService {
         final boolean strongCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() >= 78;
         final boolean weakCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() <= 55;
         return switch (blankToEmpty(assessment.perBand())) {
-            case "ATTRACTIVE" -> perText + " 이익 대비 가격 부담이 낮아 긍정적으로 반영했어요.";
-            case "FAIR" -> perText + " 과도하게 비싸지 않은 구간으로 봤어요.";
+            case "ATTRACTIVE" -> perText + " 가격 부담이 낮은 편이에요.";
+            case "FAIR" -> perText + " 과하게 비싼 구간은 아니에요.";
             case "EXPENSIVE" -> strongCashSupport
-                    ? perText + " 가격은 다소 올라와 있지만 현금창출력이 받쳐줘 부담을 일부 완화했어요."
-                    : perText + " 기업 체력이 좋아도 지금 가격은 다소 선반영된 구간으로 봤어요.";
+                    ? perText + " 다소 비싸지만 현금흐름이 받쳐줘 부담을 일부 낮췄어요."
+                    : perText + " 실적 대비 가격 부담이 조금 있는 편이에요.";
             case "VERY_EXPENSIVE" -> weakCashSupport
-                    ? perText + " 높은 기대가 이미 많이 반영된 데다 현금흐름 뒷받침도 약해 가격 부담을 크게 반영했어요."
-                    : perText + " 성장 기대가 높더라도 현재 가격 부담은 크게 반영했어요.";
-            default -> perText + " 밸류에이션은 보수적으로 해석했어요.";
+                    ? perText + " 기대는 높지만 현금흐름 뒷받침이 약해 가격 부담이 커요."
+                    : perText + " 기대가 많이 반영돼 가격 부담이 큰 편이에요.";
+            default -> perText + " 가격 부담은 보수적으로 해석했어요.";
         };
     }
 
@@ -4034,38 +4034,56 @@ public class RecommendationService {
             return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
         }
 
-        final List<String> parts = new ArrayList<>();
-        if (assessment.revenueGrowthYoy() != null) {
-            parts.add("매출 성장률은 " + formatPercent(assessment.revenueGrowthYoy()) + "예요.");
-        }
-        if (assessment.epsTtm() != null) {
-            parts.add("EPS는 " + formatDecimal(assessment.epsTtm(), 2) + "예요.");
-        }
-        if (assessment.operatingMarginTtm() != null) {
-            parts.add("영업이익률은 " + formatPercent(assessment.operatingMarginTtm()) + "예요.");
-        }
-        if (assessment.incomeQualityTtm() != null) {
-            parts.add(
-                    assessment.incomeQualityTtm().doubleValue() >= 1.0
-                            ? "현금흐름이 이익을 잘 뒷받침하고 있어요."
-                            : "이익 대비 현금흐름은 조금 더 확인이 필요해요."
-            );
-        }
-        if (assessment.cashFlowScore() != null && assessment.cashFlowScore() <= 55) {
-            parts.add("성장률에 비해 현금 전환력은 아직 더 확인이 필요해요.");
-        }
-        if (assessment.profitabilityScore() != null && assessment.profitabilityScore() >= 82) {
-            parts.add("성장이 수익성으로 이어지는 힘은 강한 편이에요.");
-        }
-        if (assessment.safetyScore() != null && assessment.safetyScore() <= 45) {
-            parts.add("성장 수치는 좋아도 재무 안정성은 함께 보수적으로 반영했어요.");
-        }
+        final Double growth = assessment.revenueGrowthYoy() == null
+                ? null
+                : assessment.revenueGrowthYoy().doubleValue();
+        final Integer profitability = assessment.profitabilityScore();
+        final Integer cashFlow = assessment.cashFlowScore();
+        final Integer safety = assessment.safetyScore();
 
-        if (parts.isEmpty()) {
+        final String growthText = assessment.revenueGrowthYoy() == null
+                ? "성장률 데이터가 아직 충분하지 않아요."
+                : "매출 성장률은 " + formatPercent(assessment.revenueGrowthYoy()) + "예요.";
+
+        if (growth != null
+                && growth >= 0.20
+                && profitability != null
+                && profitability >= 80
+                && cashFlow != null
+                && cashFlow >= 75) {
+            return growthText + " 성장세가 수익성과 현금흐름으로 잘 이어지고 있어요.";
+        }
+        if (growth != null
+                && growth >= 0.20
+                && ((cashFlow != null && cashFlow <= 55)
+                || (profitability != null && profitability <= 60))) {
+            return growthText + " 성장 속도는 빠르지만 이익과 현금흐름의 뒷받침은 더 확인이 필요해요.";
+        }
+        if (growth != null
+                && growth >= 0.05
+                && profitability != null
+                && profitability >= 72
+                && cashFlow != null
+                && cashFlow >= 68) {
+            return growthText + " 아주 급하진 않지만 질 좋은 성장으로 봤어요.";
+        }
+        if (growth != null
+                && growth < 0.0) {
+            return growthText + " 최근 성장 탄력은 약한 편이에요.";
+        }
+        if (safety != null && safety <= 45) {
+            return growthText + " 성장 수치와 별개로 재무 안정성은 보수적으로 반영했어요.";
+        }
+        if (cashFlow != null && cashFlow <= 55) {
+            return growthText + " 현금 전환력은 조금 더 확인이 필요해요.";
+        }
+        if (profitability != null && profitability >= 82) {
+            return growthText + " 수익성으로 이어지는 힘은 강한 편이에요.";
+        }
+        if (growth == null) {
             return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
         }
-        return String.join(" ", parts)
-                + " 단순 성장률만이 아니라, 그 성장이 수익성과 현금흐름으로 이어지는지도 함께 봤어요.";
+        return growthText + " 단순 성장률만이 아니라 수익성과 현금흐름까지 함께 봤어요.";
     }
 
     private String formatDecimal(BigDecimal value, int scale) {
