@@ -51,6 +51,7 @@ class StockPriceSnapshotLiveValidationTest {
             "NEE"
     );
     private static final List<String> SAMPLE_SET_PRICE_BACKFILL_SYMBOLS = List.of(
+            "AMAT",
             "ADBE",
             "AMD",
             "ARM",
@@ -58,13 +59,19 @@ class StockPriceSnapshotLiveValidationTest {
             "CAT",
             "CRM",
             "DELL",
+            "GE",
             "GS",
             "HD",
+            "INTC",
+            "JPM",
             "MSFT",
             "NOW",
             "ORCL",
+            "PANW",
             "PG",
             "PLTR",
+            "QCOM",
+            "TXN",
             "UNH",
             "WMT",
             "XOM"

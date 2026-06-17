@@ -236,6 +236,8 @@ class RecommendationFundamentalQualityRegressionTest {
         final int reboundAfterPullback = priceMomentumScoreOf(priceSnapshotWithReturns(4.0, -12.0));
 
         assertThat(stableUptrend).isGreaterThan(overheatedRally);
+        assertThat(stableUptrend).isGreaterThanOrEqualTo(68);
+        assertThat(overheatedRally).isLessThanOrEqualTo(24);
         assertThat(reboundAfterPullback).isGreaterThan(35);
     }
 
@@ -243,10 +245,13 @@ class RecommendationFundamentalQualityRegressionTest {
     void priceStabilityPenalizesSharpDownsideMoreThanQuietTradingRange() throws Exception {
         final int quietRange = priceStabilityScoreOf(priceSnapshotWithReturns(1.8, 6.5));
         final int sharpSelloff = priceStabilityScoreOf(priceSnapshotWithReturns(-11.0, -24.0));
+        final int fastUptrend = priceStabilityScoreOf(priceSnapshotWithReturns(7.0, 18.0));
 
         assertThat(quietRange).isGreaterThan(sharpSelloff);
+        assertThat(quietRange).isGreaterThan(fastUptrend);
         assertThat(quietRange).isGreaterThanOrEqualTo(80);
         assertThat(sharpSelloff).isLessThanOrEqualTo(55);
+        assertThat(fastUptrend).isLessThanOrEqualTo(75);
     }
 
     private Object snapshot(

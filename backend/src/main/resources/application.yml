@@ -104,18 +104,18 @@ maemoji:
         deep-pullback-score: 34
         pullback-score: 48
         soft-pullback-score: 62
-        neutral-score: 78
-        healthy-uptrend-score: 72
-        warm-uptrend-score: 58
-        overheated-score: 38
-        euphoric-score: 22
-        sharp-weekly-surge-penalty: 10
-        weekly-surge-penalty: 6
+        neutral-score: 74
+        healthy-uptrend-score: 68
+        warm-uptrend-score: 52
+        overheated-score: 28
+        euphoric-score: 10
+        sharp-weekly-surge-penalty: 12
+        weekly-surge-penalty: 8
         sharp-weekly-drop-penalty: 8
         weekly-drop-penalty: 4
         rebound-bonus: 5
-        stable-trend-bonus: 4
-        overheat-penalty: 12
+        stable-trend-bonus: 2
+        overheat-penalty: 16
       price-stability:
         stress5-score: 85
         stress10-score: 75

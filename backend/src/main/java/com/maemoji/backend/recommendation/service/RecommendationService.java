@@ -2317,6 +2317,12 @@ public class RecommendationService {
             if (return30d >= 20 && return7d >= 8) {
                 score -= momentum.getOverheatPenalty();
             }
+            if (return30d >= 12 && return30d <= 25 && return7d >= 5) {
+                score -= 4;
+            }
+            if (return30d >= 30) {
+                score -= 6;
+            }
         }
 
         return clampScore(score);
@@ -2333,12 +2339,16 @@ public class RecommendationService {
         final double downside7 = priceSnapshot.changeRate7d() == null ? 0 : Math.max(0, -priceSnapshot.changeRate7d());
         final double downside30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.max(0, -priceSnapshot.thirtyDayReturn());
 
-        double stress = (abs7 * 0.45) + (abs30 * 0.25) + (downside7 * 0.20) + (downside30 * 0.10);
+        double stress = (abs7 * 0.50) + (abs30 * 0.30) + (downside7 * 0.22) + (downside30 * 0.18);
         if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 25) {
             stress += 6;
+        } else if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 15) {
+            stress += 3;
         }
         if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 10) {
             stress += 5;
+        } else if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 6) {
+            stress += 3;
         }
         if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() <= -10) {
             stress += 6;
@@ -2363,7 +2373,7 @@ public class RecommendationService {
             score -= 6;
         }
         if (abs7 <= 3 && abs30 <= 10) {
-            score += 4;
+            score += 2;
         }
 
         return clampScore(score);
@@ -3797,11 +3807,14 @@ public class RecommendationService {
         if (return30d >= 25 && return7d != null && return7d >= 8) {
             return "최근 30일 상승 폭에 더해 7일 흐름도 가팔라 단기 과열 가능성을 크게 반영했어요.";
         }
+        if (return30d >= 15 && return7d != null && return7d >= 5) {
+            return "최근 30일 상승세가 강한데 7일 속도도 빨라, 좋은 흐름이어도 추격 부담을 함께 반영했어요.";
+        }
         if (return30d >= 15) {
             return "최근 30일 흐름은 강하지만, 지금은 추격 매수보다 가격 부담을 함께 보는 구간이에요.";
         }
         if (return30d >= 5 && return7d != null && return7d >= 1 && return7d <= 4) {
-            return "최근 30일과 7일 흐름이 함께 완만하게 우상향해 무리하지 않은 상승으로 봤어요.";
+            return "최근 30일과 7일 흐름이 함께 완만하게 우상향하지만, 과한 낙관 없이 적정 구간인지 같이 봤어요.";
         }
         if (return30d >= 5) {
             return "최근 30일 흐름이 우상향이지만, 단기 속도는 함께 확인했어요.";
@@ -3828,10 +3841,16 @@ public class RecommendationService {
         final Double abs7d = absoluteOrNull(priceSnapshot.changeRate7d());
         final Double abs30d = absoluteOrNull(priceSnapshot.thirtyDayReturn());
         if (abs7d != null && abs30d != null && abs7d <= 3 && abs30d <= 10) {
-            return "최근 7일과 30일 변동폭이 모두 크지 않아 가격 안정성은 좋은 편이에요.";
+            return "최근 7일과 30일 변동폭이 모두 크지 않아 가격 흔들림은 비교적 잔잔한 편이에요.";
         }
         if (abs30d != null && abs30d <= 5) {
             return "최근 가격 변동이 크지 않아 안정성은 무난한 편이에요.";
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 15
+                && abs7d != null
+                && abs7d >= 6) {
+            return "상승 흐름 자체는 좋지만 최근 속도와 변동폭이 함께 커져 안정성은 보수적으로 봤어요.";
         }
         if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() <= -10) {
             return "최근 하락 구간의 낙폭이 커 하방 안정성은 보수적으로 봤어요.";
