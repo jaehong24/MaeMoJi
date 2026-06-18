@@ -515,15 +515,35 @@ class _RelatedNewsCard extends StatelessWidget {
                 label: '영향 ${news.impactLevel}',
                 color: MaeMojiColors.maintain,
               ),
+              if (news.hardNegativeCategoryLabel.isNotEmpty)
+                _NewsChip(
+                  label: news.hardNegativeCategoryLabel,
+                  color: MaeMojiColors.stop,
+                ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            news.reason,
-            style: theme.textTheme.bodySmall?.copyWith(
-              height: 1.5,
-              color: MaeMojiColors.inkMuted,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (news.hardNegativeCategoryLabel.isNotEmpty) ...[
+                Text(
+                  '핵심 악재: ${news.hardNegativeCategoryLabel}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: MaeMojiColors.stop,
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+              Text(
+                news.reason,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  height: 1.5,
+                  color: MaeMojiColors.inkMuted,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           Align(

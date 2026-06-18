@@ -616,6 +616,7 @@ public class RecommendationService {
                 source.llmModel(),
                 source.weightedSentimentScore(),
                 source.hardNegativeOverride(),
+                source.hardNegativeCategory(),
                 source.analysisConfidence(),
                 source.cacheReused(),
                 false
@@ -1318,6 +1319,7 @@ public class RecommendationService {
     }
 
     private RelatedNewsResponse toRelatedNewsResponse(NewsSentimentService.AnalyzedNewsItem item) {
+        final String hardNegativeCategory = resolveNewsHardNegativeCategory(item);
         return new RelatedNewsResponse(
                 item.headline(),
                 item.summary(),
@@ -1327,12 +1329,21 @@ public class RecommendationService {
                 item.sentimentScore(),
                 item.relevanceScore(),
                 item.impactLevel(),
-                item.reason(),
+                hardNegativeCategory,
+                toNewsRiskLabel(hardNegativeCategory),
+                refineNewsReasonForDisplay(hardNegativeCategory, item.reason()),
                 item.weightedScore()
         );
     }
 
     private RelatedNewsResponse toRelatedNewsResponse(NewsAnalysisCacheRecord record) {
+        final String hardNegativeCategory = resolveNewsHardNegativeCategory(
+                record.getHeadline(),
+                record.getSummary(),
+                record.getReason(),
+                record.getSentimentScore(),
+                record.getImpactLevel()
+        );
         return new RelatedNewsResponse(
                 record.getHeadline(),
                 record.getSummary(),
@@ -1342,9 +1353,115 @@ public class RecommendationService {
                 record.getSentimentScore(),
                 record.getRelevanceScore(),
                 record.getImpactLevel(),
-                record.getReason(),
+                hardNegativeCategory,
+                toNewsRiskLabel(hardNegativeCategory),
+                refineNewsReasonForDisplay(hardNegativeCategory, record.getReason()),
                 record.getWeightedScore()
         );
+    }
+
+    private String resolveNewsHardNegativeCategory(NewsSentimentService.AnalyzedNewsItem item) {
+        return resolveNewsHardNegativeCategory(
+                item.headline(),
+                item.summary(),
+                item.reason(),
+                item.sentimentScore(),
+                item.impactLevel()
+        );
+    }
+
+    private String resolveNewsHardNegativeCategory(
+            String headline,
+            String summary,
+            String reason,
+            Integer sentimentScore,
+            String impactLevel
+    ) {
+        if (sentimentScore == null || sentimentScore > -15 || !"HIGH".equalsIgnoreCase(blankToEmpty(impactLevel))) {
+            return "NONE";
+        }
+
+        final String text = (blankToEmpty(headline) + " "
+                + blankToEmpty(summary) + " "
+                + blankToEmpty(reason)).toLowerCase(Locale.ROOT);
+
+        if (containsAny(text, "fraud", "accounting fraud", "misstatement", "restatement", "회계부정", "분식회계", "허위공시")) {
+            return "ACCOUNTING_OR_FRAUD";
+        }
+        if (containsAny(text, "bankruptcy", "chapter 11", "delist", "default", "liquidity", "restructuring",
+                "파산", "상장폐지", "채무불이행", "유동성", "구조조정")) {
+            return "LIQUIDITY_OR_BANKRUPTCY";
+        }
+        if (containsAny(text, "sec investigation", "criminal investigation", "investigation", "probe", "antitrust",
+                "regulator", "subpoena", "조사", "수사", "규제", "독점", "제재")) {
+            return "REGULATORY_INVESTIGATION";
+        }
+        if (containsAny(text, "guidance cut", "guidance lowered", "earnings miss", "forecast cut",
+                "가이던스 하향", "실적 부진", "전망 하향", "예상 하회")) {
+            return "GUIDANCE_OR_EARNINGS";
+        }
+        if (containsAny(text, "lawsuit", "litigation", "recall", "defect", "class action",
+                "소송", "리콜", "결함", "집단소송")) {
+            return "LAWSUIT_OR_RECALL";
+        }
+        if (containsAny(text, "slowdown", "demand weakness", "soft demand", "inventory", "margin pressure",
+                "수요 둔화", "재고", "마진 압박", "소비 둔화")) {
+            return "DEMAND_OR_MARGIN";
+        }
+        return "NONE";
+    }
+
+    private boolean containsAny(String text, String... keywords) {
+        for (String keyword : keywords) {
+            if (text.contains(keyword.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String toNewsRiskLabel(String hardNegativeCategory) {
+        return switch (blankToEmpty(hardNegativeCategory).toUpperCase(Locale.ROOT)) {
+            case "ACCOUNTING_OR_FRAUD" -> "회계 이슈";
+            case "LIQUIDITY_OR_BANKRUPTCY" -> "유동성 경고";
+            case "REGULATORY_INVESTIGATION" -> "규제 조사";
+            case "GUIDANCE_OR_EARNINGS" -> "실적·가이던스";
+            case "LAWSUIT_OR_RECALL" -> "소송·리콜";
+            case "DEMAND_OR_MARGIN" -> "수요·마진 둔화";
+            default -> "";
+        };
+    }
+
+    private String refineNewsReasonForDisplay(String hardNegativeCategory, String originalReason) {
+        final String normalizedCategory = blankToEmpty(hardNegativeCategory).toUpperCase(Locale.ROOT);
+        final String cleanedReason = blankToEmpty(originalReason).trim();
+
+        final String lead = switch (normalizedCategory) {
+            case "ACCOUNTING_OR_FRAUD" ->
+                    "회계 신뢰 훼손 가능성이 있어 실적 숫자보다 기업 신뢰도와 밸류 재평가 부담을 더 크게 봤어요.";
+            case "LIQUIDITY_OR_BANKRUPTCY" ->
+                    "유동성이나 상장 유지 이슈는 단기 주가보다 생존 리스크에 가까워 더 보수적으로 반영했어요.";
+            case "REGULATORY_INVESTIGATION" ->
+                    "규제·조사 이슈는 결론이 나기 전까지 불확실성이 길어질 수 있어 할인 요인으로 반영했어요.";
+            case "GUIDANCE_OR_EARNINGS" ->
+                    "실적 기대나 가이던스가 낮아졌다는 신호라 단기 기대치를 보수적으로 조정했어요.";
+            case "LAWSUIT_OR_RECALL" ->
+                    "소송·리콜 이슈는 비용 확대와 평판 훼손 가능성이 있어 보수적으로 반영했어요.";
+            case "DEMAND_OR_MARGIN" ->
+                    "수요 둔화나 마진 압박은 이익 체력 약화로 이어질 수 있어 경계 신호로 봤어요.";
+            default -> "";
+        };
+
+        if (lead.isEmpty()) {
+            return cleanedReason;
+        }
+        if (cleanedReason.isEmpty()) {
+            return lead;
+        }
+        if (cleanedReason.equals(lead) || cleanedReason.startsWith(lead)) {
+            return cleanedReason;
+        }
+        return lead + " " + cleanedReason;
     }
 
     private RecommendationCalculationResponse toCalculationResponse(
@@ -2118,6 +2235,7 @@ public class RecommendationService {
                         effectiveRiskProfile,
                         priceSnapshot.hasSevereDrop() || hasHardRisk,
                         newsSentiment.hardNegativeOverride(),
+                        newsSentiment.hardNegativeCategory(),
                         confidence
                 ),
                 target,
@@ -3650,6 +3768,7 @@ public class RecommendationService {
                 null,
                 newsSummary.sentimentScore(),
                 newsSummary.hardNegative(),
+                newsSummary.hardNegative() ? "GENERAL_HARD_NEGATIVE" : "NONE",
                 newsSummary.confidence(),
                 true,
                 false
@@ -3916,13 +4035,24 @@ public class RecommendationService {
             return "관련성 높은 최신 뉴스가 적어 뉴스 평가는 제한적으로 반영했어요.";
         }
         if (input != null && input.hardNegativeNews()) {
-            return "강한 악재 뉴스가 확인돼 다른 긍정 기사보다 우선 반영했어요.";
+            return switch (blankToEmpty(input.hardNegativeNewsCategory())) {
+                case "ACCOUNTING_OR_FRAUD" -> "회계 이슈나 신뢰 훼손 성격의 악재가 있어, 숫자보다 기업 신뢰도 리스크를 더 크게 반영했어요.";
+                case "LIQUIDITY_OR_BANKRUPTCY" -> "유동성·상장 유지 성격의 악재라 단기 주가보다 생존 리스크를 더 보수적으로 반영했어요.";
+                case "REGULATORY_INVESTIGATION" -> "규제·조사 성격의 악재가 있어, 결론 전까지 이어질 수 있는 불확실성을 할인 요인으로 반영했어요.";
+                case "GUIDANCE_OR_EARNINGS" -> "실적·가이던스 성격의 악재가 있어, 단기 기대치와 눈높이를 낮추는 쪽으로 반영했어요.";
+                case "LAWSUIT_OR_RECALL" -> "소송·리콜 성격의 악재가 있어, 비용 확대와 평판 부담 가능성을 함께 반영했어요.";
+                case "DEMAND_OR_MARGIN" -> "수요 둔화·마진 압박 성격의 악재가 있어, 이익 체력 둔화 가능성을 경계 신호로 반영했어요.";
+                default -> "강한 악재 뉴스가 확인돼 다른 긍정 기사보다 우선 반영했어요.";
+            };
         }
         if (rawNewsSentimentScore >= 40) {
             return "관련 뉴스 분위기가 전반적으로 긍정적이에요.";
         }
         if (rawNewsSentimentScore >= 10) {
             return "관련 뉴스가 다소 긍정적인 편이에요.";
+        }
+        if (rawNewsSentimentScore <= -40) {
+            return "관련 뉴스 분위기가 뚜렷하게 부정적이라 단기 기대를 보수적으로 봤어요.";
         }
         if (rawNewsSentimentScore <= -20) {
             return "관련 뉴스 분위기가 부정적으로 기울어 있어요.";
@@ -3994,18 +4124,28 @@ public class RecommendationService {
             risks.add("높은 부채 부담");
         }
 
+        final String shortPoints = joinLeadingItems(points, 2);
+        final String shortRisks = joinLeadingItems(risks, 1);
         if (!points.isEmpty() && risks.isEmpty()) {
-            return String.join(", ", points) + "이 확인돼 기업 체력을 높게 평가했어요.";
+            return shortPoints + "이 보여 기업 체력을 좋게 봤어요.";
         }
         if (points.isEmpty() && !risks.isEmpty()) {
-            return String.join(", ", risks) + "이 보여 기업 체력은 보수적으로 봤어요.";
+            return shortRisks + "이 보여 기업 체력은 보수적으로 봤어요.";
         }
         if (!points.isEmpty()) {
-            return String.join(", ", points) + "은 강점이지만 " + String.join(", ", risks) + "은 함께 살폈어요.";
+            return shortPoints + "은 강점이지만 " + shortRisks + "은 함께 봤어요.";
         }
         return blankToEmpty(assessment.summary()).isBlank()
                 ? "수익성, 성장성, 안정성, 현금흐름을 함께 반영했어요."
                 : assessment.summary();
+    }
+
+    private String joinLeadingItems(List<String> items, int maxCount) {
+        if (items == null || items.isEmpty()) {
+            return "";
+        }
+        final int endIndex = Math.min(items.size(), Math.max(1, maxCount));
+        return String.join(", ", items.subList(0, endIndex));
     }
 
     private String buildValuationFactorSummary(FundamentalQualityAssessment assessment) {

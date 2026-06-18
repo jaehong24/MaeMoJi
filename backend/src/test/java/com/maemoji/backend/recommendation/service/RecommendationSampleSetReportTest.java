@@ -41,15 +41,17 @@ class RecommendationSampleSetReportTest {
             "UNH", "XOM", "KO", "NEE", "WMT",
             "QQQ", "SPY", "VOO", "SCHD", "SOXX"
     );
+    private final RecommendationTuningProperties tuningProperties =
+            new RecommendationTuningProperties();
 
     @Test
     void generatesCurrentSampleSetComparisonReport() throws Exception {
-        final RecommendationTuningProperties tuningProperties = new RecommendationTuningProperties();
+        final RecommendationScoreCalculator scoreCalculator = new RecommendationScoreCalculator(tuningProperties);
         final RecommendationService recommendationService = new RecommendationService(
                 mock(RecommendationMapper.class),
                 new ObjectMapper(),
                 mock(NewsSentimentService.class),
-                new RecommendationScoreCalculator(tuningProperties),
+                scoreCalculator,
                 mock(StockPriceSnapshotMapper.class),
                 mock(StockPriceSnapshotBatchService.class),
                 tuningProperties,
@@ -113,6 +115,54 @@ class RecommendationSampleSetReportTest {
                         valuationScore, tuningProperties.getFactorWeights().getValuation(),
                         qualityOfGrowthScore, tuningProperties.getFactorWeights().getQualityOfGrowth()
                 );
+                final RecommendationScoreCalculator.V4ScoreResult balancedResult = scoreCalculator.calculateV4(
+                        new RecommendationScoreCalculator.V4Input(
+                                priceMomentumScore,
+                                tuningProperties.getFactorWeights().getPriceMomentum(),
+                                priceStabilityScore,
+                                tuningProperties.getFactorWeights().getPriceStability(),
+                                null,
+                                0,
+                                fundamentalQualityScore,
+                                tuningProperties.getFactorWeights().getFundamentalQuality(),
+                                valuationScore,
+                                tuningProperties.getFactorWeights().getValuation(),
+                                qualityOfGrowthScore,
+                                tuningProperties.getFactorWeights().getQualityOfGrowth(),
+                                60,
+                                tuningProperties.getFactorWeights().getUserFit(),
+                                0,
+                                0,
+                                "BALANCED",
+                                false,
+                                false,
+                                78
+                        )
+                );
+                final RecommendationScoreCalculator.V4ScoreResult balancedNegativeNewsResult = scoreCalculator.calculateV4(
+                        new RecommendationScoreCalculator.V4Input(
+                                priceMomentumScore,
+                                tuningProperties.getFactorWeights().getPriceMomentum(),
+                                priceStabilityScore,
+                                tuningProperties.getFactorWeights().getPriceStability(),
+                                -70,
+                                tuningProperties.getFactorWeights().getNewsSentiment(),
+                                fundamentalQualityScore,
+                                tuningProperties.getFactorWeights().getFundamentalQuality(),
+                                valuationScore,
+                                tuningProperties.getFactorWeights().getValuation(),
+                                qualityOfGrowthScore,
+                                tuningProperties.getFactorWeights().getQualityOfGrowth(),
+                                60,
+                                tuningProperties.getFactorWeights().getUserFit(),
+                                0,
+                                0,
+                                "BALANCED",
+                                false,
+                                true,
+                                78
+                        )
+                );
 
                 rows.add(new SampleScoreRow(
                         symbol,
@@ -123,7 +173,20 @@ class RecommendationSampleSetReportTest {
                         fundamentalQualityScore,
                         valuationScore,
                         qualityOfGrowthScore,
-                        companyTotalScore
+                        companyTotalScore,
+                        balancedResult.finalScore(),
+                        balancedResult.recommendationStatus(),
+                        balancedResult.increaseEligible(),
+                        balancedNegativeNewsResult.finalScore(),
+                        balancedNegativeNewsResult.recommendationStatus(),
+                        buildBalancedStatusReason(
+                                priceMomentumScore,
+                                priceStabilityScore,
+                                fundamentalQualityScore,
+                                valuationScore,
+                                qualityOfGrowthScore,
+                                balancedResult
+                        )
                 ));
             }
         }
@@ -333,6 +396,12 @@ class RecommendationSampleSetReportTest {
                 .append(" / ")
                 .append(sortedRows.size())
                 .append(System.lineSeparator());
+        markdown.append("- 균형형 기준 상태 분포: ")
+                .append(formatStatusDistribution(sortedRows))
+                .append(System.lineSeparator());
+        markdown.append("- 악재 뉴스 반영 상태 분포: ")
+                .append(formatNegativeNewsStatusDistribution(sortedRows))
+                .append(System.lineSeparator());
         if (!missingSymbols.isEmpty()) {
             markdown.append("- 스냅샷 미존재 종목: ")
                     .append(String.join(", ", missingSymbols))
@@ -360,10 +429,31 @@ class RecommendationSampleSetReportTest {
         }
 
         markdown.append(System.lineSeparator())
+                .append("## 균형형 상태 검증표").append(System.lineSeparator()).append(System.lineSeparator());
+        markdown.append("| 종목 | 종목 점수 | 균형형 최종점수 | 상태 | 악재 뉴스 시 | 악재 뉴스 점수 | 증액 가능 | 판단 메모 |")
+                .append(System.lineSeparator());
+        markdown.append("|---|---:|---:|---|---|---:|---|---|")
+                .append(System.lineSeparator());
+
+        for (SampleScoreRow row : sortedRows) {
+            markdown.append("| ")
+                    .append(row.symbol()).append(" | ")
+                    .append(row.companyTotalScore()).append(" | ")
+                    .append(row.balancedFinalScore()).append(" | ")
+                    .append(row.balancedStatus()).append(" | ")
+                    .append(row.balancedNegativeNewsStatus()).append(" | ")
+                    .append(row.balancedNegativeNewsFinalScore()).append(" | ")
+                    .append(row.balancedIncreaseEligible() ? "예" : "아니오").append(" | ")
+                    .append(row.balancedReason()).append(" |")
+                    .append(System.lineSeparator());
+        }
+
+        markdown.append(System.lineSeparator())
                 .append("## 해석 포인트").append(System.lineSeparator()).append(System.lineSeparator())
                 .append("- `기업 체력`은 수익성, 안정성, 현금흐름, 효율 중심 점수입니다.").append(System.lineSeparator())
                 .append("- `밸류에이션`은 현재 가격 부담을 별도 분리한 점수입니다.").append(System.lineSeparator())
-                .append("- `성장의 질`은 매출 성장률뿐 아니라 EPS, 마진, 현금흐름 품질을 함께 봅니다.").append(System.lineSeparator());
+                .append("- `성장의 질`은 매출 성장률뿐 아니라 EPS, 마진, 현금흐름 품질을 함께 봅니다.").append(System.lineSeparator())
+                .append("- `균형형 상태 검증표`는 뉴스 없이 종목 고유 팩터와 사용자 중립값만 반영한 운영 점검용 표입니다.").append(System.lineSeparator());
 
         final Path outputPath = Path.of("..", "docs", "recommendation", "v4-sample-set-current-report.md").normalize();
         Files.createDirectories(outputPath.getParent());
@@ -390,6 +480,59 @@ class RecommendationSampleSetReportTest {
             return "-";
         }
         return nonNullValues.get(0) + " ~ " + nonNullValues.get(nonNullValues.size() - 1);
+    }
+
+    private String formatStatusDistribution(List<SampleScoreRow> rows) {
+        long increase = rows.stream().filter(row -> "INCREASE".equals(row.balancedStatus())).count();
+        long maintain = rows.stream().filter(row -> "MAINTAIN".equals(row.balancedStatus())).count();
+        long reduce = rows.stream().filter(row -> "REDUCE".equals(row.balancedStatus())).count();
+        long stop = rows.stream().filter(row -> "STOP".equals(row.balancedStatus())).count();
+        return "증액 " + increase + ", 유지 " + maintain + ", 감액 " + reduce + ", 중단 " + stop;
+    }
+
+    private String formatNegativeNewsStatusDistribution(List<SampleScoreRow> rows) {
+        long increase = rows.stream().filter(row -> "INCREASE".equals(row.balancedNegativeNewsStatus())).count();
+        long maintain = rows.stream().filter(row -> "MAINTAIN".equals(row.balancedNegativeNewsStatus())).count();
+        long reduce = rows.stream().filter(row -> "REDUCE".equals(row.balancedNegativeNewsStatus())).count();
+        long stop = rows.stream().filter(row -> "STOP".equals(row.balancedNegativeNewsStatus())).count();
+        return "증액 " + increase + ", 유지 " + maintain + ", 감액 " + reduce + ", 중단 " + stop;
+    }
+
+    private String buildBalancedStatusReason(
+            Integer priceMomentumScore,
+            Integer priceStabilityScore,
+            Integer fundamentalQualityScore,
+            Integer valuationScore,
+            Integer qualityOfGrowthScore,
+            RecommendationScoreCalculator.V4ScoreResult result
+    ) {
+        if ("INCREASE".equals(result.recommendationStatus()) && result.increaseEligible()) {
+            return "핵심 팩터가 고르게 강해 증액 가능";
+        }
+        if (!result.increaseEligible()
+                && valuationScore != null
+                && valuationScore <= tuningProperties.getIncreaseGuard().getAbsoluteValuationBlockMax()) {
+            return "기업 체력은 좋아도 가격 부담이 커 증액 차단";
+        }
+        if (valuationScore != null
+                && valuationScore >= tuningProperties.getConflictRules().getWeakGrowthValuationMin()
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= tuningProperties.getConflictRules().getWeakGrowthQualityMax()) {
+            return "가격은 무난해도 성장 질이 약해 보수적";
+        }
+        if (priceMomentumScore != null && priceMomentumScore <= 30) {
+            return "최근 가격 흐름이 약해 보수적";
+        }
+        if (priceStabilityScore != null && priceStabilityScore <= 40) {
+            return "변동성과 하방 리스크가 큼";
+        }
+        if (fundamentalQualityScore != null
+                && fundamentalQualityScore >= tuningProperties.getConflictRules().getExpensiveEliteFundamentalMin()
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= tuningProperties.getConflictRules().getExpensiveEliteGrowthMin()) {
+            return "체력은 강하지만 증액 기준에는 아직 못 미침";
+        }
+        return "핵심 팩터가 엇갈려 유지 구간";
     }
 
     private record DatabaseConfig(
@@ -434,7 +577,13 @@ class RecommendationSampleSetReportTest {
             Integer fundamentalQualityScore,
             Integer valuationScore,
             Integer qualityOfGrowthScore,
-            int companyTotalScore
+            int companyTotalScore,
+            int balancedFinalScore,
+            String balancedStatus,
+            boolean balancedIncreaseEligible,
+            int balancedNegativeNewsFinalScore,
+            String balancedNegativeNewsStatus,
+            String balancedReason
     ) {
     }
 }

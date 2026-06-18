@@ -11,6 +11,8 @@ public record RelatedNewsResponse(
         Integer sentimentScore,
         Integer relevanceScore,
         String impactLevel,
+        String hardNegativeCategory,
+        String hardNegativeCategoryLabel,
         String reason,
         BigDecimal weightedScore
 ) {

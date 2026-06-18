@@ -71,6 +71,28 @@ public class NewsSentimentService {
             "sec investigation", "criminal investigation", "guidance cut", "guidance lowered",
             "분식회계", "회계부정", "파산", "상장폐지", "sec 조사", "가이던스 하향"
     );
+    private static final Set<String> NEGATIVE_ACCOUNTING_KEYWORDS = Set.of(
+            "fraud", "accounting fraud", "misstatement", "restatement", "회계부정", "분식회계", "허위공시"
+    );
+    private static final Set<String> NEGATIVE_REGULATORY_KEYWORDS = Set.of(
+            "sec investigation", "criminal investigation", "investigation", "probe", "antitrust",
+            "regulator", "subpoena", "조사", "수사", "규제", "독점", "제재"
+    );
+    private static final Set<String> NEGATIVE_GUIDANCE_KEYWORDS = Set.of(
+            "guidance cut", "guidance lowered", "guidance", "miss", "earnings miss", "forecast cut",
+            "가이던스 하향", "실적 부진", "전망 하향", "예상 하회"
+    );
+    private static final Set<String> NEGATIVE_LAWSUIT_KEYWORDS = Set.of(
+            "lawsuit", "litigation", "recall", "defect", "class action", "소송", "리콜", "결함", "집단소송"
+    );
+    private static final Set<String> NEGATIVE_LIQUIDITY_KEYWORDS = Set.of(
+            "bankruptcy", "chapter 11", "delist", "default", "liquidity", "restructuring",
+            "파산", "상장폐지", "채무불이행", "유동성", "구조조정"
+    );
+    private static final Set<String> NEGATIVE_DEMAND_KEYWORDS = Set.of(
+            "slowdown", "demand weakness", "soft demand", "inventory", "margin pressure",
+            "수요 둔화", "재고", "마진 압박", "소비 둔화"
+    );
 
     private static final Set<String> COMPANY_STOP_WORDS = Set.of(
             "inc", "incorporated", "corp", "corporation", "company", "co",
@@ -227,10 +249,14 @@ public class NewsSentimentService {
                         && item.relevanceScore() >= MIN_FINAL_RELEVANCE
                         && "HIGH".equals(item.impactLevel())
         );
+        final String hardNegativeCategory = hardNegativeOverride
+                ? resolveHardNegativeCategory(cachedNews)
+                : "NONE";
 
         return finalizeResult(
                 cachedNews,
                 hardNegativeOverride,
+                hardNegativeCategory,
                 "",
                 model,
                 true,
@@ -792,10 +818,14 @@ public class NewsSentimentService {
         final boolean hardNegativeOverride = analyzedNews.stream()
                 .map(AnalyzedNewsItem::contentHash)
                 .anyMatch(hardNegativeContentHashes::contains);
+        final String hardNegativeCategory = hardNegativeOverride
+                ? resolveHardNegativeCategory(analyzedNews)
+                : "NONE";
 
         return finalizeResult(
                 analyzedNews,
                 hardNegativeOverride,
+                hardNegativeCategory,
                 geminiResult.overallSummary(),
                 geminiResult.model(),
                 false,
@@ -875,10 +905,14 @@ public class NewsSentimentService {
                         && item.relevanceScore() >= MIN_FINAL_RELEVANCE
                         && "HIGH".equals(item.impactLevel())
         );
+        final String hardNegativeCategory = hardNegativeOverride
+                ? resolveHardNegativeCategory(analyzedNews)
+                : "NONE";
 
         return finalizeResult(
                 analyzedNews,
                 hardNegativeOverride,
+                hardNegativeCategory,
                 "Gemini 응답이 일시적으로 불안정해 키워드 기반 1차 뉴스 분석으로 대체했습니다.",
                 "KEYWORD_FALLBACK",
                 false,
@@ -962,6 +996,7 @@ public class NewsSentimentService {
     private NewsSentimentResult finalizeResult(
             List<AnalyzedNewsItem> analyzedNews,
             boolean hardNegativeOverride,
+            String hardNegativeCategory,
             String geminiSummary,
             String geminiModel,
             boolean cacheReused,
@@ -1024,12 +1059,32 @@ public class NewsSentimentService {
         return new NewsSentimentResult(
                 mapToEngineScore(aggregateScore),
                 labelFromScore(aggregateScore),
-                buildOverallSummary(aggregateScore, hardNegativeOverride, geminiSummary),
+                buildOverallSummary(aggregateScore, hardNegativeOverride, hardNegativeCategory, geminiSummary),
                 analyzedNews,
                 geminiModel,
                 aggregateScore,
                 hardNegativeOverride,
+                defaultIfBlank(hardNegativeCategory, "NONE"),
                 analysisConfidence,
+                cacheReused,
+                replaceCache
+        );
+    }
+
+    private NewsSentimentResult finalizeResult(
+            List<AnalyzedNewsItem> analyzedNews,
+            boolean hardNegativeOverride,
+            String geminiSummary,
+            String geminiModel,
+            boolean cacheReused,
+            boolean replaceCache
+    ) {
+        return finalizeResult(
+                analyzedNews,
+                hardNegativeOverride,
+                hardNegativeOverride ? resolveHardNegativeCategory(analyzedNews) : "NONE",
+                geminiSummary,
+                geminiModel,
                 cacheReused,
                 replaceCache
         );
@@ -1132,9 +1187,15 @@ public class NewsSentimentService {
         };
     }
 
-    private String buildOverallSummary(int score, boolean hardNegativeOverride, String geminiSummary) {
+    private String buildOverallSummary(
+            int score,
+            boolean hardNegativeOverride,
+            String hardNegativeCategory,
+            String geminiSummary
+    ) {
         if (hardNegativeOverride) {
-            return "직접 관련성이 높은 강한 악재가 확인되어 다른 긍정 기사보다 우선 반영했습니다. "
+            return negativeCategorySummaryLead(hardNegativeCategory)
+                    + " 다른 긍정 기사보다 우선 반영했습니다. "
                     + defaultIfBlank(geminiSummary, "관련 기사 원문과 판단 이유를 함께 확인해 주세요.");
         }
         if (!isBlank(geminiSummary)) {
@@ -1147,6 +1208,18 @@ public class NewsSentimentService {
             return "최근 관련 뉴스는 전반적으로 부정적이며 최신성과 영향도를 반영해 보수적으로 평가했습니다.";
         }
         return "최근 관련 뉴스의 긍정과 부정 신호가 혼재해 뉴스 심리를 중립으로 평가했습니다.";
+    }
+
+    private String negativeCategorySummaryLead(String hardNegativeCategory) {
+        return switch (defaultIfBlank(hardNegativeCategory, "NONE")) {
+            case "ACCOUNTING_OR_FRAUD" -> "회계 이슈나 신뢰 훼손 성격의 강한 악재가 확인돼";
+            case "LIQUIDITY_OR_BANKRUPTCY" -> "유동성·상장 유지와 연결된 강한 악재가 확인돼";
+            case "REGULATORY_INVESTIGATION" -> "규제·조사 성격의 강한 악재가 확인돼";
+            case "GUIDANCE_OR_EARNINGS" -> "실적·가이던스 성격의 강한 악재가 확인돼";
+            case "LAWSUIT_OR_RECALL" -> "소송·리콜 성격의 강한 악재가 확인돼";
+            case "DEMAND_OR_MARGIN" -> "수요 둔화·마진 압박 성격의 강한 악재가 확인돼";
+            default -> "직접 관련성이 높은 강한 악재가 확인돼";
+        };
     }
 
     private String fallbackReason(int keywordScore, int relevanceScore) {
@@ -1163,6 +1236,80 @@ public class NewsSentimentService {
         return "기사 내용의 방향성은 중립에 가깝지만 종목 직접 관련성은 "
                 + relevanceScore
                 + "점으로 반영했습니다.";
+    }
+
+    private String resolveHardNegativeCategory(List<AnalyzedNewsItem> analyzedNews) {
+        int accounting = 0;
+        int liquidity = 0;
+        int regulatory = 0;
+        int guidance = 0;
+        int lawsuit = 0;
+        int demand = 0;
+
+        for (AnalyzedNewsItem item : analyzedNews) {
+            final String text = normalizeText(
+                    defaultIfBlank(item.headline(), "")
+                            + " "
+                            + defaultIfBlank(item.summary(), "")
+                            + " "
+                            + defaultIfBlank(item.reason(), "")
+            );
+            final int weight = "HIGH".equals(item.impactLevel()) ? 2 : 1;
+            if (containsAnyKeyword(text, NEGATIVE_ACCOUNTING_KEYWORDS)) {
+                accounting += weight;
+            }
+            if (containsAnyKeyword(text, NEGATIVE_LIQUIDITY_KEYWORDS)) {
+                liquidity += weight;
+            }
+            if (containsAnyKeyword(text, NEGATIVE_REGULATORY_KEYWORDS)) {
+                regulatory += weight;
+            }
+            if (containsAnyKeyword(text, NEGATIVE_GUIDANCE_KEYWORDS)) {
+                guidance += weight;
+            }
+            if (containsAnyKeyword(text, NEGATIVE_LAWSUIT_KEYWORDS)) {
+                lawsuit += weight;
+            }
+            if (containsAnyKeyword(text, NEGATIVE_DEMAND_KEYWORDS)) {
+                demand += weight;
+            }
+        }
+
+        int bestScore = 0;
+        String bestCategory = "GENERAL_HARD_NEGATIVE";
+        if (accounting > bestScore) {
+            bestScore = accounting;
+            bestCategory = "ACCOUNTING_OR_FRAUD";
+        }
+        if (liquidity > bestScore) {
+            bestScore = liquidity;
+            bestCategory = "LIQUIDITY_OR_BANKRUPTCY";
+        }
+        if (regulatory > bestScore) {
+            bestScore = regulatory;
+            bestCategory = "REGULATORY_INVESTIGATION";
+        }
+        if (guidance > bestScore) {
+            bestScore = guidance;
+            bestCategory = "GUIDANCE_OR_EARNINGS";
+        }
+        if (lawsuit > bestScore) {
+            bestScore = lawsuit;
+            bestCategory = "LAWSUIT_OR_RECALL";
+        }
+        if (demand > bestScore) {
+            bestCategory = "DEMAND_OR_MARGIN";
+        }
+        return bestCategory;
+    }
+
+    private boolean containsAnyKeyword(String text, Set<String> keywords) {
+        for (String keyword : keywords) {
+            if (containsKeyword(text, keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String fallbackSummary(RawNewsItem item) {
@@ -1581,10 +1728,38 @@ public class NewsSentimentService {
             String llmModel,
             int weightedSentimentScore,
             boolean hardNegativeOverride,
+            String hardNegativeCategory,
             int analysisConfidence,
             boolean cacheReused,
             boolean replaceCache
     ) {
+        public NewsSentimentResult(
+                int score,
+                String label,
+                String summary,
+                List<AnalyzedNewsItem> relatedNews,
+                String llmModel,
+                int weightedSentimentScore,
+                boolean hardNegativeOverride,
+                int analysisConfidence,
+                boolean cacheReused,
+                boolean replaceCache
+        ) {
+            this(
+                    score,
+                    label,
+                    summary,
+                    relatedNews,
+                    llmModel,
+                    weightedSentimentScore,
+                    hardNegativeOverride,
+                    "NONE",
+                    analysisConfidence,
+                    cacheReused,
+                    replaceCache
+            );
+        }
+
         static NewsSentimentResult unavailable() {
             return new NewsSentimentResult(
                     9,
@@ -1594,6 +1769,7 @@ public class NewsSentimentService {
                     null,
                     0,
                     false,
+                    "NONE",
                     0,
                     false,
                     false
@@ -1609,6 +1785,7 @@ public class NewsSentimentService {
                     null,
                     0,
                     false,
+                    "NONE",
                     0,
                     false,
                     false
@@ -1624,6 +1801,7 @@ public class NewsSentimentService {
                     null,
                     0,
                     false,
+                    "NONE",
                     0,
                     false,
                     false

@@ -1043,6 +1043,11 @@ class _RelatedNewsCard extends StatelessWidget {
                 color: MaeMojiColors.maintain,
               ),
               _NewsChip(label: impactText, color: MaeMojiColors.inkMuted),
+              if (news.hardNegativeCategoryLabel.isNotEmpty)
+                _NewsChip(
+                  label: news.hardNegativeCategoryLabel,
+                  color: MaeMojiColors.stop,
+                ),
             ],
           ),
           if (news.summary.isNotEmpty) ...[
@@ -1077,6 +1082,17 @@ class _RelatedNewsCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 5),
+                  if (news.hardNegativeCategoryLabel.isNotEmpty) ...[
+                    Text(
+                      '핵심 악재: ${news.hardNegativeCategoryLabel}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: MaeMojiColors.stop,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
                   Text(
                     news.reason,
                     style: const TextStyle(

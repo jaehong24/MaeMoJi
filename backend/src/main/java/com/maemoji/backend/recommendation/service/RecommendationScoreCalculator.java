@@ -187,15 +187,16 @@ public class RecommendationScoreCalculator {
                                 .sum() / (double) totalWeight
                 );
 
+        final int conflictAdjustment = resolveConflictAdjustment(input);
         int adjustedScore = clamp(
-                rawScore + input.crossFactorAdjustment() + input.userAdjustment(),
+                rawScore + input.crossFactorAdjustment() + conflictAdjustment + input.userAdjustment(),
                 0,
                 100
         );
         if (input.hardStopRisk()) {
             adjustedScore = Math.min(adjustedScore, 30);
         } else if (input.hardNegativeNews()) {
-            adjustedScore = Math.min(adjustedScore, 45);
+            adjustedScore = Math.min(adjustedScore, resolveHardNegativeNewsCap(input));
         }
 
         String status = totalWeight == 0
@@ -211,7 +212,7 @@ public class RecommendationScoreCalculator {
                 rawScore,
                 adjustedScore,
                 adjustedScore - rawScore,
-                input.crossFactorAdjustment(),
+                input.crossFactorAdjustment() + conflictAdjustment,
                 input.userAdjustment(),
                 input.effectiveRiskProfile(),
                 status,
@@ -302,9 +303,25 @@ public class RecommendationScoreCalculator {
     private boolean isIncreaseEligible(V4Input input, List<FactorResult> appliedFactors) {
         final RecommendationTuningProperties.RiskProfileRule rule =
                 tuningProperties.ruleFor(input.effectiveRiskProfile());
+        final RecommendationTuningProperties.IncreaseGuard guard =
+                tuningProperties.getIncreaseGuard();
         if (input.hardStopRisk()
                 || input.hardNegativeNews()
                 || input.confidence() < rule.getMinConfidenceForIncrease()) {
+            return false;
+        }
+        if (input.valuationScore() != null
+                && input.valuationScore() <= guard.getAbsoluteValuationBlockMax()) {
+            return false;
+        }
+        if (input.valuationScore() != null
+                && input.valuationScore() <= guard.getExpensiveQualityValuationMax()
+                && input.fundamentalQualityScore() != null
+                && input.fundamentalQualityScore() >= guard.getExpensiveQualityFundamentalMin()
+                && input.qualityOfGrowthScore() != null
+                && input.qualityOfGrowthScore() >= guard.getExpensiveQualityGrowthMin()
+                && input.priceMomentumScore() != null
+                && input.priceMomentumScore() <= guard.getExpensiveQualityMomentumMax()) {
             return false;
         }
 
@@ -312,6 +329,114 @@ public class RecommendationScoreCalculator {
                 .filter(factor -> factor.score() >= rule.getStrongFactorScoreThreshold())
                 .count();
         return strongFactorCount >= rule.getMinStrongFactorCount();
+    }
+
+    private int resolveConflictAdjustment(V4Input input) {
+        final RecommendationTuningProperties.ConflictRules rule =
+                tuningProperties.getConflictRules();
+        int adjustment = 0;
+
+        final Integer fundamental = input.fundamentalQualityScore();
+        final Integer valuation = input.valuationScore();
+        final Integer qualityOfGrowth = input.qualityOfGrowthScore();
+        final Integer momentum = input.priceMomentumScore();
+        final Integer stability = input.priceStabilityScore();
+
+        if (fundamental != null
+                && fundamental >= rule.getExpensiveEliteFundamentalMin()
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= rule.getExpensiveEliteGrowthMin()
+                && valuation != null
+                && valuation <= rule.getExpensiveEliteValuationMax()) {
+            adjustment += rule.getExpensiveElitePenalty();
+        }
+        if (fundamental != null
+                && fundamental >= rule.getExpensiveGoodFundamentalMin()
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= rule.getExpensiveGoodGrowthMin()
+                && valuation != null
+                && valuation <= rule.getExpensiveGoodValuationMax()
+                && ((momentum != null && momentum <= rule.getExpensiveGoodMomentumMax())
+                || (stability != null && stability <= rule.getExpensiveGoodStabilityMax()))) {
+            adjustment += rule.getExpensiveGoodPenalty();
+        }
+        if (valuation != null
+                && valuation >= rule.getWeakGrowthValuationMin()
+                && qualityOfGrowth != null
+                && qualityOfGrowth <= rule.getWeakGrowthQualityMax()) {
+            adjustment += rule.getWeakGrowthPenalty();
+        }
+        if (valuation != null
+                && valuation >= rule.getWeakGrowthValueTrapValuationMin()
+                && qualityOfGrowth != null
+                && qualityOfGrowth <= rule.getWeakGrowthValueTrapQualityMax()
+                && fundamental != null
+                && fundamental <= rule.getWeakGrowthValueTrapFundamentalMax()) {
+            adjustment += rule.getWeakGrowthValueTrapPenalty();
+        }
+
+        return adjustment;
+    }
+
+    private int resolveHardNegativeNewsCap(V4Input input) {
+        final RecommendationTuningProperties.NegativeNews rule =
+                tuningProperties.getNegativeNews();
+        int cap = rule.getMaxCap();
+
+        final Integer normalizedNews = normalizeNewsSentiment(input.newsSentimentScore());
+        final Integer fundamental = input.fundamentalQualityScore();
+        final Integer stability = input.priceStabilityScore();
+        final Integer qualityOfGrowth = input.qualityOfGrowthScore();
+        final Integer momentum = input.priceMomentumScore();
+        final Integer valuation = input.valuationScore();
+
+        if (normalizedNews != null) {
+            if (normalizedNews <= 10) {
+                cap += rule.getNormalizedNews10Penalty();
+            } else if (normalizedNews <= 20) {
+                cap += rule.getNormalizedNews20Penalty();
+            } else if (normalizedNews <= 30) {
+                cap += rule.getNormalizedNews30Penalty();
+            }
+        }
+
+        if (fundamental != null && fundamental >= 82) {
+            cap += rule.getStrongFundamentalBonus();
+        } else if (fundamental != null && fundamental <= 58) {
+            cap += rule.getWeakFundamentalPenalty();
+        }
+
+        if (stability != null && stability >= 80) {
+            cap += rule.getStrongStabilityBonus();
+        } else if (stability != null && stability <= 40) {
+            cap += rule.getWeakStabilityPenalty();
+        }
+
+        if (qualityOfGrowth != null && qualityOfGrowth >= 80) {
+            cap += rule.getStrongGrowthQualityBonus();
+        } else if (qualityOfGrowth != null && qualityOfGrowth <= 45) {
+            cap += rule.getWeakGrowthQualityPenalty();
+        }
+
+        if (momentum != null && momentum <= 30) {
+            cap += rule.getWeakMomentumPenalty();
+        }
+
+        if (valuation != null && valuation <= 30) {
+            cap += rule.getVeryLowValuationPenalty();
+        }
+
+        cap += switch (input.hardNegativeNewsCategory()) {
+            case "ACCOUNTING_OR_FRAUD" -> rule.getAccountingOrFraudPenalty();
+            case "LIQUIDITY_OR_BANKRUPTCY" -> rule.getLiquidityOrBankruptcyPenalty();
+            case "REGULATORY_INVESTIGATION" -> rule.getRegulatoryInvestigationPenalty();
+            case "LAWSUIT_OR_RECALL" -> rule.getLawsuitOrRecallPenalty();
+            case "GUIDANCE_OR_EARNINGS" -> rule.getGuidanceOrEarningsPenalty();
+            case "DEMAND_OR_MARGIN" -> rule.getDemandOrMarginPenalty();
+            default -> 0;
+        };
+
+        return clamp(cap, rule.getMinCap(), rule.getMaxCap());
     }
 
     private Integer findFactorScore(V4ScoreResult result, FactorCode factorCode) {
@@ -393,6 +518,7 @@ public class RecommendationScoreCalculator {
             String effectiveRiskProfile,
             boolean hardStopRisk,
             boolean hardNegativeNews,
+            String hardNegativeNewsCategory,
             int confidence
     ) {
         public V4Input {
@@ -403,6 +529,56 @@ public class RecommendationScoreCalculator {
             valuationWeight = Math.max(valuationWeight, 0);
             qualityOfGrowthWeight = Math.max(qualityOfGrowthWeight, 0);
             userFitWeight = Math.max(userFitWeight, 0);
+            hardNegativeNewsCategory = hardNegativeNewsCategory == null
+                    ? "NONE"
+                    : hardNegativeNewsCategory.trim().toUpperCase();
+        }
+
+        public V4Input(
+                Integer priceMomentumScore,
+                int priceMomentumWeight,
+                Integer priceStabilityScore,
+                int priceStabilityWeight,
+                Integer newsSentimentScore,
+                int newsSentimentWeight,
+                Integer fundamentalQualityScore,
+                int fundamentalQualityWeight,
+                Integer valuationScore,
+                int valuationWeight,
+                Integer qualityOfGrowthScore,
+                int qualityOfGrowthWeight,
+                Integer userFitScore,
+                int userFitWeight,
+                int crossFactorAdjustment,
+                int userAdjustment,
+                String effectiveRiskProfile,
+                boolean hardStopRisk,
+                boolean hardNegativeNews,
+                int confidence
+        ) {
+            this(
+                    priceMomentumScore,
+                    priceMomentumWeight,
+                    priceStabilityScore,
+                    priceStabilityWeight,
+                    newsSentimentScore,
+                    newsSentimentWeight,
+                    fundamentalQualityScore,
+                    fundamentalQualityWeight,
+                    valuationScore,
+                    valuationWeight,
+                    qualityOfGrowthScore,
+                    qualityOfGrowthWeight,
+                    userFitScore,
+                    userFitWeight,
+                    crossFactorAdjustment,
+                    userAdjustment,
+                    effectiveRiskProfile,
+                    hardStopRisk,
+                    hardNegativeNews,
+                    "NONE",
+                    confidence
+            );
         }
     }
 

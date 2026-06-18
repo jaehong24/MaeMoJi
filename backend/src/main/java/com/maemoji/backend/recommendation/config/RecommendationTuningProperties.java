@@ -9,6 +9,9 @@ public class RecommendationTuningProperties {
     private RiskProfiles riskProfiles = new RiskProfiles();
     private PriceMomentum priceMomentum = new PriceMomentum();
     private PriceStability priceStability = new PriceStability();
+    private IncreaseGuard increaseGuard = new IncreaseGuard();
+    private ConflictRules conflictRules = new ConflictRules();
+    private NegativeNews negativeNews = new NegativeNews();
     private Fundamental fundamental = new Fundamental();
 
     public FactorWeights getFactorWeights() {
@@ -41,6 +44,30 @@ public class RecommendationTuningProperties {
 
     public void setPriceMomentum(PriceMomentum priceMomentum) {
         this.priceMomentum = priceMomentum;
+    }
+
+    public IncreaseGuard getIncreaseGuard() {
+        return increaseGuard;
+    }
+
+    public void setIncreaseGuard(IncreaseGuard increaseGuard) {
+        this.increaseGuard = increaseGuard;
+    }
+
+    public ConflictRules getConflictRules() {
+        return conflictRules;
+    }
+
+    public void setConflictRules(ConflictRules conflictRules) {
+        this.conflictRules = conflictRules;
+    }
+
+    public NegativeNews getNegativeNews() {
+        return negativeNews;
+    }
+
+    public void setNegativeNews(NegativeNews negativeNews) {
+        this.negativeNews = negativeNews;
     }
 
     public Fundamental getFundamental() {
@@ -130,10 +157,10 @@ public class RecommendationTuningProperties {
     }
 
     public static class RiskProfiles {
-        private RiskProfileRule safeFirst = new RiskProfileRule(90, 68, 42, -5, 78, 3, 72);
-        private RiskProfileRule balanced = new RiskProfileRule(85, 60, 35, 0, 72, 3, 68);
-        private RiskProfileRule growthSeeker = new RiskProfileRule(82, 56, 32, 2, 68, 2, 65);
-        private RiskProfileRule aggressive = new RiskProfileRule(78, 52, 28, 5, 65, 2, 62);
+        private RiskProfileRule safeFirst = new RiskProfileRule(88, 68, 42, -5, 78, 3, 72);
+        private RiskProfileRule balanced = new RiskProfileRule(76, 58, 35, 0, 72, 3, 68);
+        private RiskProfileRule growthSeeker = new RiskProfileRule(72, 54, 32, 2, 68, 2, 65);
+        private RiskProfileRule aggressive = new RiskProfileRule(68, 50, 28, 5, 65, 2, 62);
 
         public RiskProfileRule getSafeFirst() {
             return safeFirst;
@@ -447,6 +474,384 @@ public class RecommendationTuningProperties {
 
         public void setFallbackScore(int fallbackScore) {
             this.fallbackScore = fallbackScore;
+        }
+    }
+
+    public static class IncreaseGuard {
+        private int absoluteValuationBlockMax = 45;
+        private int expensiveQualityValuationMax = 55;
+        private int expensiveQualityFundamentalMin = 78;
+        private int expensiveQualityGrowthMin = 75;
+        private int expensiveQualityMomentumMax = 62;
+
+        public int getAbsoluteValuationBlockMax() {
+            return absoluteValuationBlockMax;
+        }
+
+        public void setAbsoluteValuationBlockMax(int absoluteValuationBlockMax) {
+            this.absoluteValuationBlockMax = absoluteValuationBlockMax;
+        }
+
+        public int getExpensiveQualityValuationMax() {
+            return expensiveQualityValuationMax;
+        }
+
+        public void setExpensiveQualityValuationMax(int expensiveQualityValuationMax) {
+            this.expensiveQualityValuationMax = expensiveQualityValuationMax;
+        }
+
+        public int getExpensiveQualityFundamentalMin() {
+            return expensiveQualityFundamentalMin;
+        }
+
+        public void setExpensiveQualityFundamentalMin(int expensiveQualityFundamentalMin) {
+            this.expensiveQualityFundamentalMin = expensiveQualityFundamentalMin;
+        }
+
+        public int getExpensiveQualityGrowthMin() {
+            return expensiveQualityGrowthMin;
+        }
+
+        public void setExpensiveQualityGrowthMin(int expensiveQualityGrowthMin) {
+            this.expensiveQualityGrowthMin = expensiveQualityGrowthMin;
+        }
+
+        public int getExpensiveQualityMomentumMax() {
+            return expensiveQualityMomentumMax;
+        }
+
+        public void setExpensiveQualityMomentumMax(int expensiveQualityMomentumMax) {
+            this.expensiveQualityMomentumMax = expensiveQualityMomentumMax;
+        }
+    }
+
+    public static class ConflictRules {
+        private int expensiveEliteFundamentalMin = 80;
+        private int expensiveEliteGrowthMin = 80;
+        private int expensiveEliteValuationMax = 45;
+        private int expensiveElitePenalty = -6;
+        private int expensiveGoodFundamentalMin = 78;
+        private int expensiveGoodGrowthMin = 75;
+        private int expensiveGoodValuationMax = 55;
+        private int expensiveGoodMomentumMax = 62;
+        private int expensiveGoodStabilityMax = 60;
+        private int expensiveGoodPenalty = -5;
+        private int weakGrowthValuationMin = 78;
+        private int weakGrowthQualityMax = 55;
+        private int weakGrowthPenalty = -4;
+        private int weakGrowthValueTrapValuationMin = 72;
+        private int weakGrowthValueTrapQualityMax = 60;
+        private int weakGrowthValueTrapFundamentalMax = 68;
+        private int weakGrowthValueTrapPenalty = -3;
+
+        public int getExpensiveEliteFundamentalMin() {
+            return expensiveEliteFundamentalMin;
+        }
+
+        public void setExpensiveEliteFundamentalMin(int expensiveEliteFundamentalMin) {
+            this.expensiveEliteFundamentalMin = expensiveEliteFundamentalMin;
+        }
+
+        public int getExpensiveEliteGrowthMin() {
+            return expensiveEliteGrowthMin;
+        }
+
+        public void setExpensiveEliteGrowthMin(int expensiveEliteGrowthMin) {
+            this.expensiveEliteGrowthMin = expensiveEliteGrowthMin;
+        }
+
+        public int getExpensiveEliteValuationMax() {
+            return expensiveEliteValuationMax;
+        }
+
+        public void setExpensiveEliteValuationMax(int expensiveEliteValuationMax) {
+            this.expensiveEliteValuationMax = expensiveEliteValuationMax;
+        }
+
+        public int getExpensiveElitePenalty() {
+            return expensiveElitePenalty;
+        }
+
+        public void setExpensiveElitePenalty(int expensiveElitePenalty) {
+            this.expensiveElitePenalty = expensiveElitePenalty;
+        }
+
+        public int getExpensiveGoodFundamentalMin() {
+            return expensiveGoodFundamentalMin;
+        }
+
+        public void setExpensiveGoodFundamentalMin(int expensiveGoodFundamentalMin) {
+            this.expensiveGoodFundamentalMin = expensiveGoodFundamentalMin;
+        }
+
+        public int getExpensiveGoodGrowthMin() {
+            return expensiveGoodGrowthMin;
+        }
+
+        public void setExpensiveGoodGrowthMin(int expensiveGoodGrowthMin) {
+            this.expensiveGoodGrowthMin = expensiveGoodGrowthMin;
+        }
+
+        public int getExpensiveGoodValuationMax() {
+            return expensiveGoodValuationMax;
+        }
+
+        public void setExpensiveGoodValuationMax(int expensiveGoodValuationMax) {
+            this.expensiveGoodValuationMax = expensiveGoodValuationMax;
+        }
+
+        public int getExpensiveGoodMomentumMax() {
+            return expensiveGoodMomentumMax;
+        }
+
+        public void setExpensiveGoodMomentumMax(int expensiveGoodMomentumMax) {
+            this.expensiveGoodMomentumMax = expensiveGoodMomentumMax;
+        }
+
+        public int getExpensiveGoodStabilityMax() {
+            return expensiveGoodStabilityMax;
+        }
+
+        public void setExpensiveGoodStabilityMax(int expensiveGoodStabilityMax) {
+            this.expensiveGoodStabilityMax = expensiveGoodStabilityMax;
+        }
+
+        public int getExpensiveGoodPenalty() {
+            return expensiveGoodPenalty;
+        }
+
+        public void setExpensiveGoodPenalty(int expensiveGoodPenalty) {
+            this.expensiveGoodPenalty = expensiveGoodPenalty;
+        }
+
+        public int getWeakGrowthValuationMin() {
+            return weakGrowthValuationMin;
+        }
+
+        public void setWeakGrowthValuationMin(int weakGrowthValuationMin) {
+            this.weakGrowthValuationMin = weakGrowthValuationMin;
+        }
+
+        public int getWeakGrowthQualityMax() {
+            return weakGrowthQualityMax;
+        }
+
+        public void setWeakGrowthQualityMax(int weakGrowthQualityMax) {
+            this.weakGrowthQualityMax = weakGrowthQualityMax;
+        }
+
+        public int getWeakGrowthPenalty() {
+            return weakGrowthPenalty;
+        }
+
+        public void setWeakGrowthPenalty(int weakGrowthPenalty) {
+            this.weakGrowthPenalty = weakGrowthPenalty;
+        }
+
+        public int getWeakGrowthValueTrapValuationMin() {
+            return weakGrowthValueTrapValuationMin;
+        }
+
+        public void setWeakGrowthValueTrapValuationMin(int weakGrowthValueTrapValuationMin) {
+            this.weakGrowthValueTrapValuationMin = weakGrowthValueTrapValuationMin;
+        }
+
+        public int getWeakGrowthValueTrapQualityMax() {
+            return weakGrowthValueTrapQualityMax;
+        }
+
+        public void setWeakGrowthValueTrapQualityMax(int weakGrowthValueTrapQualityMax) {
+            this.weakGrowthValueTrapQualityMax = weakGrowthValueTrapQualityMax;
+        }
+
+        public int getWeakGrowthValueTrapFundamentalMax() {
+            return weakGrowthValueTrapFundamentalMax;
+        }
+
+        public void setWeakGrowthValueTrapFundamentalMax(int weakGrowthValueTrapFundamentalMax) {
+            this.weakGrowthValueTrapFundamentalMax = weakGrowthValueTrapFundamentalMax;
+        }
+
+        public int getWeakGrowthValueTrapPenalty() {
+            return weakGrowthValueTrapPenalty;
+        }
+
+        public void setWeakGrowthValueTrapPenalty(int weakGrowthValueTrapPenalty) {
+            this.weakGrowthValueTrapPenalty = weakGrowthValueTrapPenalty;
+        }
+    }
+
+    public static class NegativeNews {
+        private int normalizedNews10Penalty = -5;
+        private int normalizedNews20Penalty = -3;
+        private int normalizedNews30Penalty = -1;
+        private int strongFundamentalBonus = 2;
+        private int weakFundamentalPenalty = -4;
+        private int strongStabilityBonus = 1;
+        private int weakStabilityPenalty = -4;
+        private int strongGrowthQualityBonus = 1;
+        private int weakGrowthQualityPenalty = -2;
+        private int weakMomentumPenalty = -3;
+        private int veryLowValuationPenalty = -2;
+        private int accountingOrFraudPenalty = -8;
+        private int liquidityOrBankruptcyPenalty = -7;
+        private int regulatoryInvestigationPenalty = -5;
+        private int lawsuitOrRecallPenalty = -4;
+        private int guidanceOrEarningsPenalty = -2;
+        private int demandOrMarginPenalty = -1;
+        private int minCap = 28;
+        private int maxCap = 45;
+
+        public int getNormalizedNews10Penalty() {
+            return normalizedNews10Penalty;
+        }
+
+        public void setNormalizedNews10Penalty(int normalizedNews10Penalty) {
+            this.normalizedNews10Penalty = normalizedNews10Penalty;
+        }
+
+        public int getNormalizedNews20Penalty() {
+            return normalizedNews20Penalty;
+        }
+
+        public void setNormalizedNews20Penalty(int normalizedNews20Penalty) {
+            this.normalizedNews20Penalty = normalizedNews20Penalty;
+        }
+
+        public int getNormalizedNews30Penalty() {
+            return normalizedNews30Penalty;
+        }
+
+        public void setNormalizedNews30Penalty(int normalizedNews30Penalty) {
+            this.normalizedNews30Penalty = normalizedNews30Penalty;
+        }
+
+        public int getStrongFundamentalBonus() {
+            return strongFundamentalBonus;
+        }
+
+        public void setStrongFundamentalBonus(int strongFundamentalBonus) {
+            this.strongFundamentalBonus = strongFundamentalBonus;
+        }
+
+        public int getWeakFundamentalPenalty() {
+            return weakFundamentalPenalty;
+        }
+
+        public void setWeakFundamentalPenalty(int weakFundamentalPenalty) {
+            this.weakFundamentalPenalty = weakFundamentalPenalty;
+        }
+
+        public int getStrongStabilityBonus() {
+            return strongStabilityBonus;
+        }
+
+        public void setStrongStabilityBonus(int strongStabilityBonus) {
+            this.strongStabilityBonus = strongStabilityBonus;
+        }
+
+        public int getWeakStabilityPenalty() {
+            return weakStabilityPenalty;
+        }
+
+        public void setWeakStabilityPenalty(int weakStabilityPenalty) {
+            this.weakStabilityPenalty = weakStabilityPenalty;
+        }
+
+        public int getStrongGrowthQualityBonus() {
+            return strongGrowthQualityBonus;
+        }
+
+        public void setStrongGrowthQualityBonus(int strongGrowthQualityBonus) {
+            this.strongGrowthQualityBonus = strongGrowthQualityBonus;
+        }
+
+        public int getWeakGrowthQualityPenalty() {
+            return weakGrowthQualityPenalty;
+        }
+
+        public void setWeakGrowthQualityPenalty(int weakGrowthQualityPenalty) {
+            this.weakGrowthQualityPenalty = weakGrowthQualityPenalty;
+        }
+
+        public int getWeakMomentumPenalty() {
+            return weakMomentumPenalty;
+        }
+
+        public void setWeakMomentumPenalty(int weakMomentumPenalty) {
+            this.weakMomentumPenalty = weakMomentumPenalty;
+        }
+
+        public int getVeryLowValuationPenalty() {
+            return veryLowValuationPenalty;
+        }
+
+        public void setVeryLowValuationPenalty(int veryLowValuationPenalty) {
+            this.veryLowValuationPenalty = veryLowValuationPenalty;
+        }
+
+        public int getAccountingOrFraudPenalty() {
+            return accountingOrFraudPenalty;
+        }
+
+        public void setAccountingOrFraudPenalty(int accountingOrFraudPenalty) {
+            this.accountingOrFraudPenalty = accountingOrFraudPenalty;
+        }
+
+        public int getLiquidityOrBankruptcyPenalty() {
+            return liquidityOrBankruptcyPenalty;
+        }
+
+        public void setLiquidityOrBankruptcyPenalty(int liquidityOrBankruptcyPenalty) {
+            this.liquidityOrBankruptcyPenalty = liquidityOrBankruptcyPenalty;
+        }
+
+        public int getRegulatoryInvestigationPenalty() {
+            return regulatoryInvestigationPenalty;
+        }
+
+        public void setRegulatoryInvestigationPenalty(int regulatoryInvestigationPenalty) {
+            this.regulatoryInvestigationPenalty = regulatoryInvestigationPenalty;
+        }
+
+        public int getLawsuitOrRecallPenalty() {
+            return lawsuitOrRecallPenalty;
+        }
+
+        public void setLawsuitOrRecallPenalty(int lawsuitOrRecallPenalty) {
+            this.lawsuitOrRecallPenalty = lawsuitOrRecallPenalty;
+        }
+
+        public int getGuidanceOrEarningsPenalty() {
+            return guidanceOrEarningsPenalty;
+        }
+
+        public void setGuidanceOrEarningsPenalty(int guidanceOrEarningsPenalty) {
+            this.guidanceOrEarningsPenalty = guidanceOrEarningsPenalty;
+        }
+
+        public int getDemandOrMarginPenalty() {
+            return demandOrMarginPenalty;
+        }
+
+        public void setDemandOrMarginPenalty(int demandOrMarginPenalty) {
+            this.demandOrMarginPenalty = demandOrMarginPenalty;
+        }
+
+        public int getMinCap() {
+            return minCap;
+        }
+
+        public void setMinCap(int minCap) {
+            this.minCap = minCap;
+        }
+
+        public int getMaxCap() {
+            return maxCap;
+        }
+
+        public void setMaxCap(int maxCap) {
+            this.maxCap = maxCap;
         }
     }
 

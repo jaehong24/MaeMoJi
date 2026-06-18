@@ -189,6 +189,10 @@ class RecommendationService {
               sentimentScore: (news['sentimentScore'] as num?)?.toInt() ?? 0,
               relevanceScore: (news['relevanceScore'] as num?)?.toInt() ?? 0,
               impactLevel: (news['impactLevel'] ?? 'LOW').toString(),
+              hardNegativeCategory:
+                  (news['hardNegativeCategory'] ?? 'NONE').toString(),
+              hardNegativeCategoryLabel:
+                  (news['hardNegativeCategoryLabel'] ?? '').toString(),
               reason: (news['reason'] ?? '').toString(),
               weightedScore: (news['weightedScore'] as num?)?.toDouble() ?? 0,
             ),

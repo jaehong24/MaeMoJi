@@ -68,7 +68,7 @@ maemoji:
         user-fit: 8
       risk-profiles:
         safe-first:
-          increase-threshold: 90
+          increase-threshold: 88
           maintain-threshold: 68
           reduce-threshold: 42
           user-adjustment: -5
@@ -76,24 +76,24 @@ maemoji:
           min-strong-factor-count: 3
           strong-factor-score-threshold: 72
         balanced:
-          increase-threshold: 85
-          maintain-threshold: 60
+          increase-threshold: 76
+          maintain-threshold: 58
           reduce-threshold: 35
           user-adjustment: 0
           min-confidence-for-increase: 72
           min-strong-factor-count: 3
           strong-factor-score-threshold: 68
         growth-seeker:
-          increase-threshold: 82
-          maintain-threshold: 56
+          increase-threshold: 72
+          maintain-threshold: 54
           reduce-threshold: 32
           user-adjustment: 2
           min-confidence-for-increase: 68
           min-strong-factor-count: 2
           strong-factor-score-threshold: 65
         aggressive:
-          increase-threshold: 78
-          maintain-threshold: 52
+          increase-threshold: 68
+          maintain-threshold: 50
           reduce-threshold: 28
           user-adjustment: 5
           min-confidence-for-increase: 65
@@ -122,6 +122,50 @@ maemoji:
         stress20-score: 60
         stress30-score: 40
         fallback-score: 20
+      increase-guard:
+        absolute-valuation-block-max: 45
+        expensive-quality-valuation-max: 55
+        expensive-quality-fundamental-min: 78
+        expensive-quality-growth-min: 75
+        expensive-quality-momentum-max: 62
+      conflict-rules:
+        expensive-elite-fundamental-min: 80
+        expensive-elite-growth-min: 80
+        expensive-elite-valuation-max: 45
+        expensive-elite-penalty: -6
+        expensive-good-fundamental-min: 78
+        expensive-good-growth-min: 75
+        expensive-good-valuation-max: 55
+        expensive-good-momentum-max: 62
+        expensive-good-stability-max: 60
+        expensive-good-penalty: -5
+        weak-growth-valuation-min: 78
+        weak-growth-quality-max: 55
+        weak-growth-penalty: -4
+        weak-growth-value-trap-valuation-min: 72
+        weak-growth-value-trap-quality-max: 60
+        weak-growth-value-trap-fundamental-max: 68
+        weak-growth-value-trap-penalty: -3
+      negative-news:
+        normalized-news10-penalty: -5
+        normalized-news20-penalty: -3
+        normalized-news30-penalty: -1
+        strong-fundamental-bonus: 2
+        weak-fundamental-penalty: -4
+        strong-stability-bonus: 1
+        weak-stability-penalty: -4
+        strong-growth-quality-bonus: 1
+        weak-growth-quality-penalty: -2
+        weak-momentum-penalty: -3
+        very-low-valuation-penalty: -2
+        accounting-or-fraud-penalty: -8
+        liquidity-or-bankruptcy-penalty: -7
+        regulatory-investigation-penalty: -5
+        lawsuit-or-recall-penalty: -4
+        guidance-or-earnings-penalty: -2
+        demand-or-margin-penalty: -1
+        min-cap: 28
+        max-cap: 45
       fundamental:
         base-score: 42
         market-cap:

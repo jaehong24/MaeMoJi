@@ -161,6 +161,185 @@ class RecommendationScoreCalculatorTest {
     }
 
     @Test
+    void v4HardNegativeNewsCapsStatusToReduceRange() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        82,
+                        20,
+                        84,
+                        12,
+                        -70,
+                        22,
+                        86,
+                        14,
+                        74,
+                        12,
+                        88,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        true,
+                        90
+                )
+        );
+
+        assertThat(result.finalScore()).isBetween(40, 45);
+        assertThat(result.recommendationStatus()).isEqualTo("REDUCE");
+        assertThat(result.increaseEligible()).isFalse();
+    }
+
+    @Test
+    void v4HardNegativeNewsPushesFragileNamesToStopMoreAggressively() {
+        final RecommendationScoreCalculator.V4ScoreResult resilient = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        68,
+                        20,
+                        84,
+                        12,
+                        -70,
+                        22,
+                        86,
+                        14,
+                        72,
+                        12,
+                        84,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        true,
+                        86
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult fragile = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        12,
+                        20,
+                        24,
+                        12,
+                        -70,
+                        22,
+                        54,
+                        14,
+                        22,
+                        12,
+                        40,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        true,
+                        86
+                )
+        );
+
+        assertThat(resilient.recommendationStatus()).isEqualTo("REDUCE");
+        assertThat(resilient.finalScore()).isGreaterThanOrEqualTo(40);
+        assertThat(fragile.recommendationStatus()).isEqualTo("STOP");
+        assertThat(fragile.finalScore()).isLessThan(resilient.finalScore());
+    }
+
+    @Test
+    void v4AccountingFraudIsPenalizedMoreThanGuidanceCut() {
+        final RecommendationScoreCalculator.V4ScoreResult guidance = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        72, 20,
+                        82, 12,
+                        -70, 22,
+                        84, 14,
+                        70, 12,
+                        82, 12,
+                        60, 8,
+                        0, 0,
+                        "BALANCED",
+                        false,
+                        true,
+                        "GUIDANCE_OR_EARNINGS",
+                        86
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult accounting = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        72, 20,
+                        82, 12,
+                        -70, 22,
+                        84, 14,
+                        70, 12,
+                        82, 12,
+                        60, 8,
+                        0, 0,
+                        "BALANCED",
+                        false,
+                        true,
+                        "ACCOUNTING_OR_FRAUD",
+                        86
+                )
+        );
+
+        assertThat(guidance.recommendationStatus()).isEqualTo("REDUCE");
+        assertThat(accounting.recommendationStatus()).isEqualTo("REDUCE");
+        assertThat(accounting.finalScore()).isLessThan(guidance.finalScore());
+    }
+
+    @Test
+    void v4HardNegativePenaltyUsesTuningProperties() {
+        final RecommendationTuningProperties customProperties =
+                new RecommendationTuningProperties();
+        customProperties.getNegativeNews().setAccountingOrFraudPenalty(-12);
+        customProperties.getNegativeNews().setGuidanceOrEarningsPenalty(0);
+        final RecommendationScoreCalculator customCalculator =
+                new RecommendationScoreCalculator(customProperties);
+
+        final RecommendationScoreCalculator.V4ScoreResult guidance = customCalculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        72, 20,
+                        82, 12,
+                        -70, 22,
+                        84, 14,
+                        70, 12,
+                        82, 12,
+                        60, 8,
+                        0, 0,
+                        "BALANCED",
+                        false,
+                        true,
+                        "GUIDANCE_OR_EARNINGS",
+                        86
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult accounting = customCalculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        72, 20,
+                        82, 12,
+                        -70, 22,
+                        84, 14,
+                        70, 12,
+                        82, 12,
+                        60, 8,
+                        0, 0,
+                        "BALANCED",
+                        false,
+                        true,
+                        "ACCOUNTING_OR_FRAUD",
+                        86
+                )
+        );
+
+        assertThat(accounting.finalScore()).isLessThan(guidance.finalScore());
+        assertThat(guidance.finalScore()).isEqualTo(45);
+    }
+
+    @Test
     void v4SameScoreChangesStatusByRiskProfile() {
         final RecommendationScoreCalculator.V4ScoreResult safeFirst = calculator.calculateV4(
                 new RecommendationScoreCalculator.V4Input(
@@ -300,5 +479,172 @@ class RecommendationScoreCalculatorTest {
 
         assertThat(balanced.increaseEligible()).isFalse();
         assertThat(aggressive.increaseEligible()).isTrue();
+    }
+
+    @Test
+    void v4BlocksIncreaseForHighQualityButExpensiveNames() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        62,
+                        20,
+                        87,
+                        12,
+                        null,
+                        0,
+                        84,
+                        14,
+                        37,
+                        12,
+                        91,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        88
+                )
+        );
+
+        assertThat(result.increaseEligible()).isFalse();
+        assertThat(result.crossFactorAdjustment()).isNegative();
+        assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
+    }
+
+    @Test
+    void v4IncreaseGuardUsesTuningProperties() {
+        final RecommendationTuningProperties customProperties =
+                new RecommendationTuningProperties();
+        customProperties.getIncreaseGuard().setAbsoluteValuationBlockMax(30);
+        customProperties.getIncreaseGuard().setExpensiveQualityValuationMax(40);
+        customProperties.getIncreaseGuard().setExpensiveQualityFundamentalMin(85);
+        customProperties.getIncreaseGuard().setExpensiveQualityGrowthMin(85);
+        customProperties.getIncreaseGuard().setExpensiveQualityMomentumMax(50);
+        final RecommendationScoreCalculator customCalculator =
+                new RecommendationScoreCalculator(customProperties);
+
+        final RecommendationScoreCalculator.V4ScoreResult result = customCalculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        62,
+                        20,
+                        87,
+                        12,
+                        72,
+                        22,
+                        84,
+                        14,
+                        37,
+                        12,
+                        91,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        88
+                )
+        );
+
+        assertThat(result.increaseEligible()).isTrue();
+    }
+
+    @Test
+    void v4PenalizesCheapLookingButLowGrowthQualityNames() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        64,
+                        20,
+                        60,
+                        12,
+                        null,
+                        0,
+                        61,
+                        14,
+                        78,
+                        12,
+                        52,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+
+        assertThat(result.crossFactorAdjustment()).isNegative();
+        assertThat(result.finalScore()).isLessThan(result.rawScore());
+        assertThat(result.recommendationStatus()).isEqualTo("REDUCE");
+    }
+
+    @Test
+    void v4ConflictRulesUseTuningProperties() {
+        final RecommendationTuningProperties customProperties =
+                new RecommendationTuningProperties();
+        customProperties.getConflictRules().setWeakGrowthPenalty(-10);
+        customProperties.getConflictRules().setWeakGrowthValueTrapPenalty(-7);
+        final RecommendationScoreCalculator customCalculator =
+                new RecommendationScoreCalculator(customProperties);
+
+        final RecommendationScoreCalculator.V4ScoreResult defaultResult = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        64,
+                        20,
+                        60,
+                        12,
+                        null,
+                        0,
+                        61,
+                        14,
+                        78,
+                        12,
+                        52,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult customResult = customCalculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        64,
+                        20,
+                        60,
+                        12,
+                        null,
+                        0,
+                        61,
+                        14,
+                        78,
+                        12,
+                        52,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+
+        assertThat(customResult.crossFactorAdjustment())
+                .isLessThan(defaultResult.crossFactorAdjustment());
+        assertThat(customResult.finalScore()).isLessThan(defaultResult.finalScore());
     }
 }

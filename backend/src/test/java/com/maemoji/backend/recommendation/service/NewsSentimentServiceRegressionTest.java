@@ -40,9 +40,9 @@ class NewsSentimentServiceRegressionTest {
     void strongNegativeNewsOverridesPositiveAggregate() throws Exception {
         final NewsSentimentService.NewsSentimentResult result = finalizeResult(
                 List.of(
-                        news("positive-1", 80, 100, "HIGH", 80),
-                        news("positive-2", 70, 100, "HIGH", 70),
-                        news("hard-negative", -85, 100, "HIGH", -85)
+                        news("positive-1", "수주 확대", 80, 100, "HIGH", 80),
+                        news("positive-2", "실적 성장", 70, 100, "HIGH", 70),
+                        news("hard-negative", "guidance cut after weak demand", -85, 100, "HIGH", -85)
                 ),
                 true
         );
@@ -51,6 +51,19 @@ class NewsSentimentServiceRegressionTest {
         assertThat(result.score()).isEqualTo(1);
         assertThat(result.label()).isEqualTo("NEGATIVE");
         assertThat(result.hardNegativeOverride()).isTrue();
+        assertThat(result.hardNegativeCategory()).isEqualTo("GUIDANCE_OR_EARNINGS");
+    }
+
+    @Test
+    void classifiesAccountingFraudAsMostSevereNegativeCategory() throws Exception {
+        final NewsSentimentService.NewsSentimentResult result = finalizeResult(
+                List.of(
+                        news("hard-negative", "accounting fraud investigation", -90, 95, "HIGH", -90)
+                ),
+                true
+        );
+
+        assertThat(result.hardNegativeCategory()).isEqualTo("ACCOUNTING_OR_FRAUD");
     }
 
     @Test
@@ -117,6 +130,7 @@ class NewsSentimentServiceRegressionTest {
 
     private NewsSentimentService.AnalyzedNewsItem news(
             String contentHash,
+            String headline,
             int sentimentScore,
             int relevanceScore,
             String impactLevel,
@@ -125,7 +139,7 @@ class NewsSentimentServiceRegressionTest {
         return new NewsSentimentService.AnalyzedNewsItem(
                 contentHash,
                 "AAPL",
-                "테스트 뉴스",
+                headline,
                 "테스트 요약",
                 "TEST",
                 "https://example.com/" + contentHash,
@@ -142,6 +156,16 @@ class NewsSentimentServiceRegressionTest {
                 contentHash,
                 "batch-hash"
         );
+    }
+
+    private NewsSentimentService.AnalyzedNewsItem news(
+            String contentHash,
+            int sentimentScore,
+            int relevanceScore,
+            String impactLevel,
+            double weightedScore
+    ) {
+        return news(contentHash, "테스트 뉴스", sentimentScore, relevanceScore, impactLevel, weightedScore);
     }
 
     private NewsAnalysisCacheRecord cachedNews(OffsetDateTime publishedAt) {

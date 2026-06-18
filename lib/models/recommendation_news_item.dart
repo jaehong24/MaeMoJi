@@ -8,6 +8,8 @@ class RecommendationNewsItem {
     required this.sentimentScore,
     required this.relevanceScore,
     required this.impactLevel,
+    required this.hardNegativeCategory,
+    required this.hardNegativeCategoryLabel,
     required this.reason,
     required this.weightedScore,
   });
@@ -20,6 +22,8 @@ class RecommendationNewsItem {
   final int sentimentScore;
   final int relevanceScore;
   final String impactLevel;
+  final String hardNegativeCategory;
+  final String hardNegativeCategoryLabel;
   final String reason;
   final double weightedScore;
 }
