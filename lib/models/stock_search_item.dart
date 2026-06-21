@@ -7,6 +7,7 @@ class StockSearchItem {
     required this.englishName,
     required this.ticker,
     required this.exchange,
+    required this.assetType,
     required this.displayPrice,
     this.logoUrl,
   });
@@ -16,6 +17,9 @@ class StockSearchItem {
   final String englishName;
   final String ticker;
   final String exchange;
+  final String assetType;
   final String displayPrice;
   final String? logoUrl;
+
+  bool get isEtf => assetType.trim().toUpperCase() == 'ETF';
 }

@@ -121,6 +121,112 @@
         order by id asc
     </select>
 
+    <select id="findSuspiciousAssetTypeStocks"
+            resultType="com.maemoji.backend.stock.dto.StockAssetTypeAuditRow">
+        with classified as (
+            select
+                id,
+                symbol,
+                ticker,
+                name_en,
+                asset_type,
+                market_type,
+                case
+                    when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND|INNOVATORS ETF)%' then 'ETF'
+                    when upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
+                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'ETF'
+                    else 'STOCK'
+                end as suggested_asset_type,
+                case
+                    when upper(coalesce(market_type, '')) like '%ETF%'
+                         and upper(coalesce(asset_type, '')) &lt;&gt; 'ETF' then 'market_type says ETF'
+                    when upper(coalesce(asset_type, '')) = 'ETF'
+                         and upper(coalesce(name_en, '')) similar to '%(COMMON STOCK|ORDINARY SHARES)%' then 'etf tag looks like common stock'
+                    when upper(coalesce(asset_type, '')) = 'STOCK'
+                         and upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND)%' then 'stock tag looks like ETF keyword'
+                    when upper(coalesce(asset_type, '')) = 'STOCK'
+                         and upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
+                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'stock tag looks like trust/fund/share product'
+                    else null
+                end as reason
+            from stocks
+            where is_active = true
+              and country = 'US'
+        )
+        select
+            id,
+            symbol,
+            ticker,
+            name_en,
+            asset_type,
+            market_type,
+            suggested_asset_type as suggestedAssetType,
+            reason
+        from classified
+        where reason is not null
+          and upper(coalesce(asset_type, '')) &lt;&gt; upper(coalesce(suggested_asset_type, ''))
+        order by symbol asc
+        limit #{limit}
+    </select>
+
+    <select id="countSuspiciousAssetTypeStocks" resultType="int">
+        with classified as (
+            select
+                asset_type,
+                case
+                    when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND|INNOVATORS ETF)%' then 'ETF'
+                    when upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
+                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'ETF'
+                    else 'STOCK'
+                end as suggested_asset_type,
+                case
+                    when upper(coalesce(market_type, '')) like '%ETF%'
+                         and upper(coalesce(asset_type, '')) &lt;&gt; 'ETF' then 1
+                    when upper(coalesce(asset_type, '')) = 'ETF'
+                         and upper(coalesce(name_en, '')) similar to '%(COMMON STOCK|ORDINARY SHARES)%' then 1
+                    when upper(coalesce(asset_type, '')) = 'STOCK'
+                         and upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND)%' then 1
+                    when upper(coalesce(asset_type, '')) = 'STOCK'
+                         and upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
+                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 1
+                    else 0
+                end as suspicious_flag
+            from stocks
+            where is_active = true
+              and country = 'US'
+        )
+        select count(*)
+        from classified
+        where suspicious_flag = 1
+          and upper(coalesce(asset_type, '')) &lt;&gt; upper(coalesce(suggested_asset_type, ''))
+    </select>
+
+    <update id="normalizeAssetTypes">
+        with classified as (
+            select
+                id,
+                case
+                    when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND|INNOVATORS ETF)%' then 'ETF'
+                    when upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
+                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'ETF'
+                    else 'STOCK'
+                end as suggested_asset_type
+            from stocks
+            where is_active = true
+              and country = 'US'
+        )
+        update stocks s
+        set
+            asset_type = classified.suggested_asset_type,
+            updated_at = now()
+        from classified
+        where s.id = classified.id
+          and upper(coalesce(s.asset_type, '')) &lt;&gt; upper(coalesce(classified.suggested_asset_type, ''))
+    </update>
+
     <insert id="upsertStockMasters">
         insert into stocks (
             symbol,

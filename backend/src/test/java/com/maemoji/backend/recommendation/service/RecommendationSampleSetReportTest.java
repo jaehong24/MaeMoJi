@@ -40,7 +40,12 @@ class RecommendationSampleSetReportTest {
             "AMD", "ADBE", "CRM", "ORCL", "NOW",
             "UNH", "XOM", "KO", "NEE", "WMT",
             "QCOM", "TXN", "PANW", "INTC", "GE",
-            "SAP", "TM", "AZN", "NVS", "LIN"
+            "SAP", "TM", "AZN", "NVS", "LIN",
+            "LLY", "ABBV", "MRK", "TMO", "PFE",
+            "BAC", "MS", "WFC", "C", "BLK",
+            "CVX", "COP", "SLB", "RTX", "LMT",
+            "V", "MA", "CSCO", "IBM", "BKNG",
+            "LOW", "AMGN", "PEP", "DIS", "BA"
     );
     private final RecommendationTuningProperties tuningProperties =
             new RecommendationTuningProperties();
@@ -98,6 +103,16 @@ class RecommendationSampleSetReportTest {
                 final Integer fundamentalQualityScore = (Integer) ReflectionTestUtils.invokeMethod(
                         recommendationService,
                         "resolveFundamentalCoreScore",
+                        assessment
+                );
+                final Integer profitabilityFactorScore = (Integer) ReflectionTestUtils.invokeMethod(
+                        recommendationService,
+                        "resolveProfitabilityFactorScore",
+                        assessment
+                );
+                final Integer balanceSheetFactorScore = (Integer) ReflectionTestUtils.invokeMethod(
+                        recommendationService,
+                        "resolveBalanceSheetFactorScore",
                         assessment
                 );
                 final Integer valuationScore = assessment == null
@@ -172,6 +187,8 @@ class RecommendationSampleSetReportTest {
                         priceMomentumScore,
                         priceStabilityScore,
                         fundamentalQualityScore,
+                        profitabilityFactorScore,
+                        balanceSheetFactorScore,
                         valuationScore,
                         qualityOfGrowthScore,
                         companyTotalScore,
@@ -386,6 +403,12 @@ class RecommendationSampleSetReportTest {
         markdown.append("- 기업 체력 범위: ")
                 .append(formatRange(sortedRows.stream().map(SampleScoreRow::fundamentalQualityScore).toList()))
                 .append(System.lineSeparator());
+        markdown.append("- 수익성 범위: ")
+                .append(formatRange(sortedRows.stream().map(SampleScoreRow::profitabilityFactorScore).toList()))
+                .append(System.lineSeparator());
+        markdown.append("- 재무건전성 범위: ")
+                .append(formatRange(sortedRows.stream().map(SampleScoreRow::balanceSheetFactorScore).toList()))
+                .append(System.lineSeparator());
         markdown.append("- 밸류에이션 범위: ")
                 .append(formatRange(sortedRows.stream().map(SampleScoreRow::valuationScore).toList()))
                 .append(System.lineSeparator());
@@ -410,9 +433,9 @@ class RecommendationSampleSetReportTest {
         }
         markdown.append(System.lineSeparator());
 
-        markdown.append("| 종목 | 스냅샷일 | 현재가 | 가격흐름 | 가격안정성 | 기업체력 | 밸류에이션 | 성장의 질 | 종목 기준 총점 |")
+        markdown.append("| 종목 | 스냅샷일 | 현재가 | 가격흐름 | 가격안정성 | 기업체력 | 수익성 | 재무건전성 | 밸류에이션 | 성장의 질 | 종목 기준 총점 |")
                 .append(System.lineSeparator());
-        markdown.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+        markdown.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
                 .append(System.lineSeparator());
 
         for (SampleScoreRow row : sortedRows) {
@@ -423,6 +446,8 @@ class RecommendationSampleSetReportTest {
                     .append(formatNullableInteger(row.priceMomentumScore())).append(" | ")
                     .append(formatNullableInteger(row.priceStabilityScore())).append(" | ")
                     .append(formatNullableInteger(row.fundamentalQualityScore())).append(" | ")
+                    .append(formatNullableInteger(row.profitabilityFactorScore())).append(" | ")
+                    .append(formatNullableInteger(row.balanceSheetFactorScore())).append(" | ")
                     .append(formatNullableInteger(row.valuationScore())).append(" | ")
                     .append(formatNullableInteger(row.qualityOfGrowthScore())).append(" | ")
                     .append(row.companyTotalScore()).append(" |")
@@ -451,7 +476,9 @@ class RecommendationSampleSetReportTest {
 
         markdown.append(System.lineSeparator())
                 .append("## 해석 포인트").append(System.lineSeparator()).append(System.lineSeparator())
-                .append("- `기업 체력`은 수익성, 안정성, 현금흐름, 효율 중심 점수입니다.").append(System.lineSeparator())
+                .append("- `기업 체력`은 수익성, 재무건전성, 체급을 묶은 종합 점수입니다.").append(System.lineSeparator())
+                .append("- `수익성`은 마진, ROE, ROIC, 효율성 축을 더 직접적으로 보여줍니다.").append(System.lineSeparator())
+                .append("- `재무건전성`은 부채, 유동성, 현금흐름 버팀력을 별도 축으로 드러냅니다.").append(System.lineSeparator())
                 .append("- `밸류에이션`은 현재 가격 부담을 별도 분리한 점수입니다.").append(System.lineSeparator())
                 .append("- `성장의 질`은 매출 성장률뿐 아니라 EPS, 마진, 현금흐름 품질을 함께 봅니다.").append(System.lineSeparator())
                 .append("- `균형형 상태 검증표`는 뉴스 없이 종목 고유 팩터와 사용자 중립값만 반영한 운영 점검용 표입니다.").append(System.lineSeparator());
@@ -647,6 +674,8 @@ class RecommendationSampleSetReportTest {
             Integer priceMomentumScore,
             Integer priceStabilityScore,
             Integer fundamentalQualityScore,
+            Integer profitabilityFactorScore,
+            Integer balanceSheetFactorScore,
             Integer valuationScore,
             Integer qualityOfGrowthScore,
             int companyTotalScore,

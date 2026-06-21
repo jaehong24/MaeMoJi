@@ -126,6 +126,8 @@ public class RecommendationScoreCalculator {
     public V4ScoreResult calculateV4(V4Input input) {
         final List<FactorResult> appliedFactors = new ArrayList<>();
 
+        // V4의 최종 판단 축은 가격, 뉴스, 밸류에이션, 성장의 질, 사용자 적합도를 기본으로 보되,
+        // 기업 체력은 수익성/안정성/현금흐름이 묶인 fundamental score에 담아 함께 반영한다.
         addFactorResult(
                 appliedFactors,
                 FactorCode.PRICE_MOMENTUM,
@@ -371,6 +373,12 @@ public class RecommendationScoreCalculator {
                 && ((momentum != null && momentum <= rule.getExpensiveGoodMomentumMax())
                 || (stability != null && stability <= rule.getExpensiveGoodStabilityMax()))) {
             adjustment += rule.getExpensiveGoodPenalty();
+            if (momentum != null
+                    && momentum <= rule.getExpensiveGoodMomentumMax()
+                    && stability != null
+                    && stability <= rule.getExpensiveGoodStabilityMax()) {
+                adjustment -= 2;
+            }
         }
         if (valuation != null
                 && valuation >= rule.getWeakGrowthValuationMin()
@@ -385,6 +393,34 @@ public class RecommendationScoreCalculator {
                 && fundamental != null
                 && fundamental <= rule.getWeakGrowthValueTrapFundamentalMax()) {
             adjustment += rule.getWeakGrowthValueTrapPenalty();
+        }
+        if (fundamental != null
+                && fundamental >= rule.getOverheatStrongCompanyFundamentalMin()
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= rule.getOverheatStrongCompanyGrowthMin()
+                && momentum != null
+                && momentum <= rule.getOverheatStrongCompanyMomentumMax()) {
+            adjustment += rule.getOverheatStrongCompanyPenalty();
+        }
+        final Integer normalizedNews = normalizeNewsSentiment(input.newsSentimentScore());
+        if (normalizedNews != null
+                && normalizedNews >= rule.getPositiveNewsExpensiveNewsMin()
+                && valuation != null
+                && valuation <= rule.getPositiveNewsExpensiveValuationMax()) {
+            adjustment += rule.getPositiveNewsExpensivePenalty();
+            if ((momentum != null && momentum <= rule.getExpensiveGoodMomentumMax())
+                    || (stability != null && stability <= rule.getExpensiveGoodStabilityMax())) {
+                adjustment -= 2;
+            }
+        }
+        if (qualityOfGrowth != null
+                && qualityOfGrowth <= rule.getSlowingGrowthExpensiveQualityMax()
+                && valuation != null
+                && valuation <= rule.getSlowingGrowthExpensiveValuationMax()) {
+            adjustment += rule.getSlowingGrowthExpensivePenalty();
+            if (momentum != null && momentum <= rule.getExpensiveGoodMomentumMax()) {
+                adjustment -= 2;
+            }
         }
 
         return adjustment;

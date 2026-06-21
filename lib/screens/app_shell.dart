@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import '../widgets/api_endpoint_banner.dart';
 import 'home_screen.dart';
 import 'portfolio_screen.dart';
 import 'settings_screen.dart';
@@ -28,19 +27,12 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            const ApiEndpointBanner(),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                child: KeyedSubtree(
-                  key: ValueKey(_currentIndex),
-                  child: _pages[_currentIndex],
-                ),
-              ),
-            ),
-          ],
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          child: KeyedSubtree(
+            key: ValueKey(_currentIndex),
+            child: _pages[_currentIndex],
+          ),
         ),
       ),
       bottomNavigationBar: NavigationBar(

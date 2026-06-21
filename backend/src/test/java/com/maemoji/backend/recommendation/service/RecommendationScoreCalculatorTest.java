@@ -514,6 +514,209 @@ class RecommendationScoreCalculatorTest {
     }
 
     @Test
+    void v4PenalizesStrongCompanyWhenPriceLooksOverheated() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        38,
+                        20,
+                        82,
+                        12,
+                        35,
+                        22,
+                        84,
+                        14,
+                        66,
+                        12,
+                        79,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        84
+                )
+        );
+
+        assertThat(result.crossFactorAdjustment()).isNegative();
+        assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
+    }
+
+    @Test
+    void v4PenalizesPositiveNewsWhenValuationIsAlreadyExpensive() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        66,
+                        20,
+                        76,
+                        12,
+                        40,
+                        22,
+                        76,
+                        14,
+                        48,
+                        12,
+                        71,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        84
+                )
+        );
+
+        assertThat(result.crossFactorAdjustment()).isNegative();
+        assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
+    }
+
+    @Test
+    void v4PenalizesPositiveNewsMoreWhenExpensiveNameAlsoHasWeakShortTermFlow() {
+        final RecommendationScoreCalculator.V4ScoreResult stable = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        68,
+                        20,
+                        78,
+                        12,
+                        40,
+                        22,
+                        76,
+                        14,
+                        48,
+                        12,
+                        71,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        84
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult weakFlow = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        54,
+                        20,
+                        58,
+                        12,
+                        40,
+                        22,
+                        76,
+                        14,
+                        48,
+                        12,
+                        71,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        84
+                )
+        );
+
+        assertThat(weakFlow.crossFactorAdjustment()).isLessThan(stable.crossFactorAdjustment());
+        assertThat(weakFlow.finalScore()).isLessThan(stable.finalScore());
+    }
+
+    @Test
+    void v4PenalizesSlowingGrowthMoreAggressivelyWhenValuationIsExpensive() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        54,
+                        20,
+                        70,
+                        12,
+                        5,
+                        22,
+                        68,
+                        14,
+                        45,
+                        12,
+                        50,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+
+        assertThat(result.crossFactorAdjustment()).isLessThanOrEqualTo(-6);
+        assertThat(result.recommendationStatus()).isEqualTo("REDUCE");
+    }
+
+    @Test
+    void v4PenalizesSlowingGrowthEvenMoreWhenExpensiveNameAlsoLosesMomentum() {
+        final RecommendationScoreCalculator.V4ScoreResult base = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        66,
+                        20,
+                        70,
+                        12,
+                        5,
+                        22,
+                        68,
+                        14,
+                        45,
+                        12,
+                        50,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult weakMomentum = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        50,
+                        20,
+                        70,
+                        12,
+                        5,
+                        22,
+                        68,
+                        14,
+                        45,
+                        12,
+                        50,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+
+        assertThat(weakMomentum.crossFactorAdjustment()).isLessThan(base.crossFactorAdjustment());
+        assertThat(weakMomentum.finalScore()).isLessThan(base.finalScore());
+    }
+
+    @Test
     void v4IncreaseGuardUsesTuningProperties() {
         final RecommendationTuningProperties customProperties =
                 new RecommendationTuningProperties();

@@ -181,17 +181,6 @@ class _FactorCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          if (_helperText != null) ...[
-            Text(
-              _helperText!,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: MaeMojiColors.inkMuted,
-              ),
-            ),
-            const SizedBox(height: 6),
-          ],
           Text(
             item.body,
             style: const TextStyle(
@@ -216,16 +205,6 @@ class _FactorCard extends StatelessWidget {
     return evidenceType == 'FACTOR_FUNDAMENTAL_QUALITY' ||
         evidenceType == 'FACTOR_VALUATION' ||
         evidenceType == 'FACTOR_QUALITY_OF_GROWTH';
-  }
-
-  String? get _helperText {
-    if (item.evidenceType == 'FACTOR_USER_FIT') {
-      return '내 투자 성향과 현재 모으기 조건을 반영한 카드예요.';
-    }
-    if (item.evidenceType.startsWith('FACTOR_')) {
-      return '종목 데이터 기준으로 본 개별 판단이에요.';
-    }
-    return null;
   }
 }
 
@@ -517,15 +496,6 @@ class _AiNoteCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '개별 카드 내용을 종합한 최종 결론이에요.',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: MaeMojiColors.inkMuted,
-            ),
           ),
           const SizedBox(height: 10),
           Text(

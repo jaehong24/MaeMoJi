@@ -40,6 +40,9 @@ maemoji:
       enabled: ${STOCK_MASTER_SYNC_ENABLED:false}
       cron: "${STOCK_MASTER_SYNC_CRON:0 0 4 * * *}"
       batch-size: ${STOCK_MASTER_SYNC_BATCH_SIZE:500}
+    stock-asset-type:
+      enabled: ${STOCK_ASSET_TYPE_BATCH_ENABLED:false}
+      cron: "${STOCK_ASSET_TYPE_BATCH_CRON:0 20 4 * * *}"
     top-stocks:
       enabled: false
       cron: "0 0 6 * * *"
@@ -152,6 +155,16 @@ maemoji:
         weak-growth-value-trap-quality-max: 60
         weak-growth-value-trap-fundamental-max: 68
         weak-growth-value-trap-penalty: -3
+        overheat-strong-company-fundamental-min: 78
+        overheat-strong-company-growth-min: 72
+        overheat-strong-company-momentum-max: 42
+        overheat-strong-company-penalty: -5
+        positive-news-expensive-news-min: 68
+        positive-news-expensive-valuation-max: 50
+        positive-news-expensive-penalty: -4
+        slowing-growth-expensive-quality-max: 52
+        slowing-growth-expensive-valuation-max: 48
+        slowing-growth-expensive-penalty: -6
       negative-news:
         normalized-news10-penalty: -5
         normalized-news20-penalty: -3

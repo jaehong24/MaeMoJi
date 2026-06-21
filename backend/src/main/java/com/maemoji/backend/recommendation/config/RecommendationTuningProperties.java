@@ -549,6 +549,16 @@ public class RecommendationTuningProperties {
         private int weakGrowthValueTrapQualityMax = 60;
         private int weakGrowthValueTrapFundamentalMax = 68;
         private int weakGrowthValueTrapPenalty = -3;
+        private int overheatStrongCompanyFundamentalMin = 78;
+        private int overheatStrongCompanyGrowthMin = 72;
+        private int overheatStrongCompanyMomentumMax = 42;
+        private int overheatStrongCompanyPenalty = -5;
+        private int positiveNewsExpensiveNewsMin = 68;
+        private int positiveNewsExpensiveValuationMax = 50;
+        private int positiveNewsExpensivePenalty = -4;
+        private int slowingGrowthExpensiveQualityMax = 52;
+        private int slowingGrowthExpensiveValuationMax = 48;
+        private int slowingGrowthExpensivePenalty = -6;
 
         public int getCompounderFundamentalMin() {
             return compounderFundamentalMin;
@@ -732,6 +742,86 @@ public class RecommendationTuningProperties {
 
         public void setWeakGrowthValueTrapPenalty(int weakGrowthValueTrapPenalty) {
             this.weakGrowthValueTrapPenalty = weakGrowthValueTrapPenalty;
+        }
+
+        public int getOverheatStrongCompanyFundamentalMin() {
+            return overheatStrongCompanyFundamentalMin;
+        }
+
+        public void setOverheatStrongCompanyFundamentalMin(int overheatStrongCompanyFundamentalMin) {
+            this.overheatStrongCompanyFundamentalMin = overheatStrongCompanyFundamentalMin;
+        }
+
+        public int getOverheatStrongCompanyGrowthMin() {
+            return overheatStrongCompanyGrowthMin;
+        }
+
+        public void setOverheatStrongCompanyGrowthMin(int overheatStrongCompanyGrowthMin) {
+            this.overheatStrongCompanyGrowthMin = overheatStrongCompanyGrowthMin;
+        }
+
+        public int getOverheatStrongCompanyMomentumMax() {
+            return overheatStrongCompanyMomentumMax;
+        }
+
+        public void setOverheatStrongCompanyMomentumMax(int overheatStrongCompanyMomentumMax) {
+            this.overheatStrongCompanyMomentumMax = overheatStrongCompanyMomentumMax;
+        }
+
+        public int getOverheatStrongCompanyPenalty() {
+            return overheatStrongCompanyPenalty;
+        }
+
+        public void setOverheatStrongCompanyPenalty(int overheatStrongCompanyPenalty) {
+            this.overheatStrongCompanyPenalty = overheatStrongCompanyPenalty;
+        }
+
+        public int getPositiveNewsExpensiveNewsMin() {
+            return positiveNewsExpensiveNewsMin;
+        }
+
+        public void setPositiveNewsExpensiveNewsMin(int positiveNewsExpensiveNewsMin) {
+            this.positiveNewsExpensiveNewsMin = positiveNewsExpensiveNewsMin;
+        }
+
+        public int getPositiveNewsExpensiveValuationMax() {
+            return positiveNewsExpensiveValuationMax;
+        }
+
+        public void setPositiveNewsExpensiveValuationMax(int positiveNewsExpensiveValuationMax) {
+            this.positiveNewsExpensiveValuationMax = positiveNewsExpensiveValuationMax;
+        }
+
+        public int getPositiveNewsExpensivePenalty() {
+            return positiveNewsExpensivePenalty;
+        }
+
+        public void setPositiveNewsExpensivePenalty(int positiveNewsExpensivePenalty) {
+            this.positiveNewsExpensivePenalty = positiveNewsExpensivePenalty;
+        }
+
+        public int getSlowingGrowthExpensiveQualityMax() {
+            return slowingGrowthExpensiveQualityMax;
+        }
+
+        public void setSlowingGrowthExpensiveQualityMax(int slowingGrowthExpensiveQualityMax) {
+            this.slowingGrowthExpensiveQualityMax = slowingGrowthExpensiveQualityMax;
+        }
+
+        public int getSlowingGrowthExpensiveValuationMax() {
+            return slowingGrowthExpensiveValuationMax;
+        }
+
+        public void setSlowingGrowthExpensiveValuationMax(int slowingGrowthExpensiveValuationMax) {
+            this.slowingGrowthExpensiveValuationMax = slowingGrowthExpensiveValuationMax;
+        }
+
+        public int getSlowingGrowthExpensivePenalty() {
+            return slowingGrowthExpensivePenalty;
+        }
+
+        public void setSlowingGrowthExpensivePenalty(int slowingGrowthExpensivePenalty) {
+            this.slowingGrowthExpensivePenalty = slowingGrowthExpensivePenalty;
         }
     }
 

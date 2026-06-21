@@ -356,12 +356,23 @@ public class StockPriceSnapshotBatchService {
         }
 
         final LocalDate today = LocalDate.now(SNAPSHOT_ZONE);
-        final StockPriceSnapshotRecord latestSnapshot =
+        StockPriceSnapshotRecord latestSnapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(stockId);
-        if (!needsFundamentalRefresh(latestSnapshot, today)) {
-            return false;
+        boolean updated = false;
+
+        if (needsPriceHistoryBackfill(latestSnapshot)) {
+            final int savedHistoryRows = backfillHistoricalSnapshotsForStockIds(
+                    List.of(stockId),
+                    properties.getHistoryLookbackDays()
+            );
+            updated = updated || savedHistoryRows > 0;
+            latestSnapshot = stockPriceSnapshotMapper.findLatestSnapshotByStockId(stockId);
         }
-        return syncLatestSnapshotForStock(stockId);
+
+        if (!needsFundamentalRefresh(latestSnapshot, today)) {
+            return updated;
+        }
+        return syncLatestSnapshotForStock(stockId) || updated;
     }
 
     public int backfillHistoricalSnapshotsForStockIds(List<Long> stockIds, Integer lookbackDays) {
@@ -1015,6 +1026,16 @@ public class StockPriceSnapshotBatchService {
             return true;
         }
         return !FMP_EMPTY_SOURCE.equals(snapshot.getSource());
+    }
+
+    private boolean needsPriceHistoryBackfill(StockPriceSnapshotRecord snapshot) {
+        if (snapshot == null) {
+            return true;
+        }
+        if (snapshot.getCurrentPrice() == null || snapshot.getCurrentPrice().doubleValue() <= 0) {
+            return true;
+        }
+        return snapshot.getChangeRate7d() == null || snapshot.getChangeRate30d() == null;
     }
 
     private boolean hasInsufficientCoreFundamentals(StockPriceSnapshotRecord snapshot) {

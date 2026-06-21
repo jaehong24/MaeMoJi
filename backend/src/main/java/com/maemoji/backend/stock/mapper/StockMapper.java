@@ -2,6 +2,7 @@ package com.maemoji.backend.stock.mapper;
 
 import com.maemoji.backend.stock.domain.Stock;
 import com.maemoji.backend.stock.domain.StockMasterUpsertCommand;
+import com.maemoji.backend.stock.dto.StockAssetTypeAuditRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -33,6 +34,12 @@ public interface StockMapper {
     Stock findStockById(@Param("id") Long id);
 
     List<Stock> findActiveStocksForRefresh();
+
+    List<StockAssetTypeAuditRow> findSuspiciousAssetTypeStocks(@Param("limit") int limit);
+
+    int countSuspiciousAssetTypeStocks();
+
+    int normalizeAssetTypes();
 
     Long findStockIdByFinnhubSymbol(@Param("finnhubSymbol") String finnhubSymbol);
 

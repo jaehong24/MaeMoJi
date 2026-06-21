@@ -998,12 +998,13 @@ public class RecommendationService {
         final String newsText = newsSummary.sentimentScore() == null
                 ? "저장된 뉴스 분석 없이"
                 : "저장된 뉴스 분석과";
-        return target.getCompanyName()
+        final String note = target.getCompanyName()
                 + "은 "
                 + newsText
                 + " DB 가격 데이터를 기준으로 빠르게 갱신한 결과입니다. 현재 판단은 "
                 + scoreResult.recommendationStatus()
                 + "입니다.";
+        return normalizeRecommendationNote(scoreResult.recommendationStatus(), note);
     }
 
     private List<RecommendationEvidenceResponse> buildLightweightEvidence(
@@ -1106,6 +1107,10 @@ public class RecommendationService {
                 .max(OffsetDateTime::compareTo)
                 .orElse(null);
 
+        if (isEtfAssetType(record.getAssetType())) {
+            return toStoredEtfPendingResponse(record, newsRecords, newsAnalyzedAt);
+        }
+
         return new RecommendationResponse(
                 record.getRecommendationId(),
                 record.getPortfolioItemId(),
@@ -1123,7 +1128,10 @@ public class RecommendationService {
                 formatHoldingQuantity(record.getHoldingQuantity()),
                 record.getInvestmentStartDate() == null ? "" : record.getInvestmentStartDate().toString(),
                 blankToEmpty(record.getMemo()),
-                blankToEmpty(record.getFinalNote()),
+                normalizeRecommendationNote(
+                        blankToEmpty(record.getRecommendationStatus()),
+                        blankToEmpty(record.getFinalNote())
+                ),
                 blankToEmpty(record.getEngineVersion()),
                 record.getRecommendationDate(),
                 record.getCreatedAt(),
@@ -1132,6 +1140,74 @@ public class RecommendationService {
                 extractScores(record, evidenceRecords),
                 toCalculationResponse(record),
                 mergeEvidenceResponses(record, factorDetailRecords, evidenceRecords),
+                newsRecords.stream()
+                        .map(this::toRelatedNewsResponse)
+                        .toList()
+        );
+    }
+
+    private RecommendationResponse toStoredEtfPendingResponse(
+            RecommendationRecord record,
+            List<NewsAnalysisCacheRecord> newsRecords,
+            OffsetDateTime newsAnalyzedAt
+    ) {
+        final List<RecommendationEvidenceResponse> evidence = List.of(
+                new RecommendationEvidenceResponse(
+                        "ETF_PENDING",
+                        "ETF 분석 준비 중",
+                        "ETF는 지금 검색과 등록은 가능하지만, ETF 전용 분석 모델을 따로 준비하고 있어요.",
+                        null,
+                        1,
+                        null
+                )
+        );
+
+        return new RecommendationResponse(
+                record.getRecommendationId(),
+                record.getPortfolioItemId(),
+                record.getStockId(),
+                record.getCompanyName(),
+                record.getTicker(),
+                record.getLogoUrl(),
+                blankToEmpty(record.getAssetType()),
+                ETF_PENDING_MESSAGE,
+                "MAINTAIN",
+                0,
+                0,
+                safeAmount(record.getCurrentAmount()),
+                safeAmount(record.getCurrentAmount()),
+                formatHoldingQuantity(record.getHoldingQuantity()),
+                record.getInvestmentStartDate() == null ? "" : record.getInvestmentStartDate().toString(),
+                blankToEmpty(record.getMemo()),
+                "ETF는 별도 분석 모델을 준비하고 있어요. 지금은 등록한 금액과 보유 정보만 먼저 보여드려요.",
+                ETF_PENDING_ENGINE_VERSION,
+                record.getRecommendationDate(),
+                record.getCreatedAt(),
+                newsAnalyzedAt,
+                "ETF 전용 뉴스·구성 자산 분석은 준비 중입니다.",
+                new RecommendationScoresResponse(0, 0, 0, 0, 0),
+                new RecommendationCalculationResponse(
+                        ETF_PENDING_FORMULA_VERSION,
+                        0,
+                        0,
+                        0,
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false
+                ),
+                evidence,
                 newsRecords.stream()
                         .map(this::toRelatedNewsResponse)
                         .toList()
@@ -1976,6 +2052,10 @@ public class RecommendationService {
                             node,
                             v4Context == null ? null : v4Context.fundamentalQualityAssessment()
                     );
+                    putNullable(node, "profitabilityFactorScore",
+                            v4Context == null ? null : v4Context.profitabilityFactorScore());
+                    putNullable(node, "balanceSheetFactorScore",
+                            v4Context == null ? null : v4Context.balanceSheetFactorScore());
                 }
                 case VALUATION -> {
                     node.put("scoreKind", "VALUATION_V1");
@@ -2287,6 +2367,10 @@ public class RecommendationService {
                 : normalizeToScore(newsSentiment.weightedSentimentScore());
         final FundamentalQualityAssessment fundamentalQualityAssessment =
                 resolveFundamentalQualityAssessment(priceSnapshot);
+        final Integer profitabilityFactorScore =
+                resolveProfitabilityFactorScore(fundamentalQualityAssessment);
+        final Integer balanceSheetFactorScore =
+                resolveBalanceSheetFactorScore(fundamentalQualityAssessment);
         final Integer fundamentalQualityScore = resolveFundamentalCoreScore(fundamentalQualityAssessment);
         final Integer valuationScore = fundamentalQualityAssessment == null
                 ? null
@@ -2338,6 +2422,8 @@ public class RecommendationService {
                 priceStabilityScore,
                 newsScore,
                 fundamentalQualityScore,
+                profitabilityFactorScore,
+                balanceSheetFactorScore,
                 valuationScore,
                 qualityOfGrowthScore,
                 userFitScore,
@@ -2346,16 +2432,36 @@ public class RecommendationService {
         );
     }
 
-    private Integer resolveFundamentalCoreScore(FundamentalQualityAssessment assessment) {
+    private Integer resolveProfitabilityFactorScore(FundamentalQualityAssessment assessment) {
         if (assessment == null) {
             return null;
         }
         return weightedAverageScores(
-                assessment.scaleScore(), 15,
-                assessment.profitabilityScore(), 35,
-                assessment.safetyScore(), 20,
-                assessment.cashFlowScore(), 20,
-                assessment.efficiencyScore(), 10
+                assessment.profitabilityScore(), 82,
+                assessment.efficiencyScore(), 18
+        );
+    }
+
+    private Integer resolveBalanceSheetFactorScore(FundamentalQualityAssessment assessment) {
+        if (assessment == null) {
+            return null;
+        }
+        return weightedAverageScores(
+                assessment.safetyScore(), 58,
+                assessment.cashFlowScore(), 42
+        );
+    }
+
+    private Integer resolveFundamentalCoreScore(FundamentalQualityAssessment assessment) {
+        if (assessment == null) {
+            return null;
+        }
+        final Integer profitabilityFactorScore = resolveProfitabilityFactorScore(assessment);
+        final Integer balanceSheetFactorScore = resolveBalanceSheetFactorScore(assessment);
+        return weightedAverageScores(
+                assessment.scaleScore(), 14,
+                profitabilityFactorScore, 46,
+                balanceSheetFactorScore, 40
         );
     }
 
@@ -2506,46 +2612,47 @@ public class RecommendationService {
         final RecommendationTuningProperties.PriceMomentum momentum =
                 tuningProperties.getPriceMomentum();
         final double return30d = priceSnapshot.thirtyDayReturn();
-        int score;
-        if (return30d <= -35) {
-            score = momentum.getSevereDrawdownScore();
-        } else if (return30d <= -20) {
-            score = momentum.getDeepPullbackScore();
-        } else if (return30d <= -10) {
-            score = momentum.getPullbackScore();
-        } else if (return30d < -3) {
-            score = momentum.getSoftPullbackScore();
-        } else if (return30d < 2) {
-            score = momentum.getNeutralScore() - 4;
-        } else if (return30d <= 8) {
-            score = momentum.getNeutralScore();
-        } else if (return30d <= 15) {
-            score = momentum.getHealthyUptrendScore();
-        } else if (return30d <= 25) {
-            score = momentum.getWarmUptrendScore();
-        } else if (return30d <= 40) {
-            score = momentum.getOverheatedScore();
-        } else {
-            score = momentum.getEuphoricScore();
-        }
+        int score = interpolatePiecewise(
+                return30d,
+                new double[]{-45, -30, -20, -10, -3, 0, 5, 10, 15, 20, 30, 40, 60},
+                new int[]{
+                        momentum.getSevereDrawdownScore() - 4,
+                        momentum.getSevereDrawdownScore(),
+                        momentum.getDeepPullbackScore(),
+                        momentum.getPullbackScore(),
+                        momentum.getSoftPullbackScore(),
+                        momentum.getNeutralScore() - 4,
+                        momentum.getNeutralScore(),
+                        momentum.getHealthyUptrendScore(),
+                        momentum.getWarmUptrendScore() + 4,
+                        momentum.getWarmUptrendScore(),
+                        momentum.getOverheatedScore() + 4,
+                        momentum.getOverheatedScore() - 6,
+                        momentum.getEuphoricScore()
+                }
+        );
 
         if (priceSnapshot.changeRate7d() != null) {
             final double return7d = priceSnapshot.changeRate7d();
-            if (return7d >= 12) {
+            if (return7d >= 14) {
+                score -= momentum.getSharpWeeklySurgePenalty() + 2;
+            } else if (return7d >= 9) {
                 score -= momentum.getSharpWeeklySurgePenalty();
-            } else if (return7d >= 7) {
+            } else if (return7d >= 6) {
                 score -= momentum.getWeeklySurgePenalty();
-            } else if (return7d <= -10) {
+            } else if (return7d <= -12) {
+                score -= momentum.getSharpWeeklyDropPenalty() + 2;
+            } else if (return7d <= -8) {
                 score -= momentum.getSharpWeeklyDropPenalty();
-            } else if (return7d <= -5) {
+            } else if (return7d <= -4) {
                 score -= momentum.getWeeklyDropPenalty();
             }
 
-            if (return30d >= -18 && return30d <= -5 && return7d >= 3) {
-                score += momentum.getReboundBonus();
+            if (return30d >= -22 && return30d <= -6 && return7d >= 4) {
+                score += momentum.getReboundBonus() + 1;
             }
-            if (return30d >= 0 && return30d <= 12 && return7d >= 1 && return7d <= 4) {
-                score += momentum.getStableTrendBonus();
+            if (return30d >= -1 && return30d <= 10 && return7d >= 0.5 && return7d <= 3.5) {
+                score += momentum.getStableTrendBonus() + 1;
             }
             if (return30d >= -2 && return30d <= 2 && return7d >= -2 && return7d <= 1) {
                 score += 2;
@@ -2556,14 +2663,23 @@ public class RecommendationService {
             if (return30d >= -10 && return30d < -5 && return7d <= -4) {
                 score -= 4;
             }
+            if (return30d >= 16 && return30d < 25 && return7d >= 5) {
+                score -= 5;
+            }
+            if (return30d >= 25 && return30d < 35 && return7d >= 4) {
+                score -= momentum.getOverheatPenalty();
+            }
             if (return30d >= 20 && return7d >= 8) {
                 score -= momentum.getOverheatPenalty();
             }
             if (return30d >= 12 && return30d <= 25 && return7d >= 5) {
                 score -= 4;
             }
-            if (return30d >= 30) {
-                score -= 6;
+            if (return30d >= 30 && return30d < 40) {
+                score -= 8;
+            }
+            if (return30d >= 40) {
+                score -= 10;
             }
         }
 
@@ -2581,19 +2697,27 @@ public class RecommendationService {
         final double downside7 = priceSnapshot.changeRate7d() == null ? 0 : Math.max(0, -priceSnapshot.changeRate7d());
         final double downside30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.max(0, -priceSnapshot.thirtyDayReturn());
 
-        double stress = (abs7 * 0.50) + (abs30 * 0.30) + (downside7 * 0.22) + (downside30 * 0.18);
-        if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 25) {
-            stress += 6;
+        double stress = (abs7 * 0.60) + (abs30 * 0.28) + (downside7 * 0.30) + (downside30 * 0.24);
+        if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 35) {
+            stress += 8;
+        } else if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 22) {
+            stress += 5;
         } else if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 15) {
             stress += 3;
         }
-        if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 10) {
-            stress += 5;
-        } else if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 6) {
-            stress += 3;
-        }
-        if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() <= -10) {
+        if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 12) {
             stress += 6;
+        } else if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 8) {
+            stress += 4;
+        } else if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 6) {
+            stress += 2;
+        }
+        if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() <= -12) {
+            stress += 8;
+        } else if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() <= -8) {
+            stress += 5;
+        } else if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() <= -5) {
+            stress += 3;
         }
 
         int score;
@@ -2619,6 +2743,12 @@ public class RecommendationService {
         }
         if (downside7 >= 5 && downside30 >= 8) {
             score -= 4;
+        }
+        if (abs7 >= 8 && abs30 >= 20) {
+            score -= 5;
+        }
+        if (abs7 >= 12 || abs30 >= 35) {
+            score -= 6;
         }
         if (abs7 <= 3 && abs30 <= 10) {
             score += 2;
@@ -3945,6 +4075,7 @@ public class RecommendationService {
             if (!blankToEmpty(factorSummary).isBlank()) {
                 parts.add(blankToEmpty(factorSummary));
             }
+            appendProfitabilityAndBalanceSheetSummary(parts, node);
 
             appendBandSentence(parts, node.path("marketCapTier").asText(""), switch (node.path("marketCapTier").asText("")) {
                 case "MEGA_CAP" -> "초대형주 체급이어서 기본 안정성을 높게 봤어요.";
@@ -4008,6 +4139,37 @@ public class RecommendationService {
                     + "점, 가중치 "
                     + zeroIfNull(factorWeight)
                     + "을 반영했어요.";
+        }
+    }
+
+    private void appendProfitabilityAndBalanceSheetSummary(List<String> parts, JsonNode node) {
+        if (parts == null || node == null) {
+            return;
+        }
+
+        final Integer profitabilityFactorScore = node.path("profitabilityFactorScore").isNumber()
+                ? node.path("profitabilityFactorScore").asInt()
+                : null;
+        final Integer balanceSheetFactorScore = node.path("balanceSheetFactorScore").isNumber()
+                ? node.path("balanceSheetFactorScore").asInt()
+                : null;
+        final String profitabilityHeadline = resolveProfitabilityHeadline(profitabilityFactorScore);
+        final String balanceSheetHeadline = resolveBalanceSheetHeadline(balanceSheetFactorScore);
+
+        if (profitabilityHeadline != null && balanceSheetHeadline != null) {
+            parts.add(
+                    profitabilityHeadline
+                            + "이고 "
+                            + balanceSheetHeadline
+                            + "예요."
+            );
+            return;
+        }
+        if (profitabilityHeadline != null) {
+            parts.add(profitabilityHeadline + "예요.");
+        }
+        if (balanceSheetHeadline != null) {
+            parts.add(balanceSheetHeadline + "예요.");
         }
     }
 
@@ -4178,6 +4340,8 @@ public class RecommendationService {
             return "수익성, 성장성, 안정성, 현금흐름을 함께 반영했어요.";
         }
 
+        final Integer profitabilityFactorScore = resolveProfitabilityFactorScore(assessment);
+        final Integer balanceSheetFactorScore = resolveBalanceSheetFactorScore(assessment);
         final List<String> points = new ArrayList<>();
         if (assessment.profitabilityScore() != null && assessment.profitabilityScore() >= 80) {
             points.add("강한 수익성");
@@ -4237,8 +4401,25 @@ public class RecommendationService {
             risks.add("높은 부채 부담");
         }
 
+        final String profitabilityHeadline = resolveProfitabilityHeadline(profitabilityFactorScore);
+        final String balanceSheetHeadline = resolveBalanceSheetHeadline(balanceSheetFactorScore);
         final String shortPoints = joinLeadingItems(points, 2);
         final String shortRisks = joinLeadingItems(risks, 1);
+        if (profitabilityHeadline != null && balanceSheetHeadline != null) {
+            if (!points.isEmpty() && !risks.isEmpty()) {
+                return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요. "
+                        + shortPoints + "은 강점이지만 " + shortRisks + "은 함께 봤어요.";
+            }
+            if (!points.isEmpty()) {
+                return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요. "
+                        + shortPoints + "이 보여 기업 체력을 좋게 봤어요.";
+            }
+            if (!risks.isEmpty()) {
+                return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요. "
+                        + shortRisks + "이 보여 기업 체력은 보수적으로 봤어요.";
+            }
+            return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요.";
+        }
         if (!points.isEmpty() && risks.isEmpty()) {
             return shortPoints + "이 보여 기업 체력을 좋게 봤어요.";
         }
@@ -4251,6 +4432,38 @@ public class RecommendationService {
         return blankToEmpty(assessment.summary()).isBlank()
                 ? "수익성, 성장성, 안정성, 현금흐름을 함께 반영했어요."
                 : assessment.summary();
+    }
+
+    private String resolveProfitabilityHeadline(Integer score) {
+        if (score == null) {
+            return null;
+        }
+        if (score >= 82) {
+            return "수익성은 매우 강한 편";
+        }
+        if (score >= 68) {
+            return "수익성은 양호한 편";
+        }
+        if (score <= 45) {
+            return "수익성은 약한 편";
+        }
+        return "수익성은 중립 수준";
+    }
+
+    private String resolveBalanceSheetHeadline(Integer score) {
+        if (score == null) {
+            return null;
+        }
+        if (score >= 78) {
+            return "재무건전성도 탄탄한 편";
+        }
+        if (score >= 64) {
+            return "재무건전성은 무난한 편";
+        }
+        if (score <= 45) {
+            return "재무건전성은 약한 편";
+        }
+        return "재무건전성은 중립 수준";
     }
 
     private String joinLeadingItems(List<String> items, int maxCount) {
@@ -4459,6 +4672,50 @@ public class RecommendationService {
         return buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment, v4Context);
     }
 
+    private String normalizeRecommendationNote(String recommendationStatus, String note) {
+        final String normalizedStatus = blankToEmpty(recommendationStatus);
+        final String normalizedNote = blankToEmpty(note);
+        if (normalizedNote.isBlank()) {
+            return defaultRecommendationNote(normalizedStatus);
+        }
+
+        return switch (normalizedStatus) {
+            case "INCREASE" -> containsAnyNoteText(normalizedNote, "유지", "관망", "축소", "감액", "중단")
+                    ? defaultRecommendationNote(normalizedStatus)
+                    : normalizedNote;
+            case "MAINTAIN" -> containsAnyNoteText(normalizedNote, "한 단계 더 모아", "증액 판단", "증액 쪽", "감액", "중단")
+                    ? defaultRecommendationNote(normalizedStatus)
+                    : normalizedNote;
+            case "REDUCE" -> containsAnyNoteText(normalizedNote, "유지", "한 단계 더 모아", "증액", "중단 또는 관망")
+                    ? defaultRecommendationNote(normalizedStatus)
+                    : normalizedNote;
+            case "STOP" -> containsAnyNoteText(normalizedNote, "유지", "증액", "감액")
+                    ? defaultRecommendationNote(normalizedStatus)
+                    : normalizedNote;
+            default -> normalizedNote;
+        };
+    }
+
+    private String defaultRecommendationNote(String recommendationStatus) {
+        return switch (blankToEmpty(recommendationStatus)) {
+            case "INCREASE" -> "현재 기준에서는 기존 금액보다 한 단계 더 모아가는 쪽이 적절합니다.";
+            case "MAINTAIN" -> "현재 기준에서는 기존 모으기 금액을 유지하는 쪽이 가장 자연스럽습니다.";
+            case "REDUCE" -> "현재 기준에서는 금액을 조금 줄여 보수적으로 보는 편이 적절합니다.";
+            case "STOP" -> "현재 기준에서는 매수보다 중단 또는 관망 쪽이 더 적절합니다.";
+            default -> "";
+        };
+    }
+
+    private boolean containsAnyNoteText(String text, String... candidates) {
+        final String source = blankToEmpty(text);
+        for (String candidate : candidates) {
+            if (!blankToEmpty(candidate).isBlank() && source.contains(candidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private String buildMaintainAiComment(String companyName, V4ScoringContext v4Context) {
         final Integer momentum = v4Context.priceMomentumScore();
         final Integer stability = v4Context.priceStabilityScore();
@@ -4474,26 +4731,26 @@ public class RecommendationService {
                 || (quality != null && quality <= 58);
 
         if (nearIncrease && valuation != null && valuation <= 58) {
-            return companyName + "은 기본 체력과 흐름은 나쁘지 않지만 가격 부담이 남아 있어, 증액 직전 유지로 보는 편이 자연스럽습니다.";
+            return companyName + "은 기본 체력과 흐름은 괜찮지만 가격 부담이 남아 있어, 아직은 유지가 더 자연스럽습니다.";
         }
         if (nearIncrease && quality != null && quality <= 66) {
-            return companyName + "은 흐름과 안정성은 괜찮지만 성장의 질이 한 단계 더 확인돼야 해서, 증액 직전 유지로 판단했어요.";
+            return companyName + "은 흐름과 안정성은 괜찮지만 성장의 질이 한 단계 더 확인돼야 해서, 지금 판단은 유지예요.";
         }
         if (nearIncrease && fundamental != null && fundamental <= 64) {
-            return companyName + "은 가격 흐름은 괜찮지만 기업 체력 확신이 아주 강한 단계는 아니라, 증액 직전 유지로 봤어요.";
+            return companyName + "은 가격 흐름은 괜찮지만 기업 체력 확신이 아주 강한 단계는 아니라, 지금은 유지로 봤어요.";
         }
         if (nearIncrease) {
-            return companyName + "은 여러 팩터가 비교적 잘 버티고 있어, 지금은 증액 직전 유지 구간에 가깝습니다.";
+            return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 증액까지는 한 단계 부족해서 현재 판단은 유지예요.";
         }
 
         if (nearReduce && momentum != null && momentum <= 50 && quality != null && quality <= 58) {
-            return companyName + "은 최근 가격 흐름과 성장의 질이 함께 약해, 감액 직전 유지에 가까운 상태로 봤어요.";
+            return companyName + "은 최근 가격 흐름과 성장의 질이 함께 약하지만, 아직은 감액보다 유지에 머무는 단계로 봤어요.";
         }
         if (nearReduce && stability != null && stability <= 65) {
-            return companyName + "은 하락 위험이 크진 않지만 안정성이 충분히 높진 않아, 감액 직전 유지 쪽으로 해석했어요.";
+            return companyName + "은 하락 위험이 아주 크진 않지만 안정성이 충분히 높진 않아, 현재 판단은 유지예요.";
         }
         if (nearReduce) {
-            return companyName + "은 아직 감액까지는 아니지만, 보수적인 유지 구간에 더 가까운 상태입니다.";
+            return companyName + "은 아직 감액까지는 아니지만 보수적인 유지 구간에 더 가깝습니다.";
         }
 
         if (valuation != null && valuation <= 58) {
@@ -4878,6 +5135,8 @@ public class RecommendationService {
             Integer priceStabilityScore,
             Integer newsScore,
             Integer fundamentalQualityScore,
+            Integer profitabilityFactorScore,
+            Integer balanceSheetFactorScore,
             Integer valuationScore,
             Integer qualityOfGrowthScore,
             Integer userFitScore,
@@ -4898,6 +5157,14 @@ public class RecommendationService {
 
         int fundamentalQualityScoreOrZero() {
             return fundamentalQualityScore == null ? 0 : fundamentalQualityScore;
+        }
+
+        int profitabilityFactorScoreOrZero() {
+            return profitabilityFactorScore == null ? 0 : profitabilityFactorScore;
+        }
+
+        int balanceSheetFactorScoreOrZero() {
+            return balanceSheetFactorScore == null ? 0 : balanceSheetFactorScore;
         }
 
         int valuationScoreOrZero() {

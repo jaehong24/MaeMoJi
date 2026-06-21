@@ -60,6 +60,7 @@ class MaeMojiStockSearchService {
       englishName: englishName,
       ticker: (item['ticker'] ?? '').toString(),
       exchange: (item['exchangeCode'] ?? '').toString(),
+      assetType: (item['assetType'] ?? '').toString(),
       displayPrice: '',
       logoUrl: (item['logoUrl'] ?? '').toString(),
     );

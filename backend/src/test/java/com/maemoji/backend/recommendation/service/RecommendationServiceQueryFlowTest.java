@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -62,6 +63,30 @@ class RecommendationServiceQueryFlowTest {
     }
 
     @Test
+    void getLatestRecommendationsForStoredEtfForcesPendingView() {
+        final RecommendationTarget target = createTarget(111L, 1011L, 2011L);
+        final RecommendationRecord etfRecord = createRecord(111L, 1011L, 2011L, LocalDate.now().minusDays(1));
+        etfRecord.setAssetType("ETF");
+        etfRecord.setFormulaVersion("SCORE_V4_MULTI_FACTOR");
+        etfRecord.setEngineVersion("ENGINE_V4");
+        etfRecord.setRecommendationStatus("INCREASE");
+
+        when(recommendationMapper.findActiveRecommendationTargetsByUserId(1L)).thenReturn(List.of(target));
+        when(recommendationMapper.findLatestRecommendationsByUserId(1L)).thenReturn(List.of(etfRecord));
+        when(recommendationMapper.findRecommendationEvidenceByRecommendationId(9001L)).thenReturn(List.of());
+        when(recommendationMapper.findRecommendationFactorDetailsByRecommendationId(9001L)).thenReturn(List.of());
+        when(recommendationMapper.findLatestNewsAnalysisByStockId(2011L)).thenReturn(List.of());
+
+        final List<RecommendationResponse> responses = recommendationService.getLatestRecommendations(1L);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).assetType()).isEqualTo("ETF");
+        assertThat(responses.get(0).engineVersion()).isEqualTo("ETF_PENDING");
+        assertThat(responses.get(0).calculation().formulaVersion()).isEqualTo("ETF_PENDING");
+        assertThat(responses.get(0).analysisStageMessage()).isEqualTo("ETF 전용 분석은 준비 중입니다.");
+    }
+
+    @Test
     void getOptimizedRecommendationDetailReturnsPendingWhenNoStoredRecommendationExists() {
         final RecommendationTarget target = createTarget(202L, 1002L, 2002L);
 
@@ -109,6 +134,79 @@ class RecommendationServiceQueryFlowTest {
         assertThat(comment).doesNotContain("유지");
     }
 
+    @Test
+    void normalizeRecommendationNoteFallsBackWhenIncreaseContainsMaintainTone() {
+        final String note = (String) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "normalizeRecommendationNote",
+                "INCREASE",
+                "현재는 기존 금액을 유지하는 것이 좋습니다."
+        );
+
+        assertThat(note).contains("더 모아가는");
+        assertThat(note).doesNotContain("유지하는 것이 좋습니다");
+    }
+
+    @Test
+    void resolvePriceMomentumScorePenalizesOverheatedRunMoreThanHealthyUptrend() throws Exception {
+        final Integer healthyScore = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceMomentumScore",
+                createPriceSnapshot(150.0, 2.2, 9.0)
+        );
+        final Integer overheatedScore = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceMomentumScore",
+                createPriceSnapshot(150.0, 11.5, 34.0)
+        );
+
+        assertThat(healthyScore).isNotNull();
+        assertThat(overheatedScore).isNotNull();
+        assertThat(overheatedScore).isLessThan(healthyScore);
+    }
+
+    @Test
+    void resolvePriceStabilityScoreRewardsCalmTrendMoreThanViolentSwing() throws Exception {
+        final Integer calmScore = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceStabilityScore",
+                createPriceSnapshot(220.0, 1.4, 6.5)
+        );
+        final Integer unstableScore = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceStabilityScore",
+                createPriceSnapshot(220.0, 12.0, 33.0)
+        );
+
+        assertThat(calmScore).isNotNull();
+        assertThat(unstableScore).isNotNull();
+        assertThat(calmScore).isGreaterThan(unstableScore);
+    }
+
+    @Test
+    void buildFundamentalEvidenceBodyExplainsProfitabilityAndBalanceSheetSeparately() {
+        final String factorRawJson = """
+                {
+                  "profitabilityFactorScore": 88,
+                  "balanceSheetFactorScore": 42,
+                  "operatingMarginBand": "STRONG",
+                  "debtToEquityBand": "EXCESSIVE"
+                }
+                """;
+
+        final String body = (String) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "buildFundamentalEvidenceBody",
+                "기업 체력 요약입니다.",
+                72,
+                14,
+                factorRawJson
+        );
+
+        assertThat(body).contains("수익성은 매우 강한 편");
+        assertThat(body).contains("재무건전성은 약한 편");
+    }
+
     private RecommendationTarget createTarget(Long userId, Long portfolioItemId, Long stockId) {
         final RecommendationTarget target = new RecommendationTarget();
         target.setUserId(userId);
@@ -149,5 +247,43 @@ class RecommendationServiceQueryFlowTest {
         record.setInvestmentStartDate(LocalDate.of(2026, 6, 1));
         record.setMemo("memo");
         return record;
+    }
+
+    private Object createPriceSnapshot(Double currentPrice, Double changeRate7d, Double changeRate30d)
+            throws Exception {
+        final Class<?> priceSnapshotClass = findNestedClass("PriceSnapshot");
+        final Constructor<?> constructor = priceSnapshotClass.getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        return constructor.newInstance(
+                currentPrice,
+                changeRate7d,
+                changeRate30d,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    private Class<?> findNestedClass(String simpleName) {
+        for (Class<?> nestedClass : RecommendationService.class.getDeclaredClasses()) {
+            if (simpleName.equals(nestedClass.getSimpleName())) {
+                return nestedClass;
+            }
+        }
+        throw new IllegalStateException("Nested class not found: " + simpleName);
     }
 }

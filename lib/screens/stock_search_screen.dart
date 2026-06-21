@@ -296,15 +296,25 @@ class _StockSearchRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    item.ticker,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: MaeMojiColors.inkMuted,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          item.ticker,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: MaeMojiColors.inkMuted,
+                          ),
+                        ),
+                      ),
+                      if (item.isEtf) ...[
+                        const SizedBox(width: 8),
+                        const _AssetTypeBadge(label: 'ETF'),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -316,6 +326,35 @@ class _StockSearchRow extends StatelessWidget {
               size: 22,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AssetTypeBadge extends StatelessWidget {
+  const _AssetTypeBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4E8C9),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: const Color(0xFFE2D1A3),
+        ),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: MaeMojiColors.ink,
+          letterSpacing: 0.2,
         ),
       ),
     );

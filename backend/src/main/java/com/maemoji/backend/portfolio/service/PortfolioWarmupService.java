@@ -26,7 +26,7 @@ public class PortfolioWarmupService {
     @Async("portfolioWarmupExecutor")
     public void warmUpAfterPortfolioSaved(Long userId, Long stockId) {
         try {
-            stockPriceSnapshotBatchService.syncLatestSnapshotForStock(stockId);
+            stockPriceSnapshotBatchService.ensureRecommendationSnapshot(stockId);
         } catch (Exception exception) {
             log.warn(
                     "포트폴리오 저장 직후 가격 스냅샷 선반영에 실패했습니다. userId={}, stockId={}",
