@@ -288,8 +288,8 @@ public class RecommendationTuningProperties {
         private int pullbackScore = 48;
         private int softPullbackScore = 62;
         private int neutralScore = 74;
-        private int healthyUptrendScore = 68;
-        private int warmUptrendScore = 52;
+        private int healthyUptrendScore = 66;
+        private int warmUptrendScore = 48;
         private int overheatedScore = 28;
         private int euphoricScore = 10;
         private int sharpWeeklySurgePenalty = 12;
@@ -297,8 +297,8 @@ public class RecommendationTuningProperties {
         private int sharpWeeklyDropPenalty = 8;
         private int weeklyDropPenalty = 4;
         private int reboundBonus = 5;
-        private int stableTrendBonus = 2;
-        private int overheatPenalty = 16;
+        private int stableTrendBonus = 1;
+        private int overheatPenalty = 18;
 
         public int getSevereDrawdownScore() {
             return severeDrawdownScore;
@@ -430,11 +430,11 @@ public class RecommendationTuningProperties {
     }
 
     public static class PriceStability {
-        private int stress5Score = 85;
-        private int stress10Score = 75;
-        private int stress20Score = 60;
-        private int stress30Score = 40;
-        private int fallbackScore = 20;
+        private int stress5Score = 82;
+        private int stress10Score = 71;
+        private int stress20Score = 55;
+        private int stress30Score = 34;
+        private int fallbackScore = 18;
 
         public int getStress5Score() {
             return stress5Score;

@@ -2652,16 +2652,22 @@ public class RecommendationService {
                 score += momentum.getReboundBonus() + 1;
             }
             if (return30d >= -1 && return30d <= 10 && return7d >= 0.5 && return7d <= 3.5) {
-                score += momentum.getStableTrendBonus() + 1;
+                score += momentum.getStableTrendBonus();
             }
             if (return30d >= -2 && return30d <= 2 && return7d >= -2 && return7d <= 1) {
-                score += 2;
+                score += 1;
             }
             if (return30d >= -5 && return30d < 0 && return7d <= -3) {
                 score -= 6;
             }
             if (return30d >= -10 && return30d < -5 && return7d <= -4) {
                 score -= 4;
+            }
+            if (return30d >= 8 && return30d < 15 && return7d >= 2.5 && return7d <= 5.5) {
+                score -= 2;
+            }
+            if (return30d >= 15 && return30d < 25 && return7d >= 3.5) {
+                score -= 3;
             }
             if (return30d >= 16 && return30d < 25 && return7d >= 5) {
                 score -= 5;
@@ -2697,7 +2703,7 @@ public class RecommendationService {
         final double downside7 = priceSnapshot.changeRate7d() == null ? 0 : Math.max(0, -priceSnapshot.changeRate7d());
         final double downside30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.max(0, -priceSnapshot.thirtyDayReturn());
 
-        double stress = (abs7 * 0.60) + (abs30 * 0.28) + (downside7 * 0.30) + (downside30 * 0.24);
+        double stress = (abs7 * 0.64) + (abs30 * 0.30) + (downside7 * 0.34) + (downside30 * 0.26);
         if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 35) {
             stress += 8;
         } else if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 22) {
@@ -2751,10 +2757,29 @@ public class RecommendationService {
             score -= 6;
         }
         if (abs7 <= 3 && abs30 <= 10) {
-            score += 2;
+            score += 1;
         }
         if (downside7 == 0 && abs7 <= 2.5 && abs30 <= 8) {
-            score += 2;
+            score += 1;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.changeRate7d() != null
+                && priceSnapshot.thirtyDayReturn() >= 8
+                && priceSnapshot.changeRate7d() >= 1.5
+                && abs7 <= 3.5) {
+            score -= 2;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.changeRate7d() != null
+                && priceSnapshot.thirtyDayReturn() >= 15
+                && priceSnapshot.changeRate7d() >= 2.5
+                && abs7 <= 4.5) {
+            score -= 3;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 20
+                && abs7 <= 5) {
+            score -= 4;
         }
 
         return clampScore(score);

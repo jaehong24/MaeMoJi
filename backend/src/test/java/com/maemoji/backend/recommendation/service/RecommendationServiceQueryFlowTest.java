@@ -184,6 +184,24 @@ class RecommendationServiceQueryFlowTest {
     }
 
     @Test
+    void resolvePriceStabilityScorePenalizesExtendedCalmRunAgainstFlatAccumulation() throws Exception {
+        final Integer flatAccumulation = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceStabilityScore",
+                createPriceSnapshot(220.0, 0.8, 3.2)
+        );
+        final Integer extendedRun = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceStabilityScore",
+                createPriceSnapshot(220.0, 2.6, 18.5)
+        );
+
+        assertThat(flatAccumulation).isNotNull();
+        assertThat(extendedRun).isNotNull();
+        assertThat(flatAccumulation).isGreaterThan(extendedRun);
+    }
+
+    @Test
     void buildFundamentalEvidenceBodyExplainsProfitabilityAndBalanceSheetSeparately() {
         final String factorRawJson = """
                 {

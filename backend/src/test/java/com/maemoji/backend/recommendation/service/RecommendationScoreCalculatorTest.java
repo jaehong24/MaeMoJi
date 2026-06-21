@@ -130,6 +130,37 @@ class RecommendationScoreCalculatorTest {
     }
 
     @Test
+    void v4KeepsHighQualityButPriceStretchedNameInMaintainRange() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        76,
+                        20,
+                        82,
+                        12,
+                        null,
+                        0,
+                        72,
+                        14,
+                        81,
+                        12,
+                        71,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        78
+                )
+        );
+
+        assertThat(result.finalScore()).isLessThan(76);
+        assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
+    }
+
+    @Test
     void v4HardRiskStillCapsToStopRange() {
         final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
                 new RecommendationScoreCalculator.V4Input(
