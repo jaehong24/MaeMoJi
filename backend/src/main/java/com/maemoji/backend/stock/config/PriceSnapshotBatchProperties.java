@@ -10,6 +10,7 @@ public class PriceSnapshotBatchProperties {
     private int delayMillis = 1200;
     private int defaultLimit = 500;
     private int historyLookbackDays = 45;
+    private int recentListingWindowDays = 32;
 
     public boolean isEnabled() {
         return enabled;
@@ -49,5 +50,13 @@ public class PriceSnapshotBatchProperties {
 
     public void setHistoryLookbackDays(int historyLookbackDays) {
         this.historyLookbackDays = historyLookbackDays;
+    }
+
+    public int getRecentListingWindowDays() {
+        return recentListingWindowDays;
+    }
+
+    public void setRecentListingWindowDays(int recentListingWindowDays) {
+        this.recentListingWindowDays = recentListingWindowDays;
     }
 }

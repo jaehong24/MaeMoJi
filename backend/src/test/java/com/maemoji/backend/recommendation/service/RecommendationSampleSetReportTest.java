@@ -45,7 +45,12 @@ class RecommendationSampleSetReportTest {
             "BAC", "MS", "WFC", "C", "BLK",
             "CVX", "COP", "SLB", "RTX", "LMT",
             "V", "MA", "CSCO", "IBM", "BKNG",
-            "LOW", "AMGN", "PEP", "DIS", "BA"
+            "LOW", "AMGN", "PEP", "DIS", "BA",
+            "ABT", "BMY", "GILD", "SYK", "MDT",
+            "HON", "ETN", "DE", "GEV", "NOC",
+            "T", "VZ", "CMCSA", "TMUS", "CHTR",
+            "NKE", "SBUX", "PM", "MO", "UBER",
+            "SPGI", "SCHW", "ADP", "INTU", "ADI"
     );
     private final RecommendationTuningProperties tuningProperties =
             new RecommendationTuningProperties();
@@ -548,7 +553,7 @@ class RecommendationSampleSetReportTest {
                 && fundamentalQualityScore >= conflictRules.getCompounderFundamentalMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= conflictRules.getCompounderGrowthMin()) {
-            return "핵심 체력은 강하지만 한 단계 더 확인하고 증액하는 구간";
+            return "체력은 강하지만 가격 흐름과 부담을 한 단계 더 확인하는 유지 구간";
         }
         if (!result.increaseEligible()
                 && valuationScore != null
@@ -569,7 +574,7 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore >= 60
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= 58) {
-            return "하락 위험은 크지 않지만 최근 상승 탄력이 약해 유지";
+            return "하락 위험은 크지 않지만 상승 탄력과 성장 질이 약해 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && priceMomentumScore != null
@@ -607,7 +612,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore <= 58
                 && valuationScore != null
                 && valuationScore >= 65) {
-            return "가격은 나쁘지 않지만 상승 탄력과 성장 질이 약해 한 단계 보수적으로 감액";
+            return "가격 부담 대비 상승 탄력과 성장 질이 약해 한 단계 보수적으로 감액";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && fundamentalQualityScore != null

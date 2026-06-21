@@ -4271,30 +4271,30 @@ public class RecommendationService {
             return "최근 가격 흐름 데이터가 부족해 모멘텀 평가는 보수적으로 반영했어요.";
         }
         if (return30d >= 25 && return7d != null && return7d >= 8) {
-            return "최근 30일 상승 폭에 더해 7일 흐름도 가팔라 단기 과열 가능성을 크게 반영했어요.";
+            return "30일과 7일 상승 속도가 모두 빨라 단기 과열 부담을 크게 반영했어요.";
         }
         if (return30d >= 15 && return7d != null && return7d >= 5) {
-            return "최근 30일 상승세가 강한데 7일 속도도 빨라, 좋은 흐름이어도 추격 부담을 함께 반영했어요.";
+            return "상승 흐름은 좋지만 최근 속도가 빨라 추격 부담도 함께 봤어요.";
         }
         if (return30d >= 15) {
-            return "최근 30일 흐름은 강하지만, 지금은 추격 매수보다 가격 부담을 함께 보는 구간이에요.";
+            return "30일 흐름은 강하지만 지금은 가격 부담도 같이 보는 구간이에요.";
         }
         if (return30d >= 5 && return7d != null && return7d >= 1 && return7d <= 4) {
-            return "최근 30일과 7일 흐름이 함께 완만하게 우상향하지만, 과한 낙관 없이 적정 구간인지 같이 봤어요.";
+            return "30일과 7일 흐름이 완만하게 우상향해 비교적 건강한 상승으로 봤어요.";
         }
         if (return30d >= 5) {
-            return "최근 30일 흐름이 우상향이지만, 단기 속도는 함께 확인했어요.";
+            return "30일 흐름은 우상향이지만 단기 속도는 함께 확인했어요.";
         }
         if (return30d <= -10 && return7d != null && return7d >= 3) {
-            return "최근 30일 조정 이후 7일 반등 흐름이 보여 과도한 약세로만 보지는 않았어요.";
+            return "30일 조정 뒤 7일 반등이 보여 약세로만 보진 않았어요.";
         }
         if (return30d <= -10) {
-            return "최근 30일 조정 폭이 커 아직 약세 흐름을 더 확인해야 하는 구간이에요.";
+            return "30일 조정 폭이 커 아직 약세 흐름을 더 확인해야 해요.";
         }
         if (return30d <= -3) {
-            return "최근 30일 흐름이 다소 약해 보수적으로 반영했어요.";
+            return "30일 흐름이 다소 약해 보수적으로 반영했어요.";
         }
-        return "최근 30일 흐름은 중립 범위로 봤어요.";
+        return "30일 흐름은 중립 구간으로 봤어요.";
     }
 
     private String buildPriceStabilitySummary(PriceSnapshot priceSnapshot) {
@@ -4302,27 +4302,27 @@ public class RecommendationService {
             return "변동성과 하방 리스크를 기준으로 안정성을 평가했어요.";
         }
         if (priceSnapshot.hasSevereDrop()) {
-            return "최근 낙폭이 커 하방 리스크를 높게 반영했어요.";
+            return "최근 낙폭이 커 하방 리스크를 크게 반영했어요.";
         }
         final Double abs7d = absoluteOrNull(priceSnapshot.changeRate7d());
         final Double abs30d = absoluteOrNull(priceSnapshot.thirtyDayReturn());
         if (abs7d != null && abs30d != null && abs7d <= 3 && abs30d <= 10) {
-            return "최근 7일과 30일 변동폭이 모두 크지 않아 가격 흔들림은 비교적 잔잔한 편이에요.";
+            return "7일과 30일 변동폭이 모두 크지 않아 흔들림이 잔잔한 편이에요.";
         }
         if (abs30d != null && abs30d <= 5) {
-            return "최근 가격 변동이 크지 않아 안정성은 무난한 편이에요.";
+            return "최근 변동이 크지 않아 안정성은 무난한 편이에요.";
         }
         if (priceSnapshot.thirtyDayReturn() != null
                 && priceSnapshot.thirtyDayReturn() >= 15
                 && abs7d != null
                 && abs7d >= 6) {
-            return "상승 흐름 자체는 좋지만 최근 속도와 변동폭이 함께 커져 안정성은 보수적으로 봤어요.";
+            return "상승 흐름은 좋지만 속도와 변동폭이 함께 커 안정성은 보수적으로 봤어요.";
         }
         if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() <= -10) {
-            return "최근 하락 구간의 낙폭이 커 하방 안정성은 보수적으로 봤어요.";
+            return "하락 구간의 낙폭이 커 하방 안정성은 보수적으로 봤어요.";
         }
         if ((abs7d != null && abs7d >= 10) || (abs30d != null && abs30d >= 20)) {
-            return "최근 가격 흔들림이 커 안정성 점수는 보수적으로 반영했어요.";
+            return "최근 흔들림이 커 안정성은 보수적으로 반영했어요.";
         }
         return "변동성과 하방 리스크를 기준으로 안정성을 평가했어요.";
     }
@@ -4643,14 +4643,14 @@ public class RecommendationService {
             if (v4Context != null
                     && v4Context.valuationScore() != null
                     && v4Context.valuationScore() <= 58) {
-                return companyName + "은 기본 체력과 흐름은 좋지만 가격 부담이 남아 있어도, 현재 기준에서는 증액 쪽 판단이 더 우세합니다.";
+                return companyName + "은 가격 부담이 남아도 기업 체력과 흐름 우위가 더 커, 현재는 증액 쪽 판단이 우세합니다.";
             }
             if (v4Context != null
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() >= 70
                     && v4Context.fundamentalQualityScore() != null
                     && v4Context.fundamentalQualityScore() >= 74) {
-                return companyName + "은 기업 체력과 성장의 질이 함께 좋아, 지금은 한 단계 더 모아가는 증액 판단이 자연스럽습니다.";
+                return companyName + "은 기업 체력과 성장의 질이 함께 좋아, 지금은 한 단계 더 모아가는 판단이 자연스럽습니다.";
             }
             return companyName + "은 여러 핵심 팩터가 강한 편이라, 현재 기준에서는 기존 금액보다 한 단계 더 모아가는 쪽이 적절합니다.";
         }
@@ -4660,15 +4660,20 @@ public class RecommendationService {
                     && v4Context.priceMomentumScore() <= 45
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() <= 58) {
-                return companyName + "은 최근 가격 흐름과 성장의 질이 함께 약해, 감액 쪽으로 한 단계 보수적으로 본 상태입니다.";
+                return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 감액 쪽이 더 자연스럽습니다.";
             }
             if (v4Context != null
                     && v4Context.priceStabilityScore() != null
                     && v4Context.priceStabilityScore() <= 60) {
-                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 지금은 금액을 줄여 관찰하는 쪽이 더 자연스럽습니다.";
+                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 금액을 줄여 관찰하는 쪽이 더 적절합니다.";
+            }
+            if (v4Context != null
+                    && v4Context.valuationScore() != null
+                    && v4Context.valuationScore() <= 55) {
+                return companyName + "은 가격 부담이 큰데 추가 확신 신호가 약해, 지금은 감액 쪽으로 더 보수적으로 봤습니다.";
             }
             return companyName + "은 현재 점수 " + finalScore
-                    + "점으로 공격적으로 늘리기보다 금액을 줄여 관찰하는 보수적 전략이 적절합니다.";
+                    + "점으로, 공격적으로 늘리기보다 금액을 줄여 관찰하는 쪽이 적절합니다.";
         }
         if ("MAINTAIN".equals(recommendationStatus) && v4Context != null) {
             final String maintainComment = buildMaintainAiComment(companyName, v4Context);
@@ -4680,7 +4685,7 @@ public class RecommendationService {
             return companyName + "은 최근 뉴스 심리가 부정적으로 기울어 있어, 당장 증액보다 현재 금액 유지가 더 안전합니다.";
         }
         if (priceSnapshot.hasThirtyDayReturn() && priceSnapshot.thirtyDayReturn() >= 10) {
-            return companyName + "은 최근 단기 상승 폭이 있어, 지금은 무리한 증액보다 현재 금액 유지가 더 적절합니다.";
+            return companyName + "은 최근 상승 폭이 있어, 지금은 무리한 증액보다 현재 금액 유지가 더 적절합니다.";
         }
 
         return companyName + "은 현재 기준에서 뚜렷한 경고 신호가 없어, 기존 모으기 금액을 유지하는 전략이 가장 자연스럽습니다.";
@@ -4756,30 +4761,30 @@ public class RecommendationService {
                 || (quality != null && quality <= 58);
 
         if (nearIncrease && valuation != null && valuation <= 58) {
-            return companyName + "은 기본 체력과 흐름은 괜찮지만 가격 부담이 남아 있어, 아직은 유지가 더 자연스럽습니다.";
+            return companyName + "은 기업 체력과 흐름은 괜찮지만 가격 부담이 남아 있어, 아직은 유지가 더 자연스럽습니다.";
         }
         if (nearIncrease && quality != null && quality <= 66) {
-            return companyName + "은 흐름과 안정성은 괜찮지만 성장의 질이 한 단계 더 확인돼야 해서, 지금 판단은 유지예요.";
+            return companyName + "은 흐름은 괜찮지만 성장의 질을 한 번 더 확인해야 해, 지금 판단은 유지예요.";
         }
         if (nearIncrease && fundamental != null && fundamental <= 64) {
             return companyName + "은 가격 흐름은 괜찮지만 기업 체력 확신이 아주 강한 단계는 아니라, 지금은 유지로 봤어요.";
         }
         if (nearIncrease) {
-            return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 증액까지는 한 단계 부족해서 현재 판단은 유지예요.";
+            return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 증액까지는 한 단계 부족해 현재 판단은 유지예요.";
         }
 
         if (nearReduce && momentum != null && momentum <= 50 && quality != null && quality <= 58) {
-            return companyName + "은 최근 가격 흐름과 성장의 질이 함께 약하지만, 아직은 감액보다 유지에 머무는 단계로 봤어요.";
+            return companyName + "은 가격 흐름과 성장의 질이 함께 약하지만, 아직은 감액 직전 유지 구간으로 봤어요.";
         }
         if (nearReduce && stability != null && stability <= 65) {
-            return companyName + "은 하락 위험이 아주 크진 않지만 안정성이 충분히 높진 않아, 현재 판단은 유지예요.";
+            return companyName + "은 하락 위험이 아주 크진 않지만 안정성이 충분히 높지 않아, 현재 판단은 유지예요.";
         }
         if (nearReduce) {
-            return companyName + "은 아직 감액까지는 아니지만 보수적인 유지 구간에 더 가깝습니다.";
+            return companyName + "은 아직 감액까지는 아니지만, 보수적인 유지 구간에 더 가깝습니다.";
         }
 
         if (valuation != null && valuation <= 58) {
-            return companyName + "은 큰 경고 신호는 없지만 가격 메리트가 아주 크진 않아, 중립적인 유지 구간으로 판단했어요.";
+            return companyName + "은 큰 경고 신호는 없지만 가격 메리트가 아주 크지 않아, 중립적인 유지 구간으로 판단했어요.";
         }
         return "";
     }

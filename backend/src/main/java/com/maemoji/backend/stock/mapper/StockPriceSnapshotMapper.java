@@ -22,6 +22,8 @@ public interface StockPriceSnapshotMapper {
 
     StockPriceSnapshotRecord findLatestSnapshotByStockId(@Param("stockId") Long stockId);
 
+    java.time.LocalDate findOldestSnapshotDateByStockId(@Param("stockId") Long stockId);
+
     BigDecimal findPreviousPrice(
             @Param("stockId") Long stockId,
             @Param("snapshotDate") LocalDate snapshotDate

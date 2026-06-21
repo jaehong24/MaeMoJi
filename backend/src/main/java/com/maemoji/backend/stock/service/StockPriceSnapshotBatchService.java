@@ -41,6 +41,7 @@ public class StockPriceSnapshotBatchService {
     private static final String FMP_MODEL_SOURCE = "FINNHUB_FMP";
     private static final String FMP_EMPTY_SOURCE = "FINNHUB_FMP_EMPTY";
     private static final int MINIMUM_CORE_FUNDAMENTAL_FIELDS = 4;
+    private static final int EXTENDED_RETRY_LOOKBACK_DAYS = 120;
 
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final PriceSnapshotBatchProperties properties;
@@ -356,16 +357,32 @@ public class StockPriceSnapshotBatchService {
         }
 
         final LocalDate today = LocalDate.now(SNAPSHOT_ZONE);
+        final Stock stock = stockPriceSnapshotMapper.findStockForSnapshotById(stockId);
+        if (stock == null) {
+            return false;
+        }
+        if (isEtfStock(stock)) {
+            return false;
+        }
         StockPriceSnapshotRecord latestSnapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(stockId);
         boolean updated = false;
 
-        if (needsPriceHistoryBackfill(latestSnapshot)) {
+        if (needsPriceHistoryBackfill(stock, latestSnapshot, today)) {
             final int savedHistoryRows = backfillHistoricalSnapshotsForStockIds(
                     List.of(stockId),
                     properties.getHistoryLookbackDays()
             );
             updated = updated || savedHistoryRows > 0;
+            latestSnapshot = stockPriceSnapshotMapper.findLatestSnapshotByStockId(stockId);
+        }
+
+        if (needsImmediateBackfillRetry(stock, latestSnapshot, today)) {
+            final int retriedRows = backfillHistoricalSnapshotsForStockIds(
+                    List.of(stockId),
+                    Math.max(properties.getHistoryLookbackDays(), EXTENDED_RETRY_LOOKBACK_DAYS)
+            );
+            updated = updated || retriedRows > 0;
             latestSnapshot = stockPriceSnapshotMapper.findLatestSnapshotByStockId(stockId);
         }
 
@@ -1028,14 +1045,32 @@ public class StockPriceSnapshotBatchService {
         return !FMP_EMPTY_SOURCE.equals(snapshot.getSource());
     }
 
-    private boolean needsPriceHistoryBackfill(StockPriceSnapshotRecord snapshot) {
+    private boolean needsPriceHistoryBackfill(Stock stock, StockPriceSnapshotRecord snapshot, LocalDate today) {
         if (snapshot == null) {
             return true;
         }
         if (snapshot.getCurrentPrice() == null || snapshot.getCurrentPrice().doubleValue() <= 0) {
             return true;
         }
+        if (isEtfStock(stock)) {
+            return false;
+        }
+        if (snapshot.getChangeRate7d() != null && snapshot.getChangeRate30d() == null && isRecentlyListed(stock.getId(), today)) {
+            return false;
+        }
         return snapshot.getChangeRate7d() == null || snapshot.getChangeRate30d() == null;
+    }
+
+    private boolean needsImmediateBackfillRetry(Stock stock, StockPriceSnapshotRecord snapshot, LocalDate today) {
+        if (snapshot == null || isEtfStock(stock) || isRecentlyListed(stock.getId(), today)) {
+            return false;
+        }
+        if (snapshot.getChangeRate30d() != null) {
+            return false;
+        }
+        return snapshot.getChangeRate7d() != null
+                || snapshot.getSnapshotDate() == null
+                || !snapshot.getSnapshotDate().isBefore(today);
     }
 
     private boolean hasInsufficientCoreFundamentals(StockPriceSnapshotRecord snapshot) {
@@ -1063,6 +1098,25 @@ public class StockPriceSnapshotBatchService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String blankToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private boolean isEtfStock(Stock stock) {
+        return stock != null && "ETF".equalsIgnoreCase(blankToEmpty(stock.getAssetType()).trim());
+    }
+
+    private boolean isRecentlyListed(Long stockId, LocalDate today) {
+        if (stockId == null) {
+            return false;
+        }
+        final LocalDate oldestSnapshotDate = stockPriceSnapshotMapper.findOldestSnapshotDateByStockId(stockId);
+        if (oldestSnapshotDate == null) {
+            return true;
+        }
+        return oldestSnapshotDate.isAfter(today.minusDays(properties.getRecentListingWindowDays()));
     }
 
     private String encode(String value) {

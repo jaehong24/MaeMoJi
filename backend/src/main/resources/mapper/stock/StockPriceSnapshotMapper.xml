@@ -18,6 +18,7 @@
             search_text,
             logo_url,
             market_type,
+            asset_type,
             is_active,
             created_at,
             updated_at
@@ -53,6 +54,7 @@
             search_text,
             logo_url,
             market_type,
+            asset_type,
             is_active,
             created_at,
             updated_at
@@ -97,6 +99,7 @@
             search_text,
             logo_url,
             market_type,
+            asset_type,
             is_active,
             created_at,
             updated_at
@@ -137,6 +140,12 @@
         where stock_id = #{stockId}
         order by snapshot_date desc, id desc
         limit 1
+    </select>
+
+    <select id="findOldestSnapshotDateByStockId" resultType="java.time.LocalDate">
+        select min(snapshot_date)
+        from stock_price_snapshots
+        where stock_id = #{stockId}
     </select>
 
     <select id="findPreviousPrice" resultType="java.math.BigDecimal">
