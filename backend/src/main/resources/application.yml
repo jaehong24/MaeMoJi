@@ -129,6 +129,12 @@ maemoji:
         expensive-quality-growth-min: 75
         expensive-quality-momentum-max: 62
       conflict-rules:
+        compounder-fundamental-min: 79
+        compounder-growth-min: 70
+        compounder-valuation-min: 73
+        compounder-stability-min: 77
+        compounder-momentum-min: 60
+        compounder-bonus: 5
         expensive-elite-fundamental-min: 80
         expensive-elite-growth-min: 80
         expensive-elite-valuation-max: 45

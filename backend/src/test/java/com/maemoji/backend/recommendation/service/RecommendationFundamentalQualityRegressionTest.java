@@ -282,6 +282,38 @@ class RecommendationFundamentalQualityRegressionTest {
         assertThat(fastUptrend).isLessThanOrEqualTo(75);
     }
 
+    @Test
+    void priceMomentumSeparatesMildStrengthFromSidewaysDriftAndRollingWeakness() throws Exception {
+        final int jpmLike = priceMomentumScoreOf(priceSnapshotWithReturns(1.4031, 6.1492));
+        final int linLike = priceMomentumScoreOf(priceSnapshotWithReturns(-2.1812, -1.0491));
+        final int wmtLike = priceMomentumScoreOf(priceSnapshotWithReturns(-3.1890, -2.5692));
+        final int nvsLike = priceMomentumScoreOf(priceSnapshotWithReturns(-3.9132, -3.2432));
+        final int sapLike = priceMomentumScoreOf(priceSnapshotWithReturns(-5.4574, -11.7818));
+        final int xomLike = priceMomentumScoreOf(priceSnapshotWithReturns(-6.2581, -11.0444));
+
+        assertThat(jpmLike).isGreaterThan(linLike);
+        assertThat(linLike).isGreaterThan(wmtLike);
+        assertThat(wmtLike).isGreaterThan(nvsLike);
+        assertThat(nvsLike).isGreaterThan(sapLike);
+        assertThat(sapLike).isGreaterThanOrEqualTo(xomLike);
+    }
+
+    @Test
+    void priceStabilitySeparatesQuietNamesFromDriftingWeaknessAndDownsideStress() throws Exception {
+        final int jpmLike = priceStabilityScoreOf(priceSnapshotWithReturns(1.4031, 6.1492));
+        final int linLike = priceStabilityScoreOf(priceSnapshotWithReturns(-2.1812, -1.0491));
+        final int wmtLike = priceStabilityScoreOf(priceSnapshotWithReturns(-3.1890, -2.5692));
+        final int nvsLike = priceStabilityScoreOf(priceSnapshotWithReturns(-3.9132, -3.2432));
+        final int sapLike = priceStabilityScoreOf(priceSnapshotWithReturns(-5.4574, -11.7818));
+        final int xomLike = priceStabilityScoreOf(priceSnapshotWithReturns(-6.2581, -11.0444));
+
+        assertThat(jpmLike).isGreaterThanOrEqualTo(linLike);
+        assertThat(linLike).isGreaterThan(wmtLike);
+        assertThat(wmtLike).isGreaterThanOrEqualTo(nvsLike);
+        assertThat(nvsLike).isGreaterThan(sapLike);
+        assertThat(sapLike).isGreaterThanOrEqualTo(xomLike);
+    }
+
     private Object snapshot(
             Double marketCap,
             Double perValue,

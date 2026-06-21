@@ -647,4 +647,36 @@ class RecommendationScoreCalculatorTest {
                 .isLessThan(defaultResult.crossFactorAdjustment());
         assertThat(customResult.finalScore()).isLessThan(defaultResult.finalScore());
     }
+
+    @Test
+    void v4CompounderBonusLiftsHighQualityMegaCaps() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        62,
+                        20,
+                        87,
+                        12,
+                        null,
+                        0,
+                        80,
+                        14,
+                        73,
+                        12,
+                        70,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        78
+                )
+        );
+
+        assertThat(result.crossFactorAdjustment()).isPositive();
+        assertThat(result.finalScore()).isGreaterThan(result.rawScore());
+        assertThat(result.recommendationStatus()).isEqualTo("INCREASE");
+    }
 }

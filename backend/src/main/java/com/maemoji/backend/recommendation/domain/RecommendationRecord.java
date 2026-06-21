@@ -12,6 +12,7 @@ public class RecommendationRecord {
     private String companyName;
     private String ticker;
     private String logoUrl;
+    private String assetType;
     private String recommendationStatus;
     private Integer engineScore;
     private Integer confidenceScore;
@@ -96,6 +97,14 @@ public class RecommendationRecord {
 
     public void setLogoUrl(String logoUrl) {
         this.logoUrl = logoUrl;
+    }
+
+    public String getAssetType() {
+        return assetType;
+    }
+
+    public void setAssetType(String assetType) {
+        this.assetType = assetType;
     }
 
     public String getRecommendationStatus() {

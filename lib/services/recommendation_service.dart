@@ -209,6 +209,8 @@ class RecommendationService {
         name: (item['companyName'] ?? '').toString(),
         ticker: (item['ticker'] ?? '').toString(),
         logoUrl: (item['logoUrl'] ?? '').toString(),
+        assetType: (item['assetType'] ?? '').toString(),
+        analysisStageMessage: _nullableText(item['analysisStageMessage']),
         currentAmountUsd: (item['currentDailyAmount'] as num?)?.toDouble() ?? 0,
         recommendedAmountUsd:
             (item['recommendedDailyAmount'] as num?)?.toDouble() ?? 0,

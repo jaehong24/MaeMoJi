@@ -111,16 +111,22 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               );
             }
 
-            final increaseCount = recommendations
+            final scorableRecommendations = recommendations
+                .where((item) => !item.isEtfAnalysisPending)
+                .toList();
+            final pendingEtfCount = recommendations
+                .where((item) => item.isEtfAnalysisPending)
+                .length;
+            final increaseCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.increase)
                 .length;
-            final maintainCount = recommendations
+            final maintainCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.maintain)
                 .length;
-            final reduceCount = recommendations
+            final reduceCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.reduce)
                 .length;
-            final stopCount = recommendations
+            final stopCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.stop)
                 .length;
 
@@ -152,6 +158,12 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                         count: stopCount,
                         color: MaeMojiColors.stop,
                       ),
+                      if (pendingEtfCount > 0)
+                        _SummaryPill(
+                          label: '준비 중',
+                          count: pendingEtfCount,
+                          color: MaeMojiColors.reduce,
+                        ),
                     ],
                   ),
                 ),

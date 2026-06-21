@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,10 +13,7 @@ import '../widgets/evidence_section.dart';
 import '../widgets/recommendation_badge.dart';
 
 class RecommendationDetailScreen extends StatelessWidget {
-  const RecommendationDetailScreen({
-    super.key,
-    required this.item,
-  });
+  const RecommendationDetailScreen({super.key, required this.item});
 
   final RecommendationItem item;
 
@@ -28,6 +25,7 @@ class RecommendationDetailScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: currencyController,
       builder: (context, _) {
+        final isEtfPending = item.isEtfAnalysisPending;
         final currentAmount = CurrencyFormatter.formatAmount(
           usdAmount: item.currentAmountUsd,
           currency: currencyController.displayCurrency,
@@ -83,32 +81,35 @@ class RecommendationDetailScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            RecommendationBadge(status: item.status),
+                            RecommendationBadge(
+                              status: item.status,
+                              labelOverride: isEtfPending ? '준비 중' : null,
+                              colorOverride: isEtfPending
+                                  ? MaeMojiColors.reduce
+                                  : null,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
                         _MetricGrid(
                           currentAmount: currentAmount,
                           recommendedAmount: recommendedAmount,
-                          score: item.score,
-                          confidence: item.confidence,
+                          score: isEtfPending ? null : item.score,
+                          confidence: isEtfPending ? null : item.confidence,
+                          scoreLabel: isEtfPending ? '분석 상태' : 'AI 점수',
+                          scoreValue: isEtfPending ? '준비 중' : null,
                           statusColor: item.status.color,
                         ),
                         if (item.memo.trim().isNotEmpty) ...[
                           const SizedBox(height: 14),
-                          Text(
-                            item.memo,
-                            style: theme.textTheme.bodyMedium,
-                          ),
+                          Text(item.memo, style: theme.textTheme.bodyMedium),
                         ],
                       ],
                     ),
                   ),
-                  if (item.isV4Calculation) ...[
+                  if (item.isV4Calculation && !isEtfPending) ...[
                     const SizedBox(height: 16),
-                    AppSectionCard(
-                      child: _V4CalculationSection(item: item),
-                    ),
+                    AppSectionCard(child: _V4CalculationSection(item: item)),
                   ],
                   const SizedBox(height: 16),
                   AppSectionCard(
@@ -118,11 +119,16 @@ class RecommendationDetailScreen extends StatelessWidget {
                         Text('추천 근거', style: theme.textTheme.titleLarge),
                         const SizedBox(height: 8),
                         Text(
-                          '매일 모으기 금액을 이렇게 계산한 이유를 한눈에 볼 수 있어요.',
+                          isEtfPending
+                              ? (item.analysisStageMessage ??
+                                    'ETF 전용 분석은 준비 중입니다.')
+                              : '카드별 근거와 마지막 종합 판단을 함께 볼 수 있어요.',
                           style: theme.textTheme.bodyMedium,
                         ),
-                        const SizedBox(height: 16),
-                        EvidenceSection(items: item.evidence),
+                        if (!isEtfPending) ...[
+                          const SizedBox(height: 16),
+                          EvidenceSection(items: item.evidence),
+                        ],
                       ],
                     ),
                   ),
@@ -150,21 +156,22 @@ class RecommendationDetailScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          item.relatedNews.isEmpty
+                          isEtfPending
+                              ? 'ETF 전용 뉴스와 구성 자산 분석도 준비 중입니다.'
+                              : item.relatedNews.isEmpty
                               ? (item.relatedNewsStatusMessage ??
-                                  '관련 뉴스가 아직 없어요.')
+                                    '관련 뉴스가 아직 없어요.')
                               : '관련성, 감성, 영향도 기준으로 최근 뉴스만 보여드려요.',
                           style: theme.textTheme.bodyMedium,
                         ),
-                        if (item.relatedNews.isNotEmpty) ...[
+                        if (!isEtfPending && item.relatedNews.isNotEmpty) ...[
                           const SizedBox(height: 16),
                           ...item.relatedNews.asMap().entries.map((entry) {
                             return Padding(
                               padding: EdgeInsets.only(
-                                bottom:
-                                    entry.key == item.relatedNews.length - 1
-                                        ? 0
-                                        : 12,
+                                bottom: entry.key == item.relatedNews.length - 1
+                                    ? 0
+                                    : 12,
                               ),
                               child: _RelatedNewsCard(news: entry.value),
                             );
@@ -193,13 +200,17 @@ class _MetricGrid extends StatelessWidget {
     required this.recommendedAmount,
     required this.score,
     required this.confidence,
+    this.scoreLabel = 'AI 점수',
+    this.scoreValue,
     required this.statusColor,
   });
 
   final String currentAmount;
   final String recommendedAmount;
-  final int score;
-  final int confidence;
+  final int? score;
+  final int? confidence;
+  final String scoreLabel;
+  final String? scoreValue;
   final Color statusColor;
 
   @override
@@ -214,10 +225,7 @@ class _MetricGrid extends StatelessWidget {
         final boxes = <Widget>[
           SizedBox(
             width: itemWidth,
-            child: _MetricBox(
-              label: '현재 매일 모으기',
-              value: currentAmount,
-            ),
+            child: _MetricBox(label: '현재 매일 모으기', value: currentAmount),
           ),
           SizedBox(
             width: itemWidth,
@@ -230,35 +238,27 @@ class _MetricGrid extends StatelessWidget {
           SizedBox(
             width: itemWidth,
             child: _MetricBox(
-              label: 'AI 점수',
-              value: '$score점',
+              label: scoreLabel,
+              value: scoreValue ?? '${score ?? 0}점',
             ),
           ),
           SizedBox(
             width: itemWidth,
             child: _MetricBox(
               label: '신뢰도',
-              value: '$confidence%',
+              value: confidence == null ? '준비 중' : '$confidence%',
             ),
           ),
         ];
 
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: boxes,
-        );
+        return Wrap(spacing: 12, runSpacing: 12, children: boxes);
       },
     );
   }
 }
 
 class _MetricBox extends StatelessWidget {
-  const _MetricBox({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _MetricBox({required this.label, required this.value, this.valueColor});
 
   final String label;
   final String value;
@@ -321,19 +321,14 @@ class _V4CalculationSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(
-              child: Text(
-                '계산 방식',
-                style: theme.textTheme.titleLarge,
-              ),
-            ),
+            Expanded(child: Text('계산 방식', style: theme.textTheme.titleLarge)),
             if ((item.riskProfileApplied ?? '').isNotEmpty)
               _MetaBadge(label: item.riskProfileApplied!),
           ],
         ),
         const SizedBox(height: 8),
         Text(
-          '현재 추천은 여러 근거를 함께 보는 V4 방식으로 계산했어요.',
+          '종목 데이터와 내 투자 조건을 함께 보는 V4 방식으로 계산했어요.',
           style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 14),
@@ -484,10 +479,7 @@ class _RelatedNewsCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              _NewsChip(
-                label: news.sentimentLabel,
-                color: sentimentColor,
-              ),
+              _NewsChip(label: news.sentimentLabel, color: sentimentColor),
             ],
           ),
           const SizedBox(height: 8),
@@ -503,10 +495,7 @@ class _RelatedNewsCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _NewsChip(
-                label: news.sourceName,
-                color: MaeMojiColors.inkMuted,
-              ),
+              _NewsChip(label: news.sourceName, color: MaeMojiColors.inkMuted),
               _NewsChip(
                 label: '관련성 ${news.relevanceScore}%',
                 color: MaeMojiColors.reduce,
@@ -570,10 +559,7 @@ class _RelatedNewsCard extends StatelessWidget {
 }
 
 class _NewsChip extends StatelessWidget {
-  const _NewsChip({
-    required this.label,
-    required this.color,
-  });
+  const _NewsChip({required this.label, required this.color});
 
   final String label;
   final Color color;

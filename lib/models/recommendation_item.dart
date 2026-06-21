@@ -9,6 +9,8 @@ class RecommendationItem {
     required this.name,
     required this.ticker,
     required this.logoUrl,
+    required this.assetType,
+    required this.analysisStageMessage,
     required this.currentAmountUsd,
     required this.recommendedAmountUsd,
     required this.confidence,
@@ -41,6 +43,8 @@ class RecommendationItem {
   final String name;
   final String ticker;
   final String? logoUrl;
+  final String assetType;
+  final String? analysisStageMessage;
   final double currentAmountUsd;
   final double recommendedAmountUsd;
   final int confidence;
@@ -68,4 +72,6 @@ class RecommendationItem {
   final String? confidenceBreakdownJson;
 
   bool get isV4Calculation => formulaVersion.startsWith('SCORE_V4');
+  bool get isEtf => assetType.toUpperCase() == 'ETF';
+  bool get isEtfAnalysisPending => isEtf && formulaVersion == 'ETF_PENDING';
 }

@@ -11,6 +11,7 @@ public class RecommendationTarget {
     private String ticker;
     private String finnhubSymbol;
     private String logoUrl;
+    private String assetType;
     private BigDecimal dailyInvestAmount;
     private BigDecimal holdingQuantity;
     private LocalDate investmentStartDate;
@@ -72,6 +73,14 @@ public class RecommendationTarget {
 
     public void setLogoUrl(String logoUrl) {
         this.logoUrl = logoUrl;
+    }
+
+    public String getAssetType() {
+        return assetType;
+    }
+
+    public void setAssetType(String assetType) {
+        this.assetType = assetType;
     }
 
     public BigDecimal getDailyInvestAmount() {

@@ -55,6 +55,13 @@ class RecommendationCard extends StatelessWidget {
                 ),
               );
             };
+        final badgeLabel = item.isEtfAnalysisPending ? '준비 중' : null;
+        final badgeColor = item.isEtfAnalysisPending
+            ? MaeMojiColors.reduce
+            : null;
+        final noteText = item.isEtfAnalysisPending
+            ? (item.analysisStageMessage ?? 'ETF 전용 분석은 준비 중입니다.')
+            : item.note;
 
         final card = AppSectionCard(
           padding: EdgeInsets.all(compact ? 18 : 22),
@@ -97,7 +104,11 @@ class RecommendationCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  RecommendationBadge(status: item.status),
+                  RecommendationBadge(
+                    status: item.status,
+                    labelOverride: badgeLabel,
+                    colorOverride: badgeColor,
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -124,7 +135,7 @@ class RecommendationCard extends StatelessWidget {
               if (showMemo) ...[
                 const SizedBox(height: 12),
                 Text(
-                  item.note,
+                  noteText,
                   maxLines: compact ? 2 : 3,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium,

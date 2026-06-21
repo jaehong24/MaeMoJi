@@ -17,9 +17,7 @@ class EvidenceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rawFactorItems = items
-        .where((item) => item.isFactor)
-        .toList()
+    final rawFactorItems = items.where((item) => item.isFactor).toList()
       ..sort((left, right) {
         final leftOrder = left.displayOrder ?? 999;
         final rightOrder = right.displayOrder ?? 999;
@@ -33,29 +31,26 @@ class EvidenceSection extends StatelessWidget {
       ...rawFactorItems.where((item) => item.evidenceType != 'FACTOR_USER_FIT'),
     ];
     final noteItem = items.where((item) => item.isAiNote).firstOrNull;
-    final extraItems = items
-        .where((item) => !item.isFactor && !item.isAiNote)
-        .toList()
-      ..sort((left, right) {
-        final leftOrder = left.displayOrder ?? 999;
-        final rightOrder = right.displayOrder ?? 999;
-        return leftOrder.compareTo(rightOrder);
-      });
+    final extraItems =
+        items.where((item) => !item.isFactor && !item.isAiNote).toList()
+          ..sort((left, right) {
+            final leftOrder = left.displayOrder ?? 999;
+            final rightOrder = right.displayOrder ?? 999;
+            return leftOrder.compareTo(rightOrder);
+          });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (factorItems.isNotEmpty)
-          _FactorGrid(
-            items: factorItems,
-            riskProfileLabel: riskProfileLabel,
-          ),
+          _FactorGrid(items: factorItems, riskProfileLabel: riskProfileLabel),
         if (noteItem != null) ...[
           if (factorItems.isNotEmpty) const SizedBox(height: 12),
           _AiNoteCard(item: noteItem),
         ],
         if (extraItems.isNotEmpty) ...[
-          if (factorItems.isNotEmpty || noteItem != null) const SizedBox(height: 12),
+          if (factorItems.isNotEmpty || noteItem != null)
+            const SizedBox(height: 12),
           ...extraItems.asMap().entries.map((entry) {
             return Padding(
               padding: EdgeInsets.only(
@@ -68,14 +63,10 @@ class EvidenceSection extends StatelessWidget {
       ],
     );
   }
-
 }
 
 class _FactorGrid extends StatelessWidget {
-  const _FactorGrid({
-    required this.items,
-    required this.riskProfileLabel,
-  });
+  const _FactorGrid({required this.items, required this.riskProfileLabel});
 
   final List<EvidenceItem> items;
   final String? riskProfileLabel;
@@ -112,10 +103,7 @@ class _FactorGrid extends StatelessWidget {
 }
 
 class _FactorCard extends StatelessWidget {
-  const _FactorCard({
-    required this.item,
-    this.riskProfileLabel,
-  });
+  const _FactorCard({required this.item, this.riskProfileLabel});
 
   final EvidenceItem item;
   final String? riskProfileLabel;
@@ -173,7 +161,10 @@ class _FactorCard extends StatelessWidget {
               ),
               if (score != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF4E8C8),
                     borderRadius: BorderRadius.circular(999),
@@ -190,6 +181,17 @@ class _FactorCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          if (_helperText != null) ...[
+            Text(
+              _helperText!,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: MaeMojiColors.inkMuted,
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
           Text(
             item.body,
             style: const TextStyle(
@@ -214,6 +216,16 @@ class _FactorCard extends StatelessWidget {
     return evidenceType == 'FACTOR_FUNDAMENTAL_QUALITY' ||
         evidenceType == 'FACTOR_VALUATION' ||
         evidenceType == 'FACTOR_QUALITY_OF_GROWTH';
+  }
+
+  String? get _helperText {
+    if (item.evidenceType == 'FACTOR_USER_FIT') {
+      return '내 투자 성향과 현재 모으기 조건을 반영한 카드예요.';
+    }
+    if (item.evidenceType.startsWith('FACTOR_')) {
+      return '종목 데이터 기준으로 본 개별 판단이에요.';
+    }
+    return null;
   }
 }
 
@@ -505,6 +517,15 @@ class _AiNoteCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            '개별 카드 내용을 종합한 최종 결론이에요.',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: MaeMojiColors.inkMuted,
+            ),
           ),
           const SizedBox(height: 10),
           Text(

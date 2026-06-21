@@ -39,7 +39,8 @@ class RecommendationSampleSetReportTest {
             "CAT", "DELL", "JPM", "GS", "HD",
             "AMD", "ADBE", "CRM", "ORCL", "NOW",
             "UNH", "XOM", "KO", "NEE", "WMT",
-            "QQQ", "SPY", "VOO", "SCHD", "SOXX"
+            "QCOM", "TXN", "PANW", "INTC", "GE",
+            "SAP", "TM", "AZN", "NVS", "LIN"
     );
     private final RecommendationTuningProperties tuningProperties =
             new RecommendationTuningProperties();
@@ -506,19 +507,90 @@ class RecommendationSampleSetReportTest {
             Integer qualityOfGrowthScore,
             RecommendationScoreCalculator.V4ScoreResult result
     ) {
+        final RecommendationTuningProperties.IncreaseGuard increaseGuard =
+                tuningProperties.getIncreaseGuard();
+        final RecommendationTuningProperties.ConflictRules conflictRules =
+                tuningProperties.getConflictRules();
+
         if ("INCREASE".equals(result.recommendationStatus()) && result.increaseEligible()) {
             return "핵심 팩터가 고르게 강해 증액 가능";
         }
+        if (result.increaseEligible()
+                && "MAINTAIN".equals(result.recommendationStatus())
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= conflictRules.getCompounderFundamentalMin()
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= conflictRules.getCompounderGrowthMin()) {
+            return "핵심 체력은 강하지만 한 단계 더 확인하고 증액하는 구간";
+        }
         if (!result.increaseEligible()
                 && valuationScore != null
-                && valuationScore <= tuningProperties.getIncreaseGuard().getAbsoluteValuationBlockMax()) {
+                && valuationScore <= increaseGuard.getAbsoluteValuationBlockMax()) {
             return "기업 체력은 좋아도 가격 부담이 커 증액 차단";
         }
         if (valuationScore != null
-                && valuationScore >= tuningProperties.getConflictRules().getWeakGrowthValuationMin()
+                && valuationScore >= conflictRules.getWeakGrowthValuationMin()
                 && qualityOfGrowthScore != null
-                && qualityOfGrowthScore <= tuningProperties.getConflictRules().getWeakGrowthQualityMax()) {
+                && qualityOfGrowthScore <= conflictRules.getWeakGrowthQualityMax()) {
             return "가격은 무난해도 성장 질이 약해 보수적";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && priceMomentumScore != null
+                && priceMomentumScore >= 40
+                && priceMomentumScore < 55
+                && priceStabilityScore != null
+                && priceStabilityScore >= 60
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 58) {
+            return "하락 위험은 크지 않지만 최근 상승 탄력이 약해 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && priceMomentumScore != null
+                && priceMomentumScore >= 40
+                && priceMomentumScore < 55
+                && priceStabilityScore != null
+                && priceStabilityScore >= 60
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 59
+                && valuationScore != null
+                && valuationScore >= 50
+                && valuationScore <= 65) {
+            return "방어력은 괜찮지만 재평가 신호가 아직 약해 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && priceMomentumScore != null
+                && priceMomentumScore >= 55
+                && priceStabilityScore != null
+                && priceStabilityScore >= 70
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 55
+                && qualityOfGrowthScore < conflictRules.getCompounderGrowthMin()
+                && valuationScore != null
+                && valuationScore > increaseGuard.getAbsoluteValuationBlockMax()
+                && valuationScore <= 70) {
+            return "흐름은 괜찮지만 성장의 질과 가격 여유가 증액 기준엔 조금 부족";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && priceMomentumScore != null
+                && priceMomentumScore >= 40
+                && priceMomentumScore < 55
+                && priceStabilityScore != null
+                && priceStabilityScore >= 60
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 58
+                && valuationScore != null
+                && valuationScore >= 65) {
+            return "가격은 나쁘지 않지만 상승 탄력과 성장 질이 약해 한 단계 보수적으로 감액";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 68
+                && valuationScore != null
+                && valuationScore >= 55
+                && valuationScore < conflictRules.getCompounderValuationMin()
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 60) {
+            return "기본 체력은 무난하지만 지금 가격 메리트는 크지 않아 유지";
         }
         if (priceMomentumScore != null && priceMomentumScore <= 30) {
             return "최근 가격 흐름이 약해 보수적";
@@ -527,9 +599,9 @@ class RecommendationSampleSetReportTest {
             return "변동성과 하방 리스크가 큼";
         }
         if (fundamentalQualityScore != null
-                && fundamentalQualityScore >= tuningProperties.getConflictRules().getExpensiveEliteFundamentalMin()
+                && fundamentalQualityScore >= conflictRules.getExpensiveEliteFundamentalMin()
                 && qualityOfGrowthScore != null
-                && qualityOfGrowthScore >= tuningProperties.getConflictRules().getExpensiveEliteGrowthMin()) {
+                && qualityOfGrowthScore >= conflictRules.getExpensiveEliteGrowthMin()) {
             return "체력은 강하지만 증액 기준에는 아직 못 미침";
         }
         return "핵심 팩터가 엇갈려 유지 구간";

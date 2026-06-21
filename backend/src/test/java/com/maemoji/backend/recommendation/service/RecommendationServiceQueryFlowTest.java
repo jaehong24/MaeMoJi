@@ -9,6 +9,7 @@ import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
@@ -75,6 +76,37 @@ class RecommendationServiceQueryFlowTest {
         assertThat(response.portfolioItemId()).isEqualTo(1002L);
         assertThat(response.engineVersion()).isEqualTo("PENDING");
         verify(recommendationMapper, never()).findRecommendationEvidenceByRecommendationId(anyLong());
+    }
+
+    @Test
+    void buildAiCommentReturnsIncreaseMessageForIncreaseStatus() {
+        final RecommendationTarget target = createTarget(303L, 1003L, 2003L);
+
+        final String comment = (String) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "buildAiComment",
+                target,
+                "INCREASE",
+                79,
+                null,
+                new NewsSentimentService.NewsSentimentResult(
+                        18,
+                        "POSITIVE",
+                        "뉴스는 중립 이상입니다.",
+                        List.of(),
+                        "gemini",
+                        18,
+                        false,
+                        "NONE",
+                        80,
+                        false,
+                        false
+                ),
+                null
+        );
+
+        assertThat(comment).contains("더 모아");
+        assertThat(comment).doesNotContain("유지");
     }
 
     private RecommendationTarget createTarget(Long userId, Long portfolioItemId, Long stockId) {

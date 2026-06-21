@@ -526,6 +526,12 @@ public class RecommendationTuningProperties {
     }
 
     public static class ConflictRules {
+        private int compounderFundamentalMin = 79;
+        private int compounderGrowthMin = 70;
+        private int compounderValuationMin = 73;
+        private int compounderStabilityMin = 77;
+        private int compounderMomentumMin = 60;
+        private int compounderBonus = 5;
         private int expensiveEliteFundamentalMin = 80;
         private int expensiveEliteGrowthMin = 80;
         private int expensiveEliteValuationMax = 45;
@@ -543,6 +549,54 @@ public class RecommendationTuningProperties {
         private int weakGrowthValueTrapQualityMax = 60;
         private int weakGrowthValueTrapFundamentalMax = 68;
         private int weakGrowthValueTrapPenalty = -3;
+
+        public int getCompounderFundamentalMin() {
+            return compounderFundamentalMin;
+        }
+
+        public void setCompounderFundamentalMin(int compounderFundamentalMin) {
+            this.compounderFundamentalMin = compounderFundamentalMin;
+        }
+
+        public int getCompounderGrowthMin() {
+            return compounderGrowthMin;
+        }
+
+        public void setCompounderGrowthMin(int compounderGrowthMin) {
+            this.compounderGrowthMin = compounderGrowthMin;
+        }
+
+        public int getCompounderValuationMin() {
+            return compounderValuationMin;
+        }
+
+        public void setCompounderValuationMin(int compounderValuationMin) {
+            this.compounderValuationMin = compounderValuationMin;
+        }
+
+        public int getCompounderStabilityMin() {
+            return compounderStabilityMin;
+        }
+
+        public void setCompounderStabilityMin(int compounderStabilityMin) {
+            this.compounderStabilityMin = compounderStabilityMin;
+        }
+
+        public int getCompounderMomentumMin() {
+            return compounderMomentumMin;
+        }
+
+        public void setCompounderMomentumMin(int compounderMomentumMin) {
+            this.compounderMomentumMin = compounderMomentumMin;
+        }
+
+        public int getCompounderBonus() {
+            return compounderBonus;
+        }
+
+        public void setCompounderBonus(int compounderBonus) {
+            this.compounderBonus = compounderBonus;
+        }
 
         public int getExpensiveEliteFundamentalMin() {
             return expensiveEliteFundamentalMin;

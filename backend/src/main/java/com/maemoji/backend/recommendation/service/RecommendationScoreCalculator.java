@@ -343,6 +343,18 @@ public class RecommendationScoreCalculator {
         final Integer stability = input.priceStabilityScore();
 
         if (fundamental != null
+                && fundamental >= rule.getCompounderFundamentalMin()
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= rule.getCompounderGrowthMin()
+                && valuation != null
+                && valuation >= rule.getCompounderValuationMin()
+                && stability != null
+                && stability >= rule.getCompounderStabilityMin()
+                && momentum != null
+                && momentum >= rule.getCompounderMomentumMin()) {
+            adjustment += rule.getCompounderBonus();
+        }
+        if (fundamental != null
                 && fundamental >= rule.getExpensiveEliteFundamentalMin()
                 && qualityOfGrowth != null
                 && qualityOfGrowth >= rule.getExpensiveEliteGrowthMin()

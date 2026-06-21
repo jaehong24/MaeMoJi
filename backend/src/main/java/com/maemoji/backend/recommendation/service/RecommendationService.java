@@ -58,6 +58,9 @@ public class RecommendationService {
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
     private static final int RECENT_NEWS_TRADING_DAY_WINDOW = 3;
     private static final int DISPLAY_NEWS_LIMIT = 3;
+    private static final String ETF_PENDING_FORMULA_VERSION = "ETF_PENDING";
+    private static final String ETF_PENDING_ENGINE_VERSION = "ETF_PENDING";
+    private static final String ETF_PENDING_MESSAGE = "ETF 전용 분석은 준비 중입니다.";
     private static final Set<String> LEGACY_V4_EVIDENCE_TYPES = Set.of(
             "PRICE",
             "NEWS",
@@ -405,6 +408,10 @@ public class RecommendationService {
             boolean allowExternalNewsFetch,
             boolean allowExternalPriceFetch
     ) {
+        if (isEtfAssetType(target.getAssetType())) {
+            return buildEtfPendingEngineResult(target);
+        }
+
         final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
         final String memo = blankToEmpty(target.getMemo());
         final boolean hasHardRisk = containsHardRiskKeyword(memo);
@@ -455,7 +462,14 @@ public class RecommendationService {
                 priceContribution,
                 newsContribution
         );
-        final String finalNote = buildFinalNote(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment);
+        final String finalNote = buildFinalNote(
+                target,
+                recommendationStatus,
+                finalScore,
+                priceSnapshot,
+                newsSentiment,
+                v4Context
+        );
 
         return new EngineResult(
                 recommendationStatus,
@@ -527,7 +541,9 @@ public class RecommendationService {
         command.setCurrentAmount(engineResult.currentAmount());
         command.setRecommendedAmount(engineResult.recommendedAmount());
         command.setFinalNote(engineResult.finalNote());
-        command.setEngineVersion(ENGINE_VERSION);
+        command.setEngineVersion(
+                isEtfAssetType(target.getAssetType()) ? ETF_PENDING_ENGINE_VERSION : ENGINE_VERSION
+        );
         command.setFormulaVersion(engineResult.scoreResult().formulaVersion());
         command.setRawScore(engineResult.scoreResult().rawScore());
         command.setRiskAdjustment(engineResult.scoreResult().riskAdjustment());
@@ -624,6 +640,14 @@ public class RecommendationService {
     }
 
     private LightweightRecommendationResult toLightweightHomeResponse(RecommendationTarget target) {
+        if (isEtfAssetType(target.getAssetType())) {
+            return new LightweightRecommendationResult(
+                    toPendingResponse(target),
+                    null,
+                    null
+            );
+        }
+
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
         final List<NewsAnalysisCacheRecord> cachedNews = selectDisplayNewsRecords(
@@ -697,6 +721,8 @@ public class RecommendationService {
                 target.getCompanyName(),
                 target.getTicker(),
                 target.getLogoUrl(),
+                blankToEmpty(target.getAssetType()),
+                null,
                 scoreResult.recommendationStatus(),
                 scoreResult.finalScore(),
                 confidence,
@@ -1035,6 +1061,8 @@ public class RecommendationService {
                 target.getCompanyName(),
                 target.getTicker(),
                 target.getLogoUrl(),
+                blankToEmpty(target.getAssetType()),
+                isEtfAssetType(target.getAssetType()) ? ETF_PENDING_MESSAGE : null,
                 engineResult.recommendationStatus(),
                 engineResult.finalScore(),
                 engineResult.confidenceScore(),
@@ -1044,7 +1072,7 @@ public class RecommendationService {
                 target.getInvestmentStartDate() == null ? "" : target.getInvestmentStartDate().toString(),
                 blankToEmpty(target.getMemo()),
                 engineResult.finalNote(),
-                ENGINE_VERSION,
+                isEtfAssetType(target.getAssetType()) ? ETF_PENDING_ENGINE_VERSION : ENGINE_VERSION,
                 LocalDate.now(HOME_ZONE),
                 OffsetDateTime.now(ZoneOffset.UTC),
                 engineResult.relatedNews().isEmpty() ? null : OffsetDateTime.now(ZoneOffset.UTC),
@@ -1085,6 +1113,8 @@ public class RecommendationService {
                 record.getCompanyName(),
                 record.getTicker(),
                 record.getLogoUrl(),
+                blankToEmpty(record.getAssetType()),
+                isEtfAssetType(record.getAssetType()) ? ETF_PENDING_MESSAGE : null,
                 record.getRecommendationStatus(),
                 zeroIfNull(record.getEngineScore()),
                 zeroIfNull(record.getConfidenceScore()),
@@ -1121,8 +1151,10 @@ public class RecommendationService {
         final List<RecommendationEvidenceResponse> evidence = List.of(
                 new RecommendationEvidenceResponse(
                         "PENDING",
-                        "추천 분석 대기",
-                        "홈 화면에서는 저장된 추천 결과만 빠르게 보여줍니다. 상세 분석이 필요하면 추천 생성 시 최신 분석을 불러옵니다.",
+                        isEtfAssetType(target.getAssetType()) ? "ETF 분석 준비 중" : "추천 분석 대기",
+                        isEtfAssetType(target.getAssetType())
+                                ? "ETF는 지금 검색과 등록은 가능하지만, 기업형 추천 모델과 분리해서 ETF 전용 분석을 준비하고 있어요."
+                                : "홈 화면에서는 저장된 추천 결과만 빠르게 보여줍니다. 상세 분석이 필요하면 추천 생성 시 최신 분석을 불러옵니다.",
                         null,
                         1,
                         null
@@ -1136,25 +1168,31 @@ public class RecommendationService {
                 target.getCompanyName(),
                 target.getTicker(),
                 target.getLogoUrl(),
+                blankToEmpty(target.getAssetType()),
+                isEtfAssetType(target.getAssetType()) ? ETF_PENDING_MESSAGE : null,
                 "MAINTAIN",
-                50,
-                55,
+                isEtfAssetType(target.getAssetType()) ? 0 : 50,
+                isEtfAssetType(target.getAssetType()) ? 0 : 55,
                 currentAmount,
                 currentAmount,
                 formatHoldingQuantity(target.getHoldingQuantity()),
                 target.getInvestmentStartDate() == null ? "" : target.getInvestmentStartDate().toString(),
                 blankToEmpty(target.getMemo()),
-                "상세 분석 전까지는 현재 모으기 금액을 유지하는 기본 상태로 표시합니다.",
-                "PENDING",
+                isEtfAssetType(target.getAssetType())
+                        ? "ETF는 별도 분석 모델을 준비하고 있어요. 지금은 등록한 금액과 보유 정보만 먼저 보여드려요."
+                        : "상세 분석 전까지는 현재 모으기 금액을 유지하는 기본 상태로 표시합니다.",
+                isEtfAssetType(target.getAssetType()) ? ETF_PENDING_ENGINE_VERSION : "PENDING",
                 null,
                 null,
                 newsAnalyzedAt,
-                "관련 뉴스 분석을 아직 준비 중입니다.",
+                isEtfAssetType(target.getAssetType())
+                        ? "ETF 전용 뉴스·구성 자산 분석은 준비 중입니다."
+                        : "관련 뉴스 분석을 아직 준비 중입니다.",
                 new RecommendationScoresResponse(0, 0, 0, 0, 0),
                 new RecommendationCalculationResponse(
-                        "PENDING",
-                        50,
-                        50,
+                        isEtfAssetType(target.getAssetType()) ? ETF_PENDING_FORMULA_VERSION : "PENDING",
+                        isEtfAssetType(target.getAssetType()) ? 0 : 50,
+                        isEtfAssetType(target.getAssetType()) ? 0 : 50,
                         0,
                         null,
                         null,
@@ -1176,6 +1214,59 @@ public class RecommendationService {
                 newsRecords.stream()
                         .map(this::toRelatedNewsResponse)
                         .toList()
+        );
+    }
+
+    private boolean isEtfAssetType(String assetType) {
+        return "ETF".equalsIgnoreCase(blankToEmpty(assetType).trim());
+    }
+
+    private EngineResult buildEtfPendingEngineResult(RecommendationTarget target) {
+        final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
+        final List<RecommendationEvidenceSaveCommand> evidence = List.of(
+                evidence(
+                        "ETF_PENDING",
+                        "ETF 분석 준비 중",
+                        "ETF는 지금 검색과 등록은 가능하지만, ETF 전용 분석 모델을 따로 준비하고 있어요.",
+                        null,
+                        1
+                )
+        );
+
+        return new EngineResult(
+                "MAINTAIN",
+                0,
+                0,
+                currentAmount,
+                currentAmount,
+                "ETF는 별도 분석 모델을 준비하고 있어요. 지금은 등록한 금액과 보유 정보만 먼저 보여드려요.",
+                0,
+                0,
+                0,
+                0,
+                0,
+                evidence,
+                List.of(),
+                ETF_PENDING_ENGINE_VERSION,
+                0,
+                false,
+                false,
+                new RecommendationScoreCalculator.ScoreResult(
+                        ETF_PENDING_FORMULA_VERSION,
+                        0,
+                        0,
+                        0,
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        null,
+                        "MAINTAIN",
+                        false
+                ),
+                null,
+                null
         );
     }
 
@@ -1630,7 +1721,8 @@ public class RecommendationService {
                         scoreResult.recommendationStatus(),
                         scoreResult.finalScore(),
                         priceSnapshot,
-                        newsSentiment
+                        newsSentiment,
+                        v4Context
                 ),
                 null,
                 6
@@ -1699,7 +1791,8 @@ public class RecommendationService {
                         scoreResult.recommendationStatus(),
                         scoreResult.finalScore(),
                         priceSnapshot,
-                        newsSentiment
+                        newsSentiment,
+                        null
                 ),
                 null,
                 4
@@ -1763,7 +1856,7 @@ public class RecommendationService {
         evidence.add(evidence(
                 "AI_NOTE",
                 "최종 해석",
-                buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment),
+                buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment, null),
                 null,
                 6
         ));
@@ -2422,6 +2515,8 @@ public class RecommendationService {
             score = momentum.getPullbackScore();
         } else if (return30d < -3) {
             score = momentum.getSoftPullbackScore();
+        } else if (return30d < 2) {
+            score = momentum.getNeutralScore() - 4;
         } else if (return30d <= 8) {
             score = momentum.getNeutralScore();
         } else if (return30d <= 15) {
@@ -2451,6 +2546,15 @@ public class RecommendationService {
             }
             if (return30d >= 0 && return30d <= 12 && return7d >= 1 && return7d <= 4) {
                 score += momentum.getStableTrendBonus();
+            }
+            if (return30d >= -2 && return30d <= 2 && return7d >= -2 && return7d <= 1) {
+                score += 2;
+            }
+            if (return30d >= -5 && return30d < 0 && return7d <= -3) {
+                score -= 6;
+            }
+            if (return30d >= -10 && return30d < -5 && return7d <= -4) {
+                score -= 4;
             }
             if (return30d >= 20 && return7d >= 8) {
                 score -= momentum.getOverheatPenalty();
@@ -2510,7 +2614,16 @@ public class RecommendationService {
         } else if (downside30 >= 10) {
             score -= 6;
         }
+        if (downside7 >= 3 && downside30 >= 2) {
+            score -= 3;
+        }
+        if (downside7 >= 5 && downside30 >= 8) {
+            score -= 4;
+        }
         if (abs7 <= 3 && abs30 <= 10) {
+            score += 2;
+        }
+        if (downside7 == 0 && abs7 <= 2.5 && abs30 <= 8) {
             score += 2;
         }
 
@@ -3661,23 +3774,23 @@ public class RecommendationService {
             int finalUserAdjustment
     ) {
         final List<String> parts = new ArrayList<>();
-        parts.add(resolveRiskProfileDisplayName(effectiveRiskProfile) + " 기준을 적용했어요.");
+        parts.add("내 투자 성향은 " + resolveRiskProfileDisplayName(effectiveRiskProfile) + "으로 반영했어요.");
 
         if (dailyInvestAmount.compareTo(BigDecimal.valueOf(90)) >= 0) {
-            parts.add("매일 모으기 금액이 커 부담을 낮추는 쪽으로 봤어요.");
+            parts.add("현재 매일 모으기 금액이 큰 편이라 무리한 증액은 조심스럽게 봤어요.");
         } else if (dailyInvestAmount.compareTo(BigDecimal.valueOf(15)) <= 0) {
-            parts.add("현재 모으기 금액이 크지 않아 비교적 유연하게 반영했어요.");
+            parts.add("현재 모으기 금액이 크지 않아 비교적 유연하게 볼 수 있었어요.");
         }
 
         if (holdingQuantity != null && holdingQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            parts.add("이미 보유 중인 수량이 있어 추격 매수보다 관리 관점도 함께 반영했어요.");
+            parts.add("이미 보유 수량이 있어 추가 매수보다 관리 관점도 함께 반영했어요.");
         }
 
         if (daysHeld != null) {
             if (daysHeld < 14) {
-                parts.add("투자 시작 직후라 아직 흐름 확인이 더 필요하다고 봤어요.");
+                parts.add("투자 시작 직후라 아직 내 투자 리듬을 더 확인할 필요가 있다고 봤어요.");
             } else if (daysHeld >= 90) {
-                parts.add("장기적으로 모아온 이력이 있어 일관성을 긍정적으로 반영했어요.");
+                parts.add("장기적으로 모아온 이력이 있어 꾸준함을 긍정적으로 반영했어요.");
             }
         }
 
@@ -4156,14 +4269,20 @@ public class RecommendationService {
         final String perText = "현재 PER은 " + formatDecimal(assessment.perValue(), 1) + "배예요.";
         final boolean strongCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() >= 78;
         final boolean weakCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() <= 55;
+        final boolean strongProfitability = assessment.profitabilityScore() != null
+                && assessment.profitabilityScore() >= 80;
         return switch (blankToEmpty(assessment.perBand())) {
             case "ATTRACTIVE" -> perText + " 가격 부담이 낮은 편이에요.";
             case "FAIR" -> perText + " 과하게 비싼 구간은 아니에요.";
             case "EXPENSIVE" -> strongCashSupport
                     ? perText + " 다소 비싸지만 현금흐름이 받쳐줘 부담을 일부 낮췄어요."
+                    : strongProfitability
+                    ? perText + " 실적 체력은 좋지만 가격 기대도 어느 정도 반영됐어요."
                     : perText + " 실적 대비 가격 부담이 조금 있는 편이에요.";
             case "VERY_EXPENSIVE" -> weakCashSupport
                     ? perText + " 기대는 높지만 현금흐름 뒷받침이 약해 가격 부담이 커요."
+                    : strongProfitability
+                    ? perText + " 좋은 회사여도 이미 기대가 많이 반영돼 추가 매수는 신중히 봤어요."
                     : perText + " 기대가 많이 반영돼 가격 부담이 큰 편이에요.";
             default -> perText + " 가격 부담은 보수적으로 해석했어요.";
         };
@@ -4206,6 +4325,14 @@ public class RecommendationService {
                 && cashFlow != null
                 && cashFlow >= 68) {
             return growthText + " 아주 급하진 않지만 질 좋은 성장으로 봤어요.";
+        }
+        if (growth != null
+                && growth >= 0.05
+                && profitability != null
+                && profitability >= 75
+                && cashFlow != null
+                && cashFlow >= 60) {
+            return growthText + " 속도는 무리하지 않지만 이익으로 이어지는 힘은 괜찮은 편이에요.";
         }
         if (growth != null
                 && growth < 0.0) {
@@ -4263,7 +4390,8 @@ public class RecommendationService {
             String recommendationStatus,
             int finalScore,
             PriceSnapshot priceSnapshot,
-            NewsSentimentService.NewsSentimentResult newsSentiment
+            NewsSentimentService.NewsSentimentResult newsSentiment,
+            V4ScoringContext v4Context
     ) {
         final String companyName = target.getCompanyName();
 
@@ -4273,9 +4401,42 @@ public class RecommendationService {
         if (newsSentiment.hardNegativeOverride()) {
             return companyName + "과 직접 관련된 강한 악재가 확인되어, 다른 긍정 기사보다 우선 반영하고 모으기 금액 축소를 권합니다.";
         }
+        if ("INCREASE".equals(recommendationStatus)) {
+            if (v4Context != null
+                    && v4Context.valuationScore() != null
+                    && v4Context.valuationScore() <= 58) {
+                return companyName + "은 기본 체력과 흐름은 좋지만 가격 부담이 남아 있어도, 현재 기준에서는 증액 쪽 판단이 더 우세합니다.";
+            }
+            if (v4Context != null
+                    && v4Context.qualityOfGrowthScore() != null
+                    && v4Context.qualityOfGrowthScore() >= 70
+                    && v4Context.fundamentalQualityScore() != null
+                    && v4Context.fundamentalQualityScore() >= 74) {
+                return companyName + "은 기업 체력과 성장의 질이 함께 좋아, 지금은 한 단계 더 모아가는 증액 판단이 자연스럽습니다.";
+            }
+            return companyName + "은 여러 핵심 팩터가 강한 편이라, 현재 기준에서는 기존 금액보다 한 단계 더 모아가는 쪽이 적절합니다.";
+        }
         if ("REDUCE".equals(recommendationStatus)) {
+            if (v4Context != null
+                    && v4Context.priceMomentumScore() != null
+                    && v4Context.priceMomentumScore() <= 45
+                    && v4Context.qualityOfGrowthScore() != null
+                    && v4Context.qualityOfGrowthScore() <= 58) {
+                return companyName + "은 최근 가격 흐름과 성장의 질이 함께 약해, 감액 쪽으로 한 단계 보수적으로 본 상태입니다.";
+            }
+            if (v4Context != null
+                    && v4Context.priceStabilityScore() != null
+                    && v4Context.priceStabilityScore() <= 60) {
+                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 지금은 금액을 줄여 관찰하는 쪽이 더 자연스럽습니다.";
+            }
             return companyName + "은 현재 점수 " + finalScore
                     + "점으로 공격적으로 늘리기보다 금액을 줄여 관찰하는 보수적 전략이 적절합니다.";
+        }
+        if ("MAINTAIN".equals(recommendationStatus) && v4Context != null) {
+            final String maintainComment = buildMaintainAiComment(companyName, v4Context);
+            if (!maintainComment.isBlank()) {
+                return maintainComment;
+            }
         }
         if ("NEGATIVE".equals(newsSentiment.label())) {
             return companyName + "은 최근 뉴스 심리가 부정적으로 기울어 있어, 당장 증액보다 현재 금액 유지가 더 안전합니다.";
@@ -4292,9 +4453,53 @@ public class RecommendationService {
             String recommendationStatus,
             int finalScore,
             PriceSnapshot priceSnapshot,
-            NewsSentimentService.NewsSentimentResult newsSentiment
+            NewsSentimentService.NewsSentimentResult newsSentiment,
+            V4ScoringContext v4Context
     ) {
-        return buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment);
+        return buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment, v4Context);
+    }
+
+    private String buildMaintainAiComment(String companyName, V4ScoringContext v4Context) {
+        final Integer momentum = v4Context.priceMomentumScore();
+        final Integer stability = v4Context.priceStabilityScore();
+        final Integer valuation = v4Context.valuationScore();
+        final Integer quality = v4Context.qualityOfGrowthScore();
+        final Integer fundamental = v4Context.fundamentalQualityScore();
+
+        final boolean nearIncrease = (momentum != null && momentum >= 68)
+                || (stability != null && stability >= 85)
+                || (fundamental != null && fundamental >= 74 && quality != null && quality >= 68);
+        final boolean nearReduce = (momentum != null && momentum <= 50)
+                || (stability != null && stability <= 65)
+                || (quality != null && quality <= 58);
+
+        if (nearIncrease && valuation != null && valuation <= 58) {
+            return companyName + "은 기본 체력과 흐름은 나쁘지 않지만 가격 부담이 남아 있어, 증액 직전 유지로 보는 편이 자연스럽습니다.";
+        }
+        if (nearIncrease && quality != null && quality <= 66) {
+            return companyName + "은 흐름과 안정성은 괜찮지만 성장의 질이 한 단계 더 확인돼야 해서, 증액 직전 유지로 판단했어요.";
+        }
+        if (nearIncrease && fundamental != null && fundamental <= 64) {
+            return companyName + "은 가격 흐름은 괜찮지만 기업 체력 확신이 아주 강한 단계는 아니라, 증액 직전 유지로 봤어요.";
+        }
+        if (nearIncrease) {
+            return companyName + "은 여러 팩터가 비교적 잘 버티고 있어, 지금은 증액 직전 유지 구간에 가깝습니다.";
+        }
+
+        if (nearReduce && momentum != null && momentum <= 50 && quality != null && quality <= 58) {
+            return companyName + "은 최근 가격 흐름과 성장의 질이 함께 약해, 감액 직전 유지에 가까운 상태로 봤어요.";
+        }
+        if (nearReduce && stability != null && stability <= 65) {
+            return companyName + "은 하락 위험이 크진 않지만 안정성이 충분히 높진 않아, 감액 직전 유지 쪽으로 해석했어요.";
+        }
+        if (nearReduce) {
+            return companyName + "은 아직 감액까지는 아니지만, 보수적인 유지 구간에 더 가까운 상태입니다.";
+        }
+
+        if (valuation != null && valuation <= 58) {
+            return companyName + "은 큰 경고 신호는 없지만 가격 메리트가 아주 크진 않아, 중립적인 유지 구간으로 판단했어요.";
+        }
+        return "";
     }
 
     private String resolveRecommendationStatus(int finalScore) {

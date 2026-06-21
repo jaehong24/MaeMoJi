@@ -12,6 +12,8 @@ public record RecommendationResponse(
         String companyName,
         String ticker,
         String logoUrl,
+        String assetType,
+        String analysisStageMessage,
         String recommendationType,
         int finalScore,
         int confidence,

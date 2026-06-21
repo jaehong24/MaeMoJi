@@ -113,6 +113,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           }
 
           final resolvedItem = item!;
+          final isEtfPending = resolvedItem.isEtfAnalysisPending;
           final currencyController = CurrencyScope.of(context);
 
           return ListenableBuilder(
@@ -175,7 +176,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            RecommendationBadge(status: resolvedItem.status),
+                            RecommendationBadge(
+                              status: resolvedItem.status,
+                              labelOverride: isEtfPending ? '준비 중' : null,
+                              colorOverride: isEtfPending
+                                  ? MaeMojiColors.reduce
+                                  : null,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -220,8 +227,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MiniMetricCard(
-                          label: '최종 점수',
-                          value: '${resolvedItem.score}점',
+                          label: isEtfPending ? '분석 상태' : '최종 점수',
+                          value: isEtfPending ? '준비 중' : '${resolvedItem.score}점',
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -234,46 +241,65 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  AppSectionCard(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '추천 근거',
-                                style: theme.textTheme.titleLarge,
-                              ),
-                            ),
-                            if (_buildRecommendationMetaLabel(resolvedItem)
-                                case final label?)
-                              Text(
-                                label,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: 11,
-                                  color: MaeMojiColors.inkMuted,
+                  if (isEtfPending)
+                    AppSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ETF 분석 준비 중',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            resolvedItem.analysisStageMessage ??
+                                'ETF는 검색과 등록은 가능하지만, 기업형 추천 모델과 분리해서 ETF 전용 분석을 준비하고 있어요.',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    AppSectionCard(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '추천 근거',
+                                  style: theme.textTheme.titleLarge,
                                 ),
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '이 종목의 매일 모으기 금액을 어떻게 판단했는지 핵심 이유를 모아 보여드려요.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 16),
-                        EvidenceSection(
-                          items: resolvedItem.evidence,
-                          riskProfileLabel: _riskProfileLabel(
-                            resolvedItem.riskProfileApplied,
+                              if (_buildRecommendationMetaLabel(resolvedItem)
+                                  case final label?)
+                                Text(
+                                  label,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontSize: 11,
+                                    color: MaeMojiColors.inkMuted,
+                                  ),
+                                ),
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            '이 종목의 매일 모으기 금액을 어떻게 판단했는지 핵심 이유를 모아 보여드려요.',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 16),
+                          EvidenceSection(
+                            items: resolvedItem.evidence,
+                            riskProfileLabel: _riskProfileLabel(
+                              resolvedItem.riskProfileApplied,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 14),
                   AppSectionCard(
                     child: Column(
@@ -288,8 +314,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                 style: theme.textTheme.titleLarge,
                               ),
                             ),
-                            if (_buildNewsMetaLabel(resolvedItem)
-                                case final newsLabel?)
+                            if (!isEtfPending)
+                              if (_buildNewsMetaLabel(resolvedItem)
+                                  case final String newsLabel)
                               Text(
                                 newsLabel,
                                 style: theme.textTheme.bodySmall?.copyWith(
@@ -301,13 +328,15 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          resolvedItem.relatedNews.isEmpty
-                              ? (resolvedItem.relatedNewsStatusMessage ??
-                                    '오늘 관련 뉴스가 아직 없습니다.')
-                              : '감성, 관련성, 영향도를 반영한 기사별 분석입니다.',
+                          isEtfPending
+                              ? 'ETF 전용 뉴스와 구성 자산 분석도 준비 중입니다.'
+                              : resolvedItem.relatedNews.isEmpty
+                                    ? (resolvedItem.relatedNewsStatusMessage ??
+                                          '오늘 관련 뉴스가 아직 없습니다.')
+                                    : '감성, 관련성, 영향도를 반영한 기사별 분석입니다.',
                           style: theme.textTheme.bodyMedium,
                         ),
-                        if (resolvedItem.relatedNews.isNotEmpty) ...[
+                        if (!isEtfPending && resolvedItem.relatedNews.isNotEmpty) ...[
                           const SizedBox(height: 16),
                           ...resolvedItem.relatedNews.asMap().entries.map((
                             entry,
@@ -475,6 +504,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       name: next.name,
       ticker: next.ticker,
       logoUrl: next.logoUrl,
+      assetType: next.assetType,
+      analysisStageMessage: next.analysisStageMessage,
       currentAmountUsd: next.currentAmountUsd,
       recommendedAmountUsd: next.recommendedAmountUsd,
       confidence: next.confidence,

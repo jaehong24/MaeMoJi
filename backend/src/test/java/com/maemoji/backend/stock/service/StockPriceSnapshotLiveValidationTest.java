@@ -76,6 +76,13 @@ class StockPriceSnapshotLiveValidationTest {
             "WMT",
             "XOM"
     );
+    private static final List<String> MISSING_PRICE_FLOW_SAMPLE_SYMBOLS = List.of(
+            "TM",
+            "NVS",
+            "AZN",
+            "LIN",
+            "SAP"
+    );
 
     @Autowired
     private StockPriceSnapshotBatchService stockPriceSnapshotBatchService;
@@ -228,6 +235,32 @@ class StockPriceSnapshotLiveValidationTest {
         assertThat(savedRows).isGreaterThan(0);
 
         for (String symbol : SAMPLE_SET_PRICE_BACKFILL_SYMBOLS) {
+            final SnapshotValidationRow latestSnapshot = findLatestSnapshot(symbol);
+            assertThat(latestSnapshot)
+                    .as("latest snapshot row for %s", symbol)
+                    .isNotNull();
+            assertThat(latestSnapshot.changeRate30d())
+                    .as("30 day return for %s", symbol)
+                    .isNotNull();
+        }
+    }
+
+    @Test
+    void backfillsThirtyDayHistoryForMissingPriceFlowSampleSet() throws Exception {
+        final List<Long> stockIds = MISSING_PRICE_FLOW_SAMPLE_SYMBOLS.stream()
+                .map(symbol -> {
+                    try {
+                        return findStockId(symbol);
+                    } catch (Exception exception) {
+                        throw new IllegalStateException(exception);
+                    }
+                })
+                .toList();
+
+        final int savedRows = stockPriceSnapshotBatchService.backfillHistoricalSnapshotsForStockIds(stockIds, 45);
+        assertThat(savedRows).isGreaterThan(0);
+
+        for (String symbol : MISSING_PRICE_FLOW_SAMPLE_SYMBOLS) {
             final SnapshotValidationRow latestSnapshot = findLatestSnapshot(symbol);
             assertThat(latestSnapshot)
                     .as("latest snapshot row for %s", symbol)

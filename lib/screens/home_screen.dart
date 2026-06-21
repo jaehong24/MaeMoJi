@@ -150,16 +150,19 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            final increaseCount = recommendations
+            final scorableRecommendations = recommendations
+                .where((item) => !item.isEtfAnalysisPending)
+                .toList();
+            final increaseCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.increase)
                 .length;
-            final maintainCount = recommendations
+            final maintainCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.maintain)
                 .length;
-            final reduceCount = recommendations
+            final reduceCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.reduce)
                 .length;
-            final stopCount = recommendations
+            final stopCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.stop)
                 .length;
 
