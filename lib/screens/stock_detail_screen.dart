@@ -141,6 +141,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   _DetailStatusCard(
                     isRefreshingLatest: _isRefreshingLatest,
                     message: _statusMessage,
+                    analysisStageMessage: resolvedItem.analysisStageMessage,
                   ),
                   const SizedBox(height: 12),
                   AppSectionCard(
@@ -626,16 +627,20 @@ class _DetailStatusCard extends StatelessWidget {
   const _DetailStatusCard({
     required this.isRefreshingLatest,
     required this.message,
+    required this.analysisStageMessage,
   });
 
   final bool isRefreshingLatest;
   final String? message;
+  final String? analysisStageMessage;
 
   @override
   Widget build(BuildContext context) {
     final chips = <Widget>[
       if (isRefreshingLatest)
         const _StatusChip(label: '최신 분석 중', color: MaeMojiColors.reduce),
+      if (analysisStageMessage != null)
+        const _StatusChip(label: '지표 준비 중', color: MaeMojiColors.maintain),
     ];
 
     return Container(
@@ -654,6 +659,17 @@ class _DetailStatusCard extends StatelessWidget {
             SizedBox(height: chips.isNotEmpty ? 10 : 0),
             Text(
               message!,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.45,
+                color: MaeMojiColors.inkSoft,
+              ),
+            ),
+          ],
+          if (analysisStageMessage != null) ...[
+            SizedBox(height: message != null || chips.isNotEmpty ? 8 : 0),
+            Text(
+              analysisStageMessage!,
               style: const TextStyle(
                 fontSize: 13,
                 height: 1.45,

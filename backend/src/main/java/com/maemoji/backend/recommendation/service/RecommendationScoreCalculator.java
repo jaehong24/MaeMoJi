@@ -312,6 +312,12 @@ public class RecommendationScoreCalculator {
                 || input.confidence() < rule.getMinConfidenceForIncrease()) {
             return false;
         }
+        if (input.priceMomentumScore() == null || input.priceStabilityScore() == null) {
+            return false;
+        }
+        if (input.fundamentalQualityScore() == null && input.qualityOfGrowthScore() == null) {
+            return false;
+        }
         if (input.valuationScore() != null
                 && input.valuationScore() <= guard.getAbsoluteValuationBlockMax()) {
             return false;

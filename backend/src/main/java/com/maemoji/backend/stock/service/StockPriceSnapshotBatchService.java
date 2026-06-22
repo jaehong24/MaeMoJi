@@ -361,6 +361,7 @@ public class StockPriceSnapshotBatchService {
         if (stock == null) {
             return false;
         }
+        refreshStockIpoDateIfMissing(stock, System.getenv("FMP_API_KEY"));
         if (isEtfStock(stock)) {
             return false;
         }
@@ -387,6 +388,13 @@ public class StockPriceSnapshotBatchService {
         }
 
         if (!needsFundamentalRefresh(latestSnapshot, today)) {
+            return updated;
+        }
+        if (latestSnapshot != null
+                && latestSnapshot.getSnapshotDate() != null
+                && !latestSnapshot.getSnapshotDate().isBefore(today)
+                && hasInsufficientCoreFundamentals(latestSnapshot)
+                && isRecentlyListedForFundamentals(stock, today)) {
             return updated;
         }
         return syncLatestSnapshotForStock(stockId) || updated;
@@ -665,9 +673,69 @@ public class StockPriceSnapshotBatchService {
                         symbol
                 )
                 : null;
+        final JsonNode incomeStatements = fetchMetrics && hasText(fmpApiKey)
+                ? getJsonOrNull(
+                        "https://financialmodelingprep.com/stable/income-statement?symbol="
+                                + encode(symbol)
+                                + "&limit=2&apikey="
+                                + encode(fmpApiKey),
+                        symbol
+                )
+                : null;
+        final JsonNode balanceSheets = fetchMetrics && hasText(fmpApiKey)
+                ? getJsonOrNull(
+                        "https://financialmodelingprep.com/stable/balance-sheet-statement?symbol="
+                                + encode(symbol)
+                                + "&limit=1&apikey="
+                                + encode(fmpApiKey),
+                        symbol
+                )
+                : null;
+        final JsonNode cashFlows = fetchMetrics && hasText(fmpApiKey)
+                ? getJsonOrNull(
+                        "https://financialmodelingprep.com/stable/cash-flow-statement?symbol="
+                                + encode(symbol)
+                                + "&limit=1&apikey="
+                                + encode(fmpApiKey),
+                        symbol
+                )
+                : null;
         final JsonNode keyMetricNode = firstValueNode(keyMetrics);
         final JsonNode ratioNode = firstValueNode(ratios);
         final JsonNode growthNode = firstValueNode(incomeGrowth);
+        final JsonNode incomeStatementNode = firstValueNode(incomeStatements);
+        final JsonNode previousIncomeStatementNode = nthValueNode(incomeStatements, 1);
+        final JsonNode balanceSheetNode = firstValueNode(balanceSheets);
+        final JsonNode cashFlowNode = firstValueNode(cashFlows);
+
+        final Double fallbackRevenueGrowth = deriveRevenueGrowthFromStatements(
+                incomeStatementNode,
+                previousIncomeStatementNode
+        );
+        final Double fallbackGrossMargin = deriveMarginRatio(incomeStatementNode, "grossProfit", "revenue");
+        final Double fallbackNetMargin = deriveMarginRatio(incomeStatementNode, "netIncome", "revenue");
+        final Double fallbackOperatingMargin = deriveMarginRatio(incomeStatementNode, "operatingIncome", "revenue");
+        final Double fallbackRoe = deriveReturnRatio(incomeStatementNode, "netIncome", balanceSheetNode, "totalStockholdersEquity");
+        final Double fallbackRoa = deriveReturnRatio(incomeStatementNode, "netIncome", balanceSheetNode, "totalAssets");
+        final Double fallbackDebtToEquity = deriveRatio(balanceSheetNode, "totalDebt", balanceSheetNode, "totalStockholdersEquity");
+        final Double fallbackCurrentRatio = deriveRatio(balanceSheetNode, "totalCurrentAssets", balanceSheetNode, "totalCurrentLiabilities");
+        final Double fallbackQuickRatio = deriveQuickRatio(balanceSheetNode);
+        final Double fallbackAssetTurnover = deriveRatio(incomeStatementNode, "revenue", balanceSheetNode, "totalAssets");
+        final Double fallbackFcfYield = deriveFreeCashFlowYieldFromStatements(
+                cashFlowNode,
+                firstNonNull(
+                        readNullableDouble(keyMetricNode, "marketCap"),
+                        readNullableDouble(metricNode, "marketCapitalization")
+                )
+        );
+        final Double fallbackOperatingCashFlowRatio = deriveRatio(
+                cashFlowNode,
+                "operatingCashFlow",
+                balanceSheetNode,
+                "totalCurrentLiabilities"
+        );
+        final Double fallbackIncomeQuality = deriveIncomeQualityFromStatements(cashFlowNode, incomeStatementNode);
+        final Double fallbackEps = deriveEpsFromStatements(incomeStatementNode);
 
         return new SnapshotData(
                 readPositiveDouble(quote, "c"),
@@ -677,35 +745,59 @@ public class StockPriceSnapshotBatchService {
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "priceToEarningsRatioTTM"),
-                        readNullableDouble(metricNode, "peTTM")
+                        firstNonNull(
+                                readNullableDouble(metricNode, "peTTM"),
+                                derivePriceToEarningsFromStatements(readPositiveDouble(quote, "c"), fallbackEps)
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "netIncomePerShareTTM"),
-                        readNullableDouble(metricNode, "epsTTM")
+                        firstNonNull(
+                                readNullableDouble(metricNode, "epsTTM"),
+                                fallbackEps
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(growthNode, "growthRevenue"),
-                        readNormalizedPercentage(metricNode, "revenueGrowthTTMYoy")
+                        firstNonNull(
+                                readNormalizedPercentage(metricNode, "revenueGrowthTTMYoy"),
+                                fallbackRevenueGrowth
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "grossProfitMarginTTM"),
-                        readNormalizedPercentage(metricNode, "grossMarginTTM")
+                        firstNonNull(
+                                readNormalizedPercentage(metricNode, "grossMarginTTM"),
+                                fallbackGrossMargin
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "netProfitMarginTTM"),
-                        readNormalizedPercentage(metricNode, "netProfitMarginTTM")
+                        firstNonNull(
+                                readNormalizedPercentage(metricNode, "netProfitMarginTTM"),
+                                fallbackNetMargin
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "operatingProfitMarginTTM"),
-                        readNormalizedPercentage(metricNode, "operatingMarginTTM")
+                        firstNonNull(
+                                readNormalizedPercentage(metricNode, "operatingMarginTTM"),
+                                fallbackOperatingMargin
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "returnOnEquityTTM"),
-                        readNormalizedPercentage(metricNode, "roeTTM")
+                        firstNonNull(
+                                readNormalizedPercentage(metricNode, "roeTTM"),
+                                fallbackRoe
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "returnOnAssetsTTM"),
-                        readNormalizedPercentage(metricNode, "roaTTM")
+                        firstNonNull(
+                                readNormalizedPercentage(metricNode, "roaTTM"),
+                                fallbackRoa
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "returnOnInvestedCapitalTTM"),
@@ -713,28 +805,49 @@ public class StockPriceSnapshotBatchService {
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "debtToEquityRatioTTM"),
-                        readNullableDouble(metricNode, "totalDebt/totalEquityAnnual")
+                        firstNonNull(
+                                readNullableDouble(metricNode, "totalDebt/totalEquityAnnual"),
+                                fallbackDebtToEquity
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "currentRatioTTM"),
-                        readNullableDouble(metricNode, "currentRatioAnnual")
+                        firstNonNull(
+                                readNullableDouble(metricNode, "currentRatioAnnual"),
+                                fallbackCurrentRatio
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "quickRatioTTM"),
-                        readNullableDouble(metricNode, "quickRatioAnnual")
+                        firstNonNull(
+                                readNullableDouble(metricNode, "quickRatioAnnual"),
+                                fallbackQuickRatio
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "assetTurnoverTTM"),
-                        readNullableDouble(metricNode, "assetTurnoverTTM")
+                        firstNonNull(
+                                readNullableDouble(metricNode, "assetTurnoverTTM"),
+                                fallbackAssetTurnover
+                        )
                 ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "freeCashFlowYieldTTM"),
-                        deriveFreeCashFlowYield(metricNode)
+                        firstNonNull(
+                                deriveFreeCashFlowYield(metricNode),
+                                fallbackFcfYield
+                        )
                 ),
-                readNullableDouble(ratioNode, "operatingCashFlowRatioTTM"),
+                firstNonNull(
+                        readNullableDouble(ratioNode, "operatingCashFlowRatioTTM"),
+                        fallbackOperatingCashFlowRatio
+                ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "incomeQualityTTM"),
-                        deriveIncomeQuality(metricNode)
+                        firstNonNull(
+                                deriveIncomeQuality(metricNode),
+                                fallbackIncomeQuality
+                        )
                 )
         );
     }
@@ -876,6 +989,20 @@ public class StockPriceSnapshotBatchService {
         return value.get(0);
     }
 
+    private JsonNode nthValueNode(JsonNode root, int index) {
+        if (root == null || root.isMissingNode() || root.isNull() || index < 0) {
+            return null;
+        }
+        if (root.isArray()) {
+            return root.size() <= index ? null : root.get(index);
+        }
+        final JsonNode value = root.path("value");
+        if (!value.isArray() || value.size() <= index) {
+            return null;
+        }
+        return value.get(index);
+    }
+
     private PriceReturns calculateReturns(
             Long stockId,
             LocalDate snapshotDate,
@@ -983,6 +1110,14 @@ public class StockPriceSnapshotBatchService {
         return Double.isNaN(value) ? null : value;
     }
 
+    private String readNullableText(JsonNode node, String fieldName) {
+        if (node == null || node.isMissingNode() || node.path(fieldName).isMissingNode() || node.path(fieldName).isNull()) {
+            return null;
+        }
+        final String value = node.path(fieldName).asText(null);
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private Double readNormalizedPercentage(JsonNode node, String fieldName) {
         final Double value = readNullableDouble(node, fieldName);
         if (value == null) {
@@ -1013,6 +1148,94 @@ public class StockPriceSnapshotBatchService {
             return null;
         }
         return cashFlowPerShare / epsTtm;
+    }
+
+    private Double deriveRevenueGrowthFromStatements(JsonNode latestIncomeStatement, JsonNode previousIncomeStatement) {
+        final Double latestRevenue = readNullableDouble(latestIncomeStatement, "revenue");
+        final Double previousRevenue = readNullableDouble(previousIncomeStatement, "revenue");
+        if (latestRevenue == null || previousRevenue == null || previousRevenue == 0) {
+            return null;
+        }
+        return (latestRevenue - previousRevenue) / previousRevenue;
+    }
+
+    private Double deriveMarginRatio(JsonNode numeratorNode, String numeratorField, String revenueField) {
+        final Double numerator = readNullableDouble(numeratorNode, numeratorField);
+        final Double revenue = readNullableDouble(numeratorNode, revenueField);
+        return safeDivide(numerator, revenue);
+    }
+
+    private Double deriveReturnRatio(JsonNode numeratorNode, String numeratorField, JsonNode denominatorNode, String denominatorField) {
+        final Double numerator = readNullableDouble(numeratorNode, numeratorField);
+        final Double denominator = readNullableDouble(denominatorNode, denominatorField);
+        return safeDivide(numerator, denominator);
+    }
+
+    private Double deriveRatio(JsonNode numeratorNode, String numeratorField, JsonNode denominatorNode, String denominatorField) {
+        final Double numerator = readNullableDouble(numeratorNode, numeratorField);
+        final Double denominator = readNullableDouble(denominatorNode, denominatorField);
+        return safeDivide(numerator, denominator);
+    }
+
+    private Double deriveQuickRatio(JsonNode balanceSheetNode) {
+        final Double cash = firstNonNull(
+                readNullableDouble(balanceSheetNode, "cashAndCashEquivalents"),
+                readNullableDouble(balanceSheetNode, "cashAndShortTermInvestments")
+        );
+        final Double receivables = readNullableDouble(balanceSheetNode, "netReceivables");
+        final Double currentLiabilities = readNullableDouble(balanceSheetNode, "totalCurrentLiabilities");
+        if (currentLiabilities == null || currentLiabilities == 0) {
+            return null;
+        }
+        double numerator = 0;
+        boolean hasComponent = false;
+        if (cash != null) {
+            numerator += cash;
+            hasComponent = true;
+        }
+        if (receivables != null) {
+            numerator += receivables;
+            hasComponent = true;
+        }
+        if (!hasComponent) {
+            return null;
+        }
+        return numerator / currentLiabilities;
+    }
+
+    private Double deriveFreeCashFlowYieldFromStatements(JsonNode cashFlowNode, Double marketCap) {
+        final Double freeCashFlow = readNullableDouble(cashFlowNode, "freeCashFlow");
+        if (freeCashFlow == null || marketCap == null || marketCap == 0) {
+            return null;
+        }
+        return freeCashFlow / marketCap;
+    }
+
+    private Double deriveIncomeQualityFromStatements(JsonNode cashFlowNode, JsonNode incomeStatementNode) {
+        final Double operatingCashFlow = readNullableDouble(cashFlowNode, "operatingCashFlow");
+        final Double netIncome = readNullableDouble(incomeStatementNode, "netIncome");
+        return safeDivide(operatingCashFlow, netIncome);
+    }
+
+    private Double deriveEpsFromStatements(JsonNode incomeStatementNode) {
+        return firstNonNull(
+                readNullableDouble(incomeStatementNode, "epsdiluted"),
+                readNullableDouble(incomeStatementNode, "eps")
+        );
+    }
+
+    private Double derivePriceToEarningsFromStatements(Double currentPrice, Double eps) {
+        if (currentPrice == null || eps == null || eps == 0) {
+            return null;
+        }
+        return currentPrice / eps;
+    }
+
+    private Double safeDivide(Double numerator, Double denominator) {
+        if (numerator == null || denominator == null || denominator == 0) {
+            return null;
+        }
+        return numerator / denominator;
     }
 
     private Double firstNonNull(Double primary, Double fallback) {
@@ -1055,17 +1278,22 @@ public class StockPriceSnapshotBatchService {
         if (isEtfStock(stock)) {
             return false;
         }
-        if (snapshot.getChangeRate7d() != null && snapshot.getChangeRate30d() == null && isRecentlyListed(stock.getId(), today)) {
+        if (snapshot.getChangeRate7d() != null
+                && snapshot.getChangeRate30d() == null
+                && isRecentlyListedForPriceHistory(stock, today)) {
             return false;
         }
         return snapshot.getChangeRate7d() == null || snapshot.getChangeRate30d() == null;
     }
 
     private boolean needsImmediateBackfillRetry(Stock stock, StockPriceSnapshotRecord snapshot, LocalDate today) {
-        if (snapshot == null || isEtfStock(stock) || isRecentlyListed(stock.getId(), today)) {
+        if (snapshot == null || isEtfStock(stock)) {
             return false;
         }
         if (snapshot.getChangeRate30d() != null) {
+            return false;
+        }
+        if (isRecentlyListedForPriceHistory(stock, today)) {
             return false;
         }
         return snapshot.getChangeRate7d() != null
@@ -1108,15 +1336,68 @@ public class StockPriceSnapshotBatchService {
         return stock != null && "ETF".equalsIgnoreCase(blankToEmpty(stock.getAssetType()).trim());
     }
 
-    private boolean isRecentlyListed(Long stockId, LocalDate today) {
-        if (stockId == null) {
+    private boolean isRecentlyListedForPriceHistory(Stock stock, LocalDate today) {
+        final LocalDate anchorDate = resolveRecentListingAnchorDate(stock);
+        if (anchorDate == null) {
             return false;
         }
-        final LocalDate oldestSnapshotDate = stockPriceSnapshotMapper.findOldestSnapshotDateByStockId(stockId);
-        if (oldestSnapshotDate == null) {
-            return true;
+        return anchorDate.isAfter(today.minusDays(properties.getRecentListingWindowDays()));
+    }
+
+    private boolean isRecentlyListedForFundamentals(Stock stock, LocalDate today) {
+        final LocalDate anchorDate = resolveRecentListingAnchorDate(stock);
+        if (anchorDate == null) {
+            return false;
         }
-        return oldestSnapshotDate.isAfter(today.minusDays(properties.getRecentListingWindowDays()));
+        return anchorDate.isAfter(today.minusDays(properties.getRecentFundamentalListingWindowDays()));
+    }
+
+    private LocalDate resolveRecentListingAnchorDate(Stock stock) {
+        if (stock == null) {
+            return null;
+        }
+        if (stock.getIpoDate() != null) {
+            return stock.getIpoDate();
+        }
+        if (stock.getCreatedAt() != null) {
+            return stock.getCreatedAt().toLocalDate();
+        }
+        if (stock.getId() == null) {
+            return null;
+        }
+        return stockPriceSnapshotMapper.findOldestSnapshotDateByStockId(stock.getId());
+    }
+
+    private void refreshStockIpoDateIfMissing(Stock stock, String fmpApiKey) {
+        if (stock == null || stock.getId() == null || stock.getIpoDate() != null || !hasText(fmpApiKey)) {
+            return;
+        }
+        final String symbol = hasText(stock.getFinnhubSymbol()) ? stock.getFinnhubSymbol() : stock.getTicker();
+        if (!hasText(symbol)) {
+            return;
+        }
+        try {
+            final JsonNode profile = getJsonOrNull(
+                    "https://financialmodelingprep.com/stable/profile?symbol="
+                            + encode(symbol)
+                            + "&apikey="
+                            + encode(fmpApiKey),
+                    symbol
+            );
+            final JsonNode profileNode = firstValueNode(profile);
+            if (profileNode == null || profileNode.isMissingNode() || profileNode.isNull()) {
+                return;
+            }
+            final String ipoDateText = readNullableText(profileNode, "ipoDate");
+            if (!hasText(ipoDateText)) {
+                return;
+            }
+            final LocalDate ipoDate = LocalDate.parse(ipoDateText);
+            stock.setIpoDate(ipoDate);
+            stockPriceSnapshotMapper.updateStockIpoDate(stock.getId(), ipoDate);
+        } catch (Exception exception) {
+            log.debug("종목 IPO 일자 메타데이터 갱신을 건너뜁니다. symbol={}, reason={}", symbol, rootMessage(exception));
+        }
     }
 
     private String encode(String value) {
@@ -1132,6 +1413,16 @@ public class StockPriceSnapshotBatchService {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private String rootMessage(Exception exception) {
+        Throwable current = exception;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current.getMessage() == null
+                ? current.getClass().getSimpleName()
+                : current.getMessage();
     }
 
     private SelectedStocks selectStocksForSnapshot(int effectiveLimit) {

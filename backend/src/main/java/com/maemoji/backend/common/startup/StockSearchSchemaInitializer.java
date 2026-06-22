@@ -31,6 +31,7 @@ public class StockSearchSchemaInitializer implements ApplicationRunner {
                     add column if not exists country varchar(10),
                     add column if not exists sector text,
                     add column if not exists industry text,
+                    add column if not exists ipo_date date,
                     add column if not exists last_master_sync_at timestamptz,
                     add column if not exists logo_status varchar(20),
                     add column if not exists logo_checked_at timestamptz

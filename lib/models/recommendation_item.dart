@@ -74,4 +74,5 @@ class RecommendationItem {
   bool get isV4Calculation => formulaVersion.startsWith('SCORE_V4');
   bool get isEtf => assetType.toUpperCase() == 'ETF';
   bool get isEtfAnalysisPending => isEtf && formulaVersion == 'ETF_PENDING';
+  bool get isAnalysisPending => formulaVersion == 'PENDING';
 }

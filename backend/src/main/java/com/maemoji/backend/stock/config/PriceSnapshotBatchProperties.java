@@ -11,6 +11,7 @@ public class PriceSnapshotBatchProperties {
     private int defaultLimit = 500;
     private int historyLookbackDays = 45;
     private int recentListingWindowDays = 32;
+    private int recentFundamentalListingWindowDays = 90;
 
     public boolean isEnabled() {
         return enabled;
@@ -58,5 +59,13 @@ public class PriceSnapshotBatchProperties {
 
     public void setRecentListingWindowDays(int recentListingWindowDays) {
         this.recentListingWindowDays = recentListingWindowDays;
+    }
+
+    public int getRecentFundamentalListingWindowDays() {
+        return recentFundamentalListingWindowDays;
+    }
+
+    public void setRecentFundamentalListingWindowDays(int recentFundamentalListingWindowDays) {
+        this.recentFundamentalListingWindowDays = recentFundamentalListingWindowDays;
     }
 }

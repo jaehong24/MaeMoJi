@@ -55,12 +55,16 @@ class RecommendationCard extends StatelessWidget {
                 ),
               );
             };
-        final badgeLabel = item.isEtfAnalysisPending ? '준비 중' : null;
-        final badgeColor = item.isEtfAnalysisPending
+        final isPending = item.isEtfAnalysisPending || item.isAnalysisPending;
+        final badgeLabel = isPending ? '준비 중' : null;
+        final badgeColor = isPending
             ? MaeMojiColors.reduce
             : null;
-        final noteText = item.isEtfAnalysisPending
-            ? (item.analysisStageMessage ?? 'ETF 전용 분석은 준비 중입니다.')
+        final noteText = isPending
+            ? (item.analysisStageMessage ??
+                  (item.isEtfAnalysisPending
+                      ? 'ETF 전용 분석은 준비 중입니다.'
+                      : '지표 수집과 가격 흐름 확인을 먼저 진행하고 있어요.'))
             : item.note;
 
         final card = AppSectionCard(

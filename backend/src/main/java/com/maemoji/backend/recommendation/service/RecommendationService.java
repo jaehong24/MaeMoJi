@@ -19,6 +19,7 @@ import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationScoresResponse;
 import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
+import com.maemoji.backend.stock.domain.Stock;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
@@ -58,6 +59,9 @@ public class RecommendationService {
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
     private static final int RECENT_NEWS_TRADING_DAY_WINDOW = 3;
     private static final int DISPLAY_NEWS_LIMIT = 3;
+    private static final int RECENT_PRICE_HISTORY_WINDOW_DAYS = 32;
+    private static final int RECENT_FUNDAMENTAL_WINDOW_DAYS = 90;
+    private static final int MINIMUM_CORE_FUNDAMENTAL_FIELDS = 4;
     private static final String ETF_PENDING_FORMULA_VERSION = "ETF_PENDING";
     private static final String ETF_PENDING_ENGINE_VERSION = "ETF_PENDING";
     private static final String ETF_PENDING_MESSAGE = "ETF 전용 분석은 준비 중입니다.";
@@ -893,6 +897,102 @@ public class RecommendationService {
         return "최근 관련 뉴스가 부족해 표시 가능한 최신 분석이 아직 없습니다.";
     }
 
+    private String resolveAnalysisStageMessage(Long stockId, StockPriceSnapshotRecord snapshot) {
+        if (stockId == null) {
+            return null;
+        }
+        return resolveAnalysisStageMessage(stockPriceSnapshotMapper.findStockForSnapshotById(stockId), snapshot);
+    }
+
+    private String resolveAnalysisStageMessage(Stock stock, StockPriceSnapshotRecord snapshot) {
+        if (stock == null || isEtfAssetType(stock.getAssetType())) {
+            return null;
+        }
+        if (snapshot == null || snapshot.getCurrentPrice() == null || snapshot.getCurrentPrice().doubleValue() <= 0) {
+            return "현재 가격과 핵심 지표를 준비 중이에요.";
+        }
+
+        final LocalDate today = LocalDate.now(HOME_ZONE);
+        final boolean missingPriceFlow = snapshot.getChangeRate7d() == null || snapshot.getChangeRate30d() == null;
+        final boolean recentPriceListing =
+                snapshot.getChangeRate30d() == null && isRecentlyListedForPriceHistory(stock, today);
+        final boolean insufficientFundamentals = hasInsufficientCoreFundamentals(snapshot);
+        final boolean recentFundamentalListing =
+                insufficientFundamentals && isRecentlyListedForFundamentals(stock, today);
+
+        if (recentPriceListing && recentFundamentalListing) {
+            return "최근 상장 종목이라 30일 가격 흐름과 재무 지표가 아직 쌓이는 중이에요.";
+        }
+        if (recentPriceListing) {
+            return "최근 상장 종목이라 30일 가격 흐름이 아직 쌓이는 중이에요.";
+        }
+        if (recentFundamentalListing) {
+            return "최근 상장 종목이라 재무 지표 공시가 아직 충분하지 않아 보수적으로 보고 있어요.";
+        }
+        if (missingPriceFlow && insufficientFundamentals) {
+            return "가격 흐름과 일부 재무 지표가 아직 충분하지 않아 보수적으로 반영했어요.";
+        }
+        if (missingPriceFlow) {
+            return "30일 가격 흐름이 아직 충분하지 않아 보수적으로 반영했어요.";
+        }
+        if (insufficientFundamentals) {
+            return "일부 재무 지표를 아직 확인 중이라 보수적으로 반영했어요.";
+        }
+        return null;
+    }
+
+    private boolean hasInsufficientCoreFundamentals(StockPriceSnapshotRecord snapshot) {
+        if (snapshot == null) {
+            return true;
+        }
+        int presentCount = 0;
+        if (snapshot.getEpsTtm() != null) {
+            presentCount++;
+        }
+        if (snapshot.getRevenueGrowthYoy() != null) {
+            presentCount++;
+        }
+        if (snapshot.getOperatingMarginTtm() != null) {
+            presentCount++;
+        }
+        if (snapshot.getRoeTtm() != null) {
+            presentCount++;
+        }
+        if (snapshot.getFreeCashFlowYieldTtm() != null) {
+            presentCount++;
+        }
+        if (snapshot.getIncomeQualityTtm() != null) {
+            presentCount++;
+        }
+        return presentCount < MINIMUM_CORE_FUNDAMENTAL_FIELDS;
+    }
+
+    private boolean isRecentlyListedForPriceHistory(Stock stock, LocalDate today) {
+        final LocalDate anchorDate = resolveRecentListingAnchorDate(stock);
+        return anchorDate != null && anchorDate.isAfter(today.minusDays(RECENT_PRICE_HISTORY_WINDOW_DAYS));
+    }
+
+    private boolean isRecentlyListedForFundamentals(Stock stock, LocalDate today) {
+        final LocalDate anchorDate = resolveRecentListingAnchorDate(stock);
+        return anchorDate != null && anchorDate.isAfter(today.minusDays(RECENT_FUNDAMENTAL_WINDOW_DAYS));
+    }
+
+    private LocalDate resolveRecentListingAnchorDate(Stock stock) {
+        if (stock == null) {
+            return null;
+        }
+        if (stock.getIpoDate() != null) {
+            return stock.getIpoDate();
+        }
+        if (stock.getCreatedAt() != null) {
+            return stock.getCreatedAt().toLocalDate();
+        }
+        if (stock.getId() == null) {
+            return null;
+        }
+        return stockPriceSnapshotMapper.findOldestSnapshotDateByStockId(stock.getId());
+    }
+
     private boolean isFreshNewsPublishedAt(OffsetDateTime publishedAt, LocalDate latestAllowedTradingDate) {
         if (publishedAt == null || latestAllowedTradingDate == null) {
             return false;
@@ -1055,6 +1155,8 @@ public class RecommendationService {
             Long recommendationId,
             EngineResult engineResult
     ) {
+        final StockPriceSnapshotRecord snapshot =
+                stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
         return new RecommendationResponse(
                 recommendationId,
                 target.getPortfolioItemId(),
@@ -1063,7 +1165,9 @@ public class RecommendationService {
                 target.getTicker(),
                 target.getLogoUrl(),
                 blankToEmpty(target.getAssetType()),
-                isEtfAssetType(target.getAssetType()) ? ETF_PENDING_MESSAGE : null,
+                isEtfAssetType(target.getAssetType())
+                        ? ETF_PENDING_MESSAGE
+                        : resolveAnalysisStageMessage(target.getStockId(), snapshot),
                 engineResult.recommendationStatus(),
                 engineResult.finalScore(),
                 engineResult.confidenceScore(),
@@ -1098,6 +1202,8 @@ public class RecommendationService {
                 recommendationMapper.findRecommendationEvidenceByRecommendationId(record.getRecommendationId());
         final List<RecommendationFactorDetailRecord> factorDetailRecords =
                 recommendationMapper.findRecommendationFactorDetailsByRecommendationId(record.getRecommendationId());
+        final StockPriceSnapshotRecord snapshot =
+                stockPriceSnapshotMapper.findLatestSnapshotByStockId(record.getStockId());
         final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(record.getStockId());
         final List<NewsAnalysisCacheRecord> newsRecords = selectDisplayNewsRecords(rawNewsRecords);
@@ -1119,7 +1225,9 @@ public class RecommendationService {
                 record.getTicker(),
                 record.getLogoUrl(),
                 blankToEmpty(record.getAssetType()),
-                isEtfAssetType(record.getAssetType()) ? ETF_PENDING_MESSAGE : null,
+                isEtfAssetType(record.getAssetType())
+                        ? ETF_PENDING_MESSAGE
+                        : resolveAnalysisStageMessage(record.getStockId(), snapshot),
                 record.getRecommendationStatus(),
                 zeroIfNull(record.getEngineScore()),
                 zeroIfNull(record.getConfidenceScore()),
@@ -1215,6 +1323,8 @@ public class RecommendationService {
     }
 
     private RecommendationResponse toPendingResponse(RecommendationTarget target) {
+        final StockPriceSnapshotRecord snapshot =
+                stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
         final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId());
         final List<NewsAnalysisCacheRecord> newsRecords = selectDisplayNewsRecords(rawNewsRecords);
@@ -1245,7 +1355,9 @@ public class RecommendationService {
                 target.getTicker(),
                 target.getLogoUrl(),
                 blankToEmpty(target.getAssetType()),
-                isEtfAssetType(target.getAssetType()) ? ETF_PENDING_MESSAGE : null,
+                isEtfAssetType(target.getAssetType())
+                        ? ETF_PENDING_MESSAGE
+                        : resolveAnalysisStageMessage(target.getStockId(), snapshot),
                 "MAINTAIN",
                 isEtfAssetType(target.getAssetType()) ? 0 : 50,
                 isEtfAssetType(target.getAssetType()) ? 0 : 55,
@@ -4752,6 +4864,18 @@ public class RecommendationService {
         final Integer valuation = v4Context.valuationScore();
         final Integer quality = v4Context.qualityOfGrowthScore();
         final Integer fundamental = v4Context.fundamentalQualityScore();
+        final boolean priceDataIncomplete = momentum == null || stability == null;
+        final boolean fundamentalDataThin = fundamental == null || quality == null;
+
+        if (priceDataIncomplete && fundamentalDataThin) {
+            return companyName + "은 가격 흐름과 재무 데이터가 아직 충분히 쌓이지 않아, 지금은 보수적으로 유지로 보고 있어요.";
+        }
+        if (priceDataIncomplete) {
+            return companyName + "은 30일 가격 흐름이 아직 충분하지 않아, 추격 매수 대신 유지로 판단했어요.";
+        }
+        if (fundamentalDataThin) {
+            return companyName + "은 핵심 재무 지표가 아직 충분히 확인되지 않아, 지금은 유지 구간으로 봤어요.";
+        }
 
         final boolean nearIncrease = (momentum != null && momentum >= 68)
                 || (stability != null && stability >= 85)
@@ -4762,6 +4886,9 @@ public class RecommendationService {
 
         if (nearIncrease && valuation != null && valuation <= 58) {
             return companyName + "은 기업 체력과 흐름은 괜찮지만 가격 부담이 남아 있어, 아직은 유지가 더 자연스럽습니다.";
+        }
+        if (nearIncrease && momentum != null && momentum <= 50) {
+            return companyName + "은 기업 체력은 좋지만 최근 상승 속도가 빨라, 지금은 증액보다 유지가 더 자연스럽습니다.";
         }
         if (nearIncrease && quality != null && quality <= 66) {
             return companyName + "은 흐름은 괜찮지만 성장의 질을 한 번 더 확인해야 해, 지금 판단은 유지예요.";

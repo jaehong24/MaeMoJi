@@ -1,6 +1,7 @@
 package com.maemoji.backend.stock.domain;
 
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 
 public class Stock {
     private Long id;
@@ -24,6 +25,7 @@ public class Stock {
     private String country;
     private String sector;
     private String industry;
+    private LocalDate ipoDate;
     private Boolean isActive;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -194,6 +196,14 @@ public class Stock {
 
     public void setIndustry(String industry) {
         this.industry = industry;
+    }
+
+    public LocalDate getIpoDate() {
+        return ipoDate;
+    }
+
+    public void setIpoDate(LocalDate ipoDate) {
+        this.ipoDate = ipoDate;
     }
 
     public Boolean getIsActive() {

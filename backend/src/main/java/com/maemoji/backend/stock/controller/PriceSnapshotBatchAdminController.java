@@ -56,4 +56,13 @@ public class PriceSnapshotBatchAdminController {
         authorizer.authorize(batchSecret);
         return ApiResponse.ok(stockPriceSnapshotBatchService.backfillHistoricalSnapshotsForStockIds(stockIds, days));
     }
+
+    @PostMapping("/ensure")
+    public ApiResponse<Boolean> ensureRecommendationSnapshot(
+            @RequestHeader(name = "X-Batch-Secret", required = false) String batchSecret,
+            @RequestParam(name = "stockId") Long stockId
+    ) {
+        authorizer.authorize(batchSecret);
+        return ApiResponse.ok(stockPriceSnapshotBatchService.ensureRecommendationSnapshot(stockId));
+    }
 }

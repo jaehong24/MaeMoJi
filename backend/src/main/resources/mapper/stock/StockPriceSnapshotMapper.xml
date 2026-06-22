@@ -19,6 +19,7 @@
             logo_url,
             market_type,
             asset_type,
+            ipo_date,
             is_active,
             created_at,
             updated_at
@@ -55,6 +56,7 @@
             logo_url,
             market_type,
             asset_type,
+            ipo_date,
             is_active,
             created_at,
             updated_at
@@ -100,6 +102,7 @@
             logo_url,
             market_type,
             asset_type,
+            ipo_date,
             is_active,
             created_at,
             updated_at
@@ -147,6 +150,18 @@
         from stock_price_snapshots
         where stock_id = #{stockId}
     </select>
+
+    <update id="updateStockIpoDate">
+        update stocks
+        set
+            ipo_date = #{ipoDate},
+            updated_at = now()
+        where id = #{stockId}
+          and (
+              ipo_date is null
+              or ipo_date &lt;&gt; #{ipoDate}
+          )
+    </update>
 
     <select id="findPreviousPrice" resultType="java.math.BigDecimal">
         select current_price

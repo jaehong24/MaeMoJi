@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,6 +50,7 @@ class StockPriceSnapshotBatchServiceTest {
     void ensureRecommendationSnapshotAllowsRecentListingWithoutThirtyDayReturn() {
         final LocalDate today = LocalDate.now();
         final Stock stock = stock(202L, "CRCL", "STOCK");
+        stock.setCreatedAt(OffsetDateTime.now().minusDays(10));
         final StockPriceSnapshotRecord latest = completeSnapshot(today);
         latest.setChangeRate7d(BigDecimal.valueOf(4.2000));
         latest.setChangeRate30d(null);
@@ -68,6 +70,7 @@ class StockPriceSnapshotBatchServiceTest {
     void ensureRecommendationSnapshotRetriesExtendedBackfillForMatureStock() {
         final LocalDate today = LocalDate.now();
         final Stock stock = stock(303L, "AXP", "STOCK");
+        stock.setCreatedAt(OffsetDateTime.now().minusDays(180));
         final StockPriceSnapshotRecord latest = completeSnapshot(today);
         latest.setChangeRate7d(BigDecimal.valueOf(2.3000));
         latest.setChangeRate30d(null);

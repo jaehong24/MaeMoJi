@@ -24,6 +24,11 @@ public interface StockPriceSnapshotMapper {
 
     java.time.LocalDate findOldestSnapshotDateByStockId(@Param("stockId") Long stockId);
 
+    int updateStockIpoDate(
+            @Param("stockId") Long stockId,
+            @Param("ipoDate") LocalDate ipoDate
+    );
+
     BigDecimal findPreviousPrice(
             @Param("stockId") Long stockId,
             @Param("snapshotDate") LocalDate snapshotDate

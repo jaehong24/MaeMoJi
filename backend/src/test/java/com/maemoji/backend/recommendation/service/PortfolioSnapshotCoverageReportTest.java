@@ -31,6 +31,11 @@ class PortfolioSnapshotCoverageReportTest {
                 databaseConfig.username(),
                 databaseConfig.password()
         )) {
+            try (PreparedStatement schemaStatement = connection.prepareStatement(
+                    "alter table stocks add column if not exists ipo_date date"
+            )) {
+                schemaStatement.execute();
+            }
             final String sql = """
                     with active_items as (
                         select
@@ -39,7 +44,9 @@ class PortfolioSnapshotCoverageReportTest {
                             s.id as stock_id,
                             s.symbol,
                             coalesce(s.name_ko, s.name_en, s.symbol) as company_name,
-                            s.asset_type
+                            s.asset_type,
+                            s.created_at::date as stock_created_date,
+                            s.ipo_date
                         from portfolio_items pi
                         join stocks s on s.id = pi.stock_id
                         where pi.is_active = true
@@ -70,6 +77,8 @@ class PortfolioSnapshotCoverageReportTest {
                         ai.symbol,
                         ai.company_name,
                         ai.asset_type,
+                        ai.stock_created_date,
+                        ai.ipo_date,
                         ls.snapshot_date,
                         os.oldest_snapshot_date,
                         ls.eps_ttm is not null as has_eps,
@@ -93,6 +102,12 @@ class PortfolioSnapshotCoverageReportTest {
                             resultSet.getString("symbol"),
                             resultSet.getString("company_name"),
                             resultSet.getString("asset_type"),
+                            resultSet.getDate("stock_created_date") == null
+                                    ? null
+                                    : resultSet.getDate("stock_created_date").toLocalDate().toString(),
+                            resultSet.getDate("ipo_date") == null
+                                    ? null
+                                    : resultSet.getDate("ipo_date").toLocalDate().toString(),
                             resultSet.getDate("snapshot_date") == null
                                     ? null
                                     : resultSet.getDate("snapshot_date").toLocalDate().toString(),
@@ -154,6 +169,7 @@ class PortfolioSnapshotCoverageReportTest {
         final long completeRows = rows.stream().filter(Row::isComplete).count();
         final long excludedEtfRows = rows.stream().filter(row -> "EXCLUDED_ETF".equals(row.coverageStatus())).count();
         final long recentListingRows = rows.stream().filter(row -> "RECENTLY_LISTED_30D_EXCEPTION".equals(row.coverageStatus())).count();
+        final long recentFundamentalRows = rows.stream().filter(row -> "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION".equals(row.coverageStatus())).count();
         final long retryRequiredRows = rows.stream().filter(row -> "IMMEDIATE_RETRY_REQUIRED".equals(row.coverageStatus())).count();
 
         final StringBuilder markdown = new StringBuilder();
@@ -166,6 +182,7 @@ class PortfolioSnapshotCoverageReportTest {
                 .append(System.lineSeparator()).append(System.lineSeparator());
         markdown.append("- ETF 제외 종목 수: ").append(excludedEtfRows).append(System.lineSeparator());
         markdown.append("- 신규 상장 30일 예외 종목 수: ").append(recentListingRows).append(System.lineSeparator());
+        markdown.append("- 신규 상장 펀더멘털 예외 종목 수: ").append(recentFundamentalRows).append(System.lineSeparator());
         markdown.append("- 즉시 백필 재시도 필요 종목 수: ").append(retryRequiredRows).append(System.lineSeparator()).append(System.lineSeparator());
 
         markdown.append("| userId | portfolioItemId | 종목 | 회사명 | 자산유형 | 스냅샷일 | 최초스냅샷일 | 상태 | EPS | ROE | 매출성장 | 영업이익률 | 7일흐름 | 30일흐름 |")
@@ -212,6 +229,8 @@ class PortfolioSnapshotCoverageReportTest {
             String symbol,
             String companyName,
             String assetType,
+            String stockCreatedDate,
+            String ipoDate,
             String snapshotDate,
             String oldestSnapshotDate,
             boolean hasEps,
@@ -234,11 +253,14 @@ class PortfolioSnapshotCoverageReportTest {
             if ("ETF".equalsIgnoreCase(assetType == null ? "" : assetType.trim())) {
                 return "EXCLUDED_ETF";
             }
-            if (!hasPrice30d && oldestSnapshotDate != null && isRecentListing()) {
-                return "RECENTLY_LISTED_30D_EXCEPTION";
-            }
             if (hasPrice7d && !hasPrice30d) {
+                if (!hasAnyCoreFundamentals() && isRecentPriceListing()) {
+                    return "RECENTLY_LISTED_30D_EXCEPTION";
+                }
                 return "IMMEDIATE_RETRY_REQUIRED";
+            }
+            if (!hasAnyCoreFundamentals() && isRecentFundamentalListing()) {
+                return "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION";
             }
             if (isComplete()) {
                 return "OK";
@@ -249,12 +271,30 @@ class PortfolioSnapshotCoverageReportTest {
             return "PARTIAL_NEEDS_REVIEW";
         }
 
-        private boolean isRecentListing() {
-            if (oldestSnapshotDate == null || snapshotDate == null) {
+        private boolean hasAnyCoreFundamentals() {
+            return hasEps || hasRoe || hasRevenueGrowth || hasOperatingMargin;
+        }
+
+        private boolean isRecentPriceListing() {
+            final String anchorDate = ipoDate != null
+                    ? ipoDate
+                    : (stockCreatedDate != null ? stockCreatedDate : oldestSnapshotDate);
+            if (anchorDate == null || snapshotDate == null) {
                 return false;
             }
-            return java.time.LocalDate.parse(oldestSnapshotDate)
+            return java.time.LocalDate.parse(anchorDate)
                     .isAfter(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).minusDays(32));
+        }
+
+        private boolean isRecentFundamentalListing() {
+            final String anchorDate = ipoDate != null
+                    ? ipoDate
+                    : (stockCreatedDate != null ? stockCreatedDate : oldestSnapshotDate);
+            if (anchorDate == null || snapshotDate == null) {
+                return false;
+            }
+            return java.time.LocalDate.parse(anchorDate)
+                    .isAfter(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).minusDays(90));
         }
     }
 }

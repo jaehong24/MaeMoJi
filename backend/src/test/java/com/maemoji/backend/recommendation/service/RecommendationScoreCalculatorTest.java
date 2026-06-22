@@ -130,6 +130,70 @@ class RecommendationScoreCalculatorTest {
     }
 
     @Test
+    void v4BlocksIncreaseWhenPriceFlowIsStillMissing() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        null,
+                        20,
+                        82,
+                        12,
+                        65,
+                        22,
+                        84,
+                        14,
+                        78,
+                        12,
+                        79,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        88
+                )
+        );
+
+        assertThat(result.rawScore()).isGreaterThanOrEqualTo(76);
+        assertThat(result.increaseEligible()).isFalse();
+        assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
+    }
+
+    @Test
+    void v4BlocksIncreaseWhenCoreFundamentalsAreStillMissing() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        82,
+                        20,
+                        null,
+                        12,
+                        65,
+                        22,
+                        null,
+                        14,
+                        74,
+                        12,
+                        84,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        88
+                )
+        );
+
+        assertThat(result.rawScore()).isGreaterThanOrEqualTo(76);
+        assertThat(result.increaseEligible()).isFalse();
+        assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
+    }
+
+    @Test
     void v4KeepsHighQualityButPriceStretchedNameInMaintainRange() {
         final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
                 new RecommendationScoreCalculator.V4Input(

@@ -308,8 +308,8 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
         SnackBar(
           content: Text(
             widget.isEditMode
-                ? '${widget.company} 설정이 수정되었습니다.'
-                : '${widget.company} 종목이 포트폴리오에 저장되었습니다.',
+                ? '${widget.company} 설정을 저장했어요. 최신 지표와 뉴스도 다시 확인하고 있어요.'
+                : '${widget.company} 종목을 담았어요. 가격 흐름과 핵심 지표를 바로 준비하고 있어요.',
           ),
         ),
       );
