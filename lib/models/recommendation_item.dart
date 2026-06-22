@@ -10,6 +10,7 @@ class RecommendationItem {
     required this.ticker,
     required this.logoUrl,
     required this.assetType,
+    required this.analysisStageLabel,
     required this.analysisStageMessage,
     required this.currentAmountUsd,
     required this.recommendedAmountUsd,
@@ -44,6 +45,7 @@ class RecommendationItem {
   final String ticker;
   final String? logoUrl;
   final String assetType;
+  final String? analysisStageLabel;
   final String? analysisStageMessage;
   final double currentAmountUsd;
   final double recommendedAmountUsd;

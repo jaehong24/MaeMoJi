@@ -12,6 +12,8 @@ public class RecommendationTarget {
     private String finnhubSymbol;
     private String logoUrl;
     private String assetType;
+    private String sector;
+    private String industry;
     private BigDecimal dailyInvestAmount;
     private BigDecimal holdingQuantity;
     private LocalDate investmentStartDate;
@@ -81,6 +83,22 @@ public class RecommendationTarget {
 
     public void setAssetType(String assetType) {
         this.assetType = assetType;
+    }
+
+    public String getSector() {
+        return sector;
+    }
+
+    public void setSector(String sector) {
+        this.sector = sector;
+    }
+
+    public String getIndustry() {
+        return industry;
+    }
+
+    public void setIndustry(String industry) {
+        this.industry = industry;
     }
 
     public BigDecimal getDailyInvestAmount() {

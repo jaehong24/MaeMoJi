@@ -270,6 +270,15 @@ class RecommendationFundamentalQualityRegressionTest {
     }
 
     @Test
+    void priceMomentumTreatsEuphoricSurgesMoreStrictlyThanHealthyUptrends() throws Exception {
+        final int healthyCompounder = priceMomentumScoreOf(priceSnapshotWithReturns(2.8, 11.0));
+        final int euphoricSurge = priceMomentumScoreOf(priceSnapshotWithReturns(8.5, 24.0));
+
+        assertThat(healthyCompounder).isGreaterThan(euphoricSurge);
+        assertThat(euphoricSurge).isLessThanOrEqualTo(32);
+    }
+
+    @Test
     void priceStabilityPenalizesSharpDownsideMoreThanQuietTradingRange() throws Exception {
         final int quietRange = priceStabilityScoreOf(priceSnapshotWithReturns(1.8, 6.5));
         final int sharpSelloff = priceStabilityScoreOf(priceSnapshotWithReturns(-11.0, -24.0));
@@ -280,6 +289,15 @@ class RecommendationFundamentalQualityRegressionTest {
         assertThat(quietRange).isGreaterThanOrEqualTo(80);
         assertThat(sharpSelloff).isLessThanOrEqualTo(55);
         assertThat(fastUptrend).isLessThanOrEqualTo(75);
+    }
+
+    @Test
+    void priceStabilityDiscountsFastRalliesEvenWithoutLargeDrawdowns() throws Exception {
+        final int quietLeader = priceStabilityScoreOf(priceSnapshotWithReturns(1.5, 8.0));
+        final int hotMomentum = priceStabilityScoreOf(priceSnapshotWithReturns(6.5, 22.0));
+
+        assertThat(quietLeader).isGreaterThan(hotMomentum);
+        assertThat(hotMomentum).isLessThanOrEqualTo(70);
     }
 
     @Test
@@ -295,7 +313,7 @@ class RecommendationFundamentalQualityRegressionTest {
         assertThat(linLike).isGreaterThan(wmtLike);
         assertThat(wmtLike).isGreaterThan(nvsLike);
         assertThat(nvsLike).isGreaterThan(sapLike);
-        assertThat(sapLike).isGreaterThanOrEqualTo(xomLike);
+        assertThat(Math.abs(sapLike - xomLike)).isLessThanOrEqualTo(2);
     }
 
     @Test

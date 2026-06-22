@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             final scorableRecommendations = recommendations
-                .where((item) => !item.isEtfAnalysisPending)
+                .where((item) => !item.isEtfAnalysisPending && !item.isAnalysisPending)
                 .toList();
             final increaseCount = scorableRecommendations
                 .where((item) => item.status == RecommendationStatus.increase)

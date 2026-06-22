@@ -20,6 +20,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PortfolioSnapshotCoverageReportTest {
+    private static final int RECENT_PRICE_HISTORY_WINDOW_DAYS = 32;
+    private static final int RECENT_FUNDAMENTAL_WINDOW_DAYS = 90;
 
     @Test
     void generatesActivePortfolioSnapshotCoverageReport() throws Exception {
@@ -168,9 +170,13 @@ class PortfolioSnapshotCoverageReportTest {
         final long total = rows.size();
         final long completeRows = rows.stream().filter(Row::isComplete).count();
         final long excludedEtfRows = rows.stream().filter(row -> "EXCLUDED_ETF".equals(row.coverageStatus())).count();
+        final long recentBothRows = rows.stream().filter(row -> "RECENTLY_LISTED_BOTH_PENDING".equals(row.coverageStatus())).count();
         final long recentListingRows = rows.stream().filter(row -> "RECENTLY_LISTED_30D_EXCEPTION".equals(row.coverageStatus())).count();
         final long recentFundamentalRows = rows.stream().filter(row -> "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION".equals(row.coverageStatus())).count();
+        final long accumulatingRows = rows.stream().filter(row -> "PRICE_FLOW_ACCUMULATING".equals(row.coverageStatus())).count();
+        final long disclosurePendingRows = rows.stream().filter(row -> "FUNDAMENTAL_DISCLOSURE_PENDING".equals(row.coverageStatus())).count();
         final long retryRequiredRows = rows.stream().filter(row -> "IMMEDIATE_RETRY_REQUIRED".equals(row.coverageStatus())).count();
+        final long partialReviewRows = rows.stream().filter(row -> "PARTIAL_NEEDS_REVIEW".equals(row.coverageStatus())).count();
 
         final StringBuilder markdown = new StringBuilder();
         markdown.append("# MaeMoJi 활성 포트폴리오 스냅샷 커버리지").append(System.lineSeparator()).append(System.lineSeparator());
@@ -181,13 +187,17 @@ class PortfolioSnapshotCoverageReportTest {
         markdown.append("- 핵심 지표 완전 적재 종목 수: ").append(completeRows).append(" / ").append(total)
                 .append(System.lineSeparator()).append(System.lineSeparator());
         markdown.append("- ETF 제외 종목 수: ").append(excludedEtfRows).append(System.lineSeparator());
+        markdown.append("- 최근 상장 통합 대기 종목 수: ").append(recentBothRows).append(System.lineSeparator());
         markdown.append("- 신규 상장 30일 예외 종목 수: ").append(recentListingRows).append(System.lineSeparator());
         markdown.append("- 신규 상장 펀더멘털 예외 종목 수: ").append(recentFundamentalRows).append(System.lineSeparator());
-        markdown.append("- 즉시 백필 재시도 필요 종목 수: ").append(retryRequiredRows).append(System.lineSeparator()).append(System.lineSeparator());
+        markdown.append("- 가격 흐름 축적 중 종목 수: ").append(accumulatingRows).append(System.lineSeparator());
+        markdown.append("- 재무 공시/재수집 대기 종목 수: ").append(disclosurePendingRows).append(System.lineSeparator());
+        markdown.append("- 즉시 백필 재시도 필요 종목 수: ").append(retryRequiredRows).append(System.lineSeparator());
+        markdown.append("- 수동 점검 필요 종목 수: ").append(partialReviewRows).append(System.lineSeparator()).append(System.lineSeparator());
 
-        markdown.append("| userId | portfolioItemId | 종목 | 회사명 | 자산유형 | 스냅샷일 | 최초스냅샷일 | 상태 | EPS | ROE | 매출성장 | 영업이익률 | 7일흐름 | 30일흐름 |")
+        markdown.append("| userId | portfolioItemId | 종목 | 회사명 | 자산유형 | 스냅샷일 | 최초스냅샷일 | 상태 | 상태 설명 | EPS | ROE | 매출성장 | 영업이익률 | 7일흐름 | 30일흐름 |")
                 .append(System.lineSeparator());
-        markdown.append("|---:|---:|---|---|---|---|---|---|---|---|---|---|---|---|").append(System.lineSeparator());
+        markdown.append("|---:|---:|---|---|---|---|---|---|---|---|---|---|---|---|---|").append(System.lineSeparator());
         for (Row row : rows) {
             markdown.append("| ")
                     .append(row.userId()).append(" | ")
@@ -198,6 +208,7 @@ class PortfolioSnapshotCoverageReportTest {
                     .append(row.snapshotDate() == null ? "-" : row.snapshotDate()).append(" | ")
                     .append(row.oldestSnapshotDate() == null ? "-" : row.oldestSnapshotDate()).append(" | ")
                     .append(row.coverageStatus()).append(" | ")
+                    .append(row.coverageMessage()).append(" | ")
                     .append(mark(row.hasEps())).append(" | ")
                     .append(mark(row.hasRoe())).append(" | ")
                     .append(mark(row.hasRevenueGrowth())).append(" | ")
@@ -253,14 +264,23 @@ class PortfolioSnapshotCoverageReportTest {
             if ("ETF".equalsIgnoreCase(assetType == null ? "" : assetType.trim())) {
                 return "EXCLUDED_ETF";
             }
+            if (!hasPrice7d && !hasPrice30d && !hasAnyCoreFundamentals() && isRecentPriceListing() && isRecentFundamentalListing()) {
+                return "RECENTLY_LISTED_BOTH_PENDING";
+            }
             if (hasPrice7d && !hasPrice30d) {
                 if (!hasAnyCoreFundamentals() && isRecentPriceListing()) {
                     return "RECENTLY_LISTED_30D_EXCEPTION";
                 }
+                if (isRecentPriceListing()) {
+                    return "PRICE_FLOW_ACCUMULATING";
+                }
                 return "IMMEDIATE_RETRY_REQUIRED";
             }
-            if (!hasAnyCoreFundamentals() && isRecentFundamentalListing()) {
-                return "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION";
+            if (!hasAnyCoreFundamentals()) {
+                if (isRecentFundamentalListing()) {
+                    return "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION";
+                }
+                return "FUNDAMENTAL_DISCLOSURE_PENDING";
             }
             if (isComplete()) {
                 return "OK";
@@ -269,6 +289,21 @@ class PortfolioSnapshotCoverageReportTest {
                 return "SNAPSHOT_MISSING";
             }
             return "PARTIAL_NEEDS_REVIEW";
+        }
+
+        String coverageMessage() {
+            return switch (coverageStatus()) {
+                case "EXCLUDED_ETF" -> "ETF는 기업형 추천 모델과 분리되어 있어요.";
+                case "RECENTLY_LISTED_BOTH_PENDING" -> "최근 상장 종목이라 30일 가격 흐름과 재무 공시가 함께 쌓이는 중입니다.";
+                case "RECENTLY_LISTED_30D_EXCEPTION" -> "최근 상장 종목이라 30일 가격 흐름이 아직 충분하지 않습니다.";
+                case "PRICE_FLOW_ACCUMULATING" -> "최근 가격 흐름 데이터를 더 쌓는 중입니다.";
+                case "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION" -> "최근 상장 종목이라 재무 지표 공시가 아직 충분하지 않습니다.";
+                case "FUNDAMENTAL_DISCLOSURE_PENDING" -> "일부 핵심 재무 지표를 재수집하거나 다음 공시를 기다리는 상태입니다.";
+                case "IMMEDIATE_RETRY_REQUIRED" -> "가격 흐름 백필이 즉시 다시 필요한 상태입니다.";
+                case "PARTIAL_NEEDS_REVIEW" -> "일부 지표만 비어 있어 수동 점검이 필요합니다.";
+                case "SNAPSHOT_MISSING" -> "스냅샷 자체가 없어 초기 적재를 다시 확인해야 합니다.";
+                default -> "핵심 지표와 가격 흐름이 모두 준비되었습니다.";
+            };
         }
 
         private boolean hasAnyCoreFundamentals() {
@@ -283,7 +318,8 @@ class PortfolioSnapshotCoverageReportTest {
                 return false;
             }
             return java.time.LocalDate.parse(anchorDate)
-                    .isAfter(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).minusDays(32));
+                    .isAfter(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"))
+                            .minusDays(RECENT_PRICE_HISTORY_WINDOW_DAYS));
         }
 
         private boolean isRecentFundamentalListing() {
@@ -294,7 +330,8 @@ class PortfolioSnapshotCoverageReportTest {
                 return false;
             }
             return java.time.LocalDate.parse(anchorDate)
-                    .isAfter(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).minusDays(90));
+                    .isAfter(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"))
+                            .minusDays(RECENT_FUNDAMENTAL_WINDOW_DAYS));
         }
     }
 }

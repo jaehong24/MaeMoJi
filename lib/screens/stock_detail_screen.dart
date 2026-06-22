@@ -141,6 +141,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   _DetailStatusCard(
                     isRefreshingLatest: _isRefreshingLatest,
                     message: _statusMessage,
+                    analysisStageLabel: resolvedItem.analysisStageLabel,
                     analysisStageMessage: resolvedItem.analysisStageMessage,
                   ),
                   const SizedBox(height: 12),
@@ -506,6 +507,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       ticker: next.ticker,
       logoUrl: next.logoUrl,
       assetType: next.assetType,
+      analysisStageLabel: next.analysisStageLabel,
       analysisStageMessage: next.analysisStageMessage,
       currentAmountUsd: next.currentAmountUsd,
       recommendedAmountUsd: next.recommendedAmountUsd,
@@ -617,6 +619,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         current.confidence != next.confidence ||
         current.status != next.status ||
         current.note != next.note ||
+        current.analysisStageLabel != next.analysisStageLabel ||
+        current.analysisStageMessage != next.analysisStageMessage ||
         current.currentAmountUsd != next.currentAmountUsd ||
         current.recommendedAmountUsd != next.recommendedAmountUsd ||
         current.relatedNews.length != next.relatedNews.length;
@@ -627,11 +631,13 @@ class _DetailStatusCard extends StatelessWidget {
   const _DetailStatusCard({
     required this.isRefreshingLatest,
     required this.message,
+    required this.analysisStageLabel,
     required this.analysisStageMessage,
   });
 
   final bool isRefreshingLatest;
   final String? message;
+  final String? analysisStageLabel;
   final String? analysisStageMessage;
 
   @override
@@ -639,8 +645,8 @@ class _DetailStatusCard extends StatelessWidget {
     final chips = <Widget>[
       if (isRefreshingLatest)
         const _StatusChip(label: '최신 분석 중', color: MaeMojiColors.reduce),
-      if (analysisStageMessage != null)
-        const _StatusChip(label: '지표 준비 중', color: MaeMojiColors.maintain),
+      if (analysisStageLabel != null)
+        _StatusChip(label: analysisStageLabel!, color: MaeMojiColors.maintain),
     ];
 
     return Container(

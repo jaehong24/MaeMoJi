@@ -64,6 +64,7 @@ public class RecommendationService {
     private static final int MINIMUM_CORE_FUNDAMENTAL_FIELDS = 4;
     private static final String ETF_PENDING_FORMULA_VERSION = "ETF_PENDING";
     private static final String ETF_PENDING_ENGINE_VERSION = "ETF_PENDING";
+    private static final String ETF_PENDING_LABEL = "ETF 분석 준비 중";
     private static final String ETF_PENDING_MESSAGE = "ETF 전용 분석은 준비 중입니다.";
     private static final Set<String> LEGACY_V4_EVIDENCE_TYPES = Set.of(
             "PRICE",
@@ -727,6 +728,7 @@ public class RecommendationService {
                 target.getLogoUrl(),
                 blankToEmpty(target.getAssetType()),
                 null,
+                null,
                 scoreResult.recommendationStatus(),
                 scoreResult.finalScore(),
                 confidence,
@@ -897,19 +899,19 @@ public class RecommendationService {
         return "최근 관련 뉴스가 부족해 표시 가능한 최신 분석이 아직 없습니다.";
     }
 
-    private String resolveAnalysisStageMessage(Long stockId, StockPriceSnapshotRecord snapshot) {
+    private AnalysisStageInfo resolveAnalysisStageInfo(Long stockId, StockPriceSnapshotRecord snapshot) {
         if (stockId == null) {
             return null;
         }
-        return resolveAnalysisStageMessage(stockPriceSnapshotMapper.findStockForSnapshotById(stockId), snapshot);
+        return resolveAnalysisStageInfo(stockPriceSnapshotMapper.findStockForSnapshotById(stockId), snapshot);
     }
 
-    private String resolveAnalysisStageMessage(Stock stock, StockPriceSnapshotRecord snapshot) {
+    private AnalysisStageInfo resolveAnalysisStageInfo(Stock stock, StockPriceSnapshotRecord snapshot) {
         if (stock == null || isEtfAssetType(stock.getAssetType())) {
             return null;
         }
         if (snapshot == null || snapshot.getCurrentPrice() == null || snapshot.getCurrentPrice().doubleValue() <= 0) {
-            return "현재 가격과 핵심 지표를 준비 중이에요.";
+            return new AnalysisStageInfo("지표 수집 중", "현재 가격과 핵심 지표를 준비 중이에요.");
         }
 
         final LocalDate today = LocalDate.now(HOME_ZONE);
@@ -921,22 +923,40 @@ public class RecommendationService {
                 insufficientFundamentals && isRecentlyListedForFundamentals(stock, today);
 
         if (recentPriceListing && recentFundamentalListing) {
-            return "최근 상장 종목이라 30일 가격 흐름과 재무 지표가 아직 쌓이는 중이에요.";
+            return new AnalysisStageInfo(
+                    "상장 초기 데이터 축적 중",
+                    "최근 상장 종목이라 30일 가격 흐름과 재무 지표가 아직 쌓이는 중이에요."
+            );
         }
         if (recentPriceListing) {
-            return "최근 상장 종목이라 30일 가격 흐름이 아직 쌓이는 중이에요.";
+            return new AnalysisStageInfo(
+                    "가격 흐름 축적 중",
+                    "최근 상장 종목이라 30일 가격 흐름이 아직 쌓이는 중이에요."
+            );
         }
         if (recentFundamentalListing) {
-            return "최근 상장 종목이라 재무 지표 공시가 아직 충분하지 않아 보수적으로 보고 있어요.";
+            return new AnalysisStageInfo(
+                    "재무 공시 대기",
+                    "최근 상장 종목이라 재무 지표 공시가 아직 충분하지 않아 보수적으로 보고 있어요."
+            );
         }
         if (missingPriceFlow && insufficientFundamentals) {
-            return "가격 흐름과 일부 재무 지표가 아직 충분하지 않아 보수적으로 반영했어요.";
+            return new AnalysisStageInfo(
+                    "지표 재정비 중",
+                    "가격 흐름은 다시 쌓는 중이고 일부 재무 지표도 재수집 중이라, 지금은 보수적으로 반영했어요."
+            );
         }
         if (missingPriceFlow) {
-            return "30일 가격 흐름이 아직 충분하지 않아 보수적으로 반영했어요.";
+            return new AnalysisStageInfo(
+                    "가격 흐름 축적 중",
+                    "30일 가격 흐름을 더 쌓는 중이라, 지금은 보수적으로 반영했어요."
+            );
         }
         if (insufficientFundamentals) {
-            return "일부 재무 지표를 아직 확인 중이라 보수적으로 반영했어요.";
+            return new AnalysisStageInfo(
+                    "재무 공시 대기",
+                    "일부 핵심 재무 지표를 재수집하거나 다음 공시를 기다리는 중이라, 지금은 보수적으로 반영했어요."
+            );
         }
         return null;
     }
@@ -1157,6 +1177,9 @@ public class RecommendationService {
     ) {
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
+        final AnalysisStageInfo analysisStageInfo = isEtfAssetType(target.getAssetType())
+                ? new AnalysisStageInfo(ETF_PENDING_LABEL, ETF_PENDING_MESSAGE)
+                : resolveAnalysisStageInfo(target.getStockId(), snapshot);
         return new RecommendationResponse(
                 recommendationId,
                 target.getPortfolioItemId(),
@@ -1165,9 +1188,8 @@ public class RecommendationService {
                 target.getTicker(),
                 target.getLogoUrl(),
                 blankToEmpty(target.getAssetType()),
-                isEtfAssetType(target.getAssetType())
-                        ? ETF_PENDING_MESSAGE
-                        : resolveAnalysisStageMessage(target.getStockId(), snapshot),
+                analysisStageInfo == null ? null : analysisStageInfo.label(),
+                analysisStageInfo == null ? null : analysisStageInfo.message(),
                 engineResult.recommendationStatus(),
                 engineResult.finalScore(),
                 engineResult.confidenceScore(),
@@ -1204,6 +1226,9 @@ public class RecommendationService {
                 recommendationMapper.findRecommendationFactorDetailsByRecommendationId(record.getRecommendationId());
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(record.getStockId());
+        final AnalysisStageInfo analysisStageInfo = isEtfAssetType(record.getAssetType())
+                ? new AnalysisStageInfo(ETF_PENDING_LABEL, ETF_PENDING_MESSAGE)
+                : resolveAnalysisStageInfo(record.getStockId(), snapshot);
         final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(record.getStockId());
         final List<NewsAnalysisCacheRecord> newsRecords = selectDisplayNewsRecords(rawNewsRecords);
@@ -1225,9 +1250,8 @@ public class RecommendationService {
                 record.getTicker(),
                 record.getLogoUrl(),
                 blankToEmpty(record.getAssetType()),
-                isEtfAssetType(record.getAssetType())
-                        ? ETF_PENDING_MESSAGE
-                        : resolveAnalysisStageMessage(record.getStockId(), snapshot),
+                analysisStageInfo == null ? null : analysisStageInfo.label(),
+                analysisStageInfo == null ? null : analysisStageInfo.message(),
                 record.getRecommendationStatus(),
                 zeroIfNull(record.getEngineScore()),
                 zeroIfNull(record.getConfidenceScore()),
@@ -1278,6 +1302,7 @@ public class RecommendationService {
                 record.getTicker(),
                 record.getLogoUrl(),
                 blankToEmpty(record.getAssetType()),
+                ETF_PENDING_LABEL,
                 ETF_PENDING_MESSAGE,
                 "MAINTAIN",
                 0,
@@ -1325,6 +1350,9 @@ public class RecommendationService {
     private RecommendationResponse toPendingResponse(RecommendationTarget target) {
         final StockPriceSnapshotRecord snapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(target.getStockId());
+        final AnalysisStageInfo analysisStageInfo = isEtfAssetType(target.getAssetType())
+                ? new AnalysisStageInfo(ETF_PENDING_LABEL, ETF_PENDING_MESSAGE)
+                : resolveAnalysisStageInfo(target.getStockId(), snapshot);
         final List<NewsAnalysisCacheRecord> rawNewsRecords =
                 recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId());
         final List<NewsAnalysisCacheRecord> newsRecords = selectDisplayNewsRecords(rawNewsRecords);
@@ -1355,9 +1383,8 @@ public class RecommendationService {
                 target.getTicker(),
                 target.getLogoUrl(),
                 blankToEmpty(target.getAssetType()),
-                isEtfAssetType(target.getAssetType())
-                        ? ETF_PENDING_MESSAGE
-                        : resolveAnalysisStageMessage(target.getStockId(), snapshot),
+                analysisStageInfo == null ? null : analysisStageInfo.label(),
+                analysisStageInfo == null ? null : analysisStageInfo.message(),
                 "MAINTAIN",
                 isEtfAssetType(target.getAssetType()) ? 0 : 50,
                 isEtfAssetType(target.getAssetType()) ? 0 : 55,
@@ -2496,10 +2523,15 @@ public class RecommendationService {
         );
         final Integer userFitScore = userFitAssessment.score();
         final int crossFactorAdjustment = resolveCrossFactorAdjustment(
+                target,
                 priceSnapshot,
                 newsSentiment,
                 priceMomentumScore,
-                fundamentalQualityScore
+                priceStabilityScore,
+                fundamentalQualityScore,
+                profitabilityFactorScore,
+                valuationScore,
+                qualityOfGrowthScore
         );
         final int userAdjustment = userFitAssessment.finalUserAdjustment();
 
@@ -3988,10 +4020,15 @@ public class RecommendationService {
     }
 
     private int resolveCrossFactorAdjustment(
+            RecommendationTarget target,
             PriceSnapshot priceSnapshot,
             NewsSentimentService.NewsSentimentResult newsSentiment,
             Integer priceMomentumScore,
-            Integer fundamentalQualityScore
+            Integer priceStabilityScore,
+            Integer fundamentalQualityScore,
+            Integer profitabilityFactorScore,
+            Integer valuationScore,
+            Integer qualityOfGrowthScore
     ) {
         int adjustment = 0;
         if (priceSnapshot.hasThirtyDayReturn() && priceSnapshot.thirtyDayReturn() >= 20 && newsSentiment.weightedSentimentScore() < 0) {
@@ -4004,7 +4041,81 @@ public class RecommendationService {
                 && newsSentiment.weightedSentimentScore() >= 10) {
             adjustment += 5;
         }
+        if (isOverheatedMomentum(priceSnapshot, priceMomentumScore)
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 74
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 68) {
+            adjustment -= 4;
+        }
+        if (valuationScore != null
+                && valuationScore <= 48
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 58
+                && profitabilityFactorScore != null
+                && profitabilityFactorScore <= 60) {
+            adjustment -= 4;
+        }
+        if (valuationScore != null
+                && valuationScore <= 55
+                && newsSentiment.weightedSentimentScore() >= 18
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore < 64) {
+            adjustment -= 2;
+        }
+
+        final String sector = blankToEmpty(target.getSector()).toLowerCase(Locale.ROOT);
+        if (sector.contains("energy") || sector.contains("materials") || sector.contains("industrial")) {
+            if (priceMomentumScore != null
+                    && priceMomentumScore >= 44
+                    && priceMomentumScore <= 62
+                    && priceStabilityScore != null
+                    && priceStabilityScore >= 62
+                    && valuationScore != null
+                    && valuationScore >= 56) {
+                adjustment += 2;
+            }
+            if (priceMomentumScore != null
+                    && priceMomentumScore <= 36
+                    && priceSnapshot.thirtyDayReturn() != null
+                    && priceSnapshot.thirtyDayReturn() <= -14) {
+                adjustment -= 2;
+            }
+        }
+        if (sector.contains("financial")) {
+            if (valuationScore != null
+                    && valuationScore >= 60
+                    && priceStabilityScore != null
+                    && priceStabilityScore >= 68
+                    && qualityOfGrowthScore != null
+                    && qualityOfGrowthScore >= 52) {
+                adjustment += 2;
+            }
+            if (priceStabilityScore != null
+                    && priceStabilityScore <= 48
+                    && profitabilityFactorScore != null
+                    && profitabilityFactorScore <= 58) {
+                adjustment -= 3;
+            }
+        }
+        if (sector.contains("healthcare") || sector.contains("consumer defensive") || sector.contains("utilities")) {
+            if (priceStabilityScore != null
+                    && priceStabilityScore >= 74
+                    && valuationScore != null
+                    && valuationScore >= 52
+                    && valuationScore <= 72) {
+                adjustment += 1;
+            }
+        }
         return adjustment;
+    }
+
+    private boolean isOverheatedMomentum(PriceSnapshot priceSnapshot, Integer priceMomentumScore) {
+        if (priceMomentumScore == null || priceMomentumScore > 40) {
+            return false;
+        }
+        return (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 18)
+                || (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 6);
     }
 
     private String resolveEffectiveRiskProfile(RecommendationTarget target) {
@@ -4887,7 +4998,12 @@ public class RecommendationService {
         if (nearIncrease && valuation != null && valuation <= 58) {
             return companyName + "은 기업 체력과 흐름은 괜찮지만 가격 부담이 남아 있어, 아직은 유지가 더 자연스럽습니다.";
         }
-        if (nearIncrease && momentum != null && momentum <= 50) {
+        if (nearIncrease
+                && momentum != null
+                && momentum <= 50
+                && v4Context.priceSnapshot() != null
+                && v4Context.priceSnapshot().thirtyDayReturn() != null
+                && v4Context.priceSnapshot().thirtyDayReturn() >= 15) {
             return companyName + "은 기업 체력은 좋지만 최근 상승 속도가 빨라, 지금은 증액보다 유지가 더 자연스럽습니다.";
         }
         if (nearIncrease && quality != null && quality <= 66) {
@@ -5280,6 +5396,12 @@ public class RecommendationService {
             Integer sentimentScore,
             boolean hardNegative,
             int confidence
+    ) {
+    }
+
+    private record AnalysisStageInfo(
+            String label,
+            String message
     ) {
     }
 

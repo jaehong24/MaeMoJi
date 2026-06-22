@@ -50,7 +50,12 @@ class RecommendationSampleSetReportTest {
             "HON", "ETN", "DE", "GEV", "NOC",
             "T", "VZ", "CMCSA", "TMUS", "CHTR",
             "NKE", "SBUX", "PM", "MO", "UBER",
-            "SPGI", "SCHW", "ADP", "INTU", "ADI"
+            "SPGI", "SCHW", "ADP", "INTU", "ADI",
+            "BX", "KKR", "APO", "PGR", "MMC",
+            "EOG", "MPC", "PSX", "OXY", "KMI",
+            "SO", "DUK", "AEP", "D", "CEG",
+            "ELV", "CI", "HUM", "REGN", "VRTX",
+            "SHOP", "SNOW", "CRWD", "NET", "MDB"
     );
     private final RecommendationTuningProperties tuningProperties =
             new RecommendationTuningProperties();

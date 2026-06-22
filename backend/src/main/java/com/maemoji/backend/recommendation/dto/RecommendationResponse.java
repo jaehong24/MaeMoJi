@@ -13,6 +13,7 @@ public record RecommendationResponse(
         String ticker,
         String logoUrl,
         String assetType,
+        String analysisStageLabel,
         String analysisStageMessage,
         String recommendationType,
         int finalScore,

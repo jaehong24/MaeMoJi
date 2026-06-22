@@ -104,6 +104,12 @@ class RecommendationCard extends StatelessWidget {
                             color: MaeMojiColors.inkMuted,
                           ),
                         ),
+                        if (item.analysisStageLabel != null) ...[
+                          const SizedBox(height: 6),
+                          _RecommendationStageChip(
+                            label: item.analysisStageLabel!,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -182,6 +188,54 @@ class RecommendationCard extends StatelessWidget {
       },
     );
   }
+}
+
+class _RecommendationStageChip extends StatelessWidget {
+  const _RecommendationStageChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _stagePalette(label);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: palette.color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: palette.color.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: palette.color,
+        ),
+      ),
+    );
+  }
+
+  _StagePalette _stagePalette(String label) {
+    if (label.contains('재무 공시') || label.contains('재수집')) {
+      return const _StagePalette(MaeMojiColors.reduce);
+    }
+    if (label.contains('가격 흐름') || label.contains('상장 초기')) {
+      return const _StagePalette(MaeMojiColors.maintain);
+    }
+    return const _StagePalette(MaeMojiColors.inkMuted);
+  }
+}
+
+class _StagePalette {
+  const _StagePalette(this.color);
+
+  final Color color;
 }
 
 class _RecommendationLogo extends StatelessWidget {
