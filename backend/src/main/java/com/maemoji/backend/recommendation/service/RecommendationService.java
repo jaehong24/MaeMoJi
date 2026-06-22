@@ -2765,13 +2765,13 @@ public class RecommendationService {
                         momentum.getDeepPullbackScore(),
                         momentum.getPullbackScore(),
                         momentum.getSoftPullbackScore(),
-                        momentum.getNeutralScore() - 4,
+                        momentum.getNeutralScore() - 2,
                         momentum.getNeutralScore(),
                         momentum.getHealthyUptrendScore(),
-                        momentum.getWarmUptrendScore() + 4,
+                        momentum.getWarmUptrendScore() + 8,
                         momentum.getWarmUptrendScore(),
-                        momentum.getOverheatedScore() + 4,
-                        momentum.getOverheatedScore() - 6,
+                        momentum.getOverheatedScore() + 2,
+                        momentum.getOverheatedScore() - 4,
                         momentum.getEuphoricScore()
                 }
         );
@@ -2797,6 +2797,9 @@ public class RecommendationService {
             }
             if (return30d >= -1 && return30d <= 10 && return7d >= 0.5 && return7d <= 3.5) {
                 score += momentum.getStableTrendBonus();
+            }
+            if (return30d >= 8 && return30d < 18 && return7d >= 0.8 && return7d <= 3.2) {
+                score += 1;
             }
             if (return30d >= -2 && return30d <= 2 && return7d >= -2 && return7d <= 1) {
                 score += 1;
@@ -2824,6 +2827,9 @@ public class RecommendationService {
             }
             if (return30d >= 12 && return30d <= 25 && return7d >= 5) {
                 score -= 4;
+            }
+            if (return30d >= 18 && return30d < 28 && return7d >= 3.5 && return7d <= 5.5) {
+                score -= 3;
             }
             if (return30d >= 30 && return30d < 40) {
                 score -= 8;
@@ -2921,9 +2927,17 @@ public class RecommendationService {
             score -= 3;
         }
         if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 25
+                && abs7 <= 5.5) {
+            score -= 5;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
                 && priceSnapshot.thirtyDayReturn() >= 20
                 && abs7 <= 5) {
             score -= 4;
+        }
+        if (downside30 >= 15 && downside7 >= 4) {
+            score -= 3;
         }
 
         return clampScore(score);
@@ -4031,6 +4045,8 @@ public class RecommendationService {
             Integer qualityOfGrowthScore
     ) {
         int adjustment = 0;
+        final RecommendationTuningProperties.ConflictRules conflictRules =
+                tuningProperties.getConflictRules();
         if (priceSnapshot.hasThirtyDayReturn() && priceSnapshot.thirtyDayReturn() >= 20 && newsSentiment.weightedSentimentScore() < 0) {
             adjustment -= 8;
         }
@@ -4048,6 +4064,13 @@ public class RecommendationService {
                 && qualityOfGrowthScore >= 68) {
             adjustment -= 4;
         }
+        if (isOverheatedMomentum(priceSnapshot, priceMomentumScore)
+                && valuationScore != null
+                && valuationScore <= conflictRules.getOverheatedExpensiveValuationMax()
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= conflictRules.getOverheatedExpensiveFundamentalMin()) {
+            adjustment += conflictRules.getOverheatedExpensivePenalty();
+        }
         if (valuationScore != null
                 && valuationScore <= 48
                 && qualityOfGrowthScore != null
@@ -4063,8 +4086,16 @@ public class RecommendationService {
                 && qualityOfGrowthScore < 64) {
             adjustment -= 2;
         }
+        if (newsSentiment.weightedSentimentScore() >= conflictRules.getPositiveNewsWeakGrowthNewsMin()
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= conflictRules.getPositiveNewsWeakGrowthQualityMax()
+                && valuationScore != null
+                && valuationScore <= conflictRules.getPositiveNewsWeakGrowthValuationMax()) {
+            adjustment += conflictRules.getPositiveNewsWeakGrowthPenalty();
+        }
 
         final String sector = blankToEmpty(target.getSector()).toLowerCase(Locale.ROOT);
+        final String industry = blankToEmpty(target.getIndustry()).toLowerCase(Locale.ROOT);
         if (sector.contains("energy") || sector.contains("materials") || sector.contains("industrial")) {
             if (priceMomentumScore != null
                     && priceMomentumScore >= 44
@@ -4106,6 +4137,19 @@ public class RecommendationService {
                     && valuationScore <= 72) {
                 adjustment += 1;
             }
+        }
+        if ((sector.contains("technology") || sector.contains("communication"))
+                && isOverheatedMomentum(priceSnapshot, priceMomentumScore)
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore < 68) {
+            adjustment -= 2;
+        }
+        if ((sector.contains("consumer cyclical") || industry.contains("retail") || industry.contains("travel"))
+                && priceMomentumScore != null
+                && priceMomentumScore <= 42
+                && priceStabilityScore != null
+                && priceStabilityScore <= 55) {
+            adjustment -= 2;
         }
         return adjustment;
     }
@@ -4486,43 +4530,43 @@ public class RecommendationService {
 
     private String buildPriceMomentumSummary(PriceSnapshot priceSnapshot) {
         if (priceSnapshot == null || !priceSnapshot.hasThirtyDayReturn()) {
-            return "최근 가격 흐름 데이터가 부족해 모멘텀 평가는 보수적으로 반영했어요.";
+            return "가격 흐름 데이터가 부족해 모멘텀은 보수적으로 반영했어요.";
         }
         final Double return30d = priceSnapshot.thirtyDayReturn();
         final Double return7d = priceSnapshot.changeRate7d();
         if (return30d == null) {
-            return "최근 가격 흐름 데이터가 부족해 모멘텀 평가는 보수적으로 반영했어요.";
+            return "가격 흐름 데이터가 부족해 모멘텀은 보수적으로 반영했어요.";
         }
         if (return30d >= 25 && return7d != null && return7d >= 8) {
-            return "30일과 7일 상승 속도가 모두 빨라 단기 과열 부담을 크게 반영했어요.";
+            return "상승 속도가 빨라 단기 과열 부담을 크게 반영했어요.";
         }
         if (return30d >= 15 && return7d != null && return7d >= 5) {
             return "상승 흐름은 좋지만 최근 속도가 빨라 추격 부담도 함께 봤어요.";
         }
         if (return30d >= 15) {
-            return "30일 흐름은 강하지만 지금은 가격 부담도 같이 보는 구간이에요.";
+            return "흐름은 강하지만 지금은 가격 부담도 함께 보는 구간이에요.";
         }
         if (return30d >= 5 && return7d != null && return7d >= 1 && return7d <= 4) {
-            return "30일과 7일 흐름이 완만하게 우상향해 비교적 건강한 상승으로 봤어요.";
+            return "완만한 우상향 흐름이라 비교적 건강한 상승으로 봤어요.";
         }
         if (return30d >= 5) {
-            return "30일 흐름은 우상향이지만 단기 속도는 함께 확인했어요.";
+            return "우상향 흐름이지만 단기 속도는 함께 확인했어요.";
         }
         if (return30d <= -10 && return7d != null && return7d >= 3) {
-            return "30일 조정 뒤 7일 반등이 보여 약세로만 보진 않았어요.";
+            return "최근 조정 뒤 반등이 보여 약세로만 보진 않았어요.";
         }
         if (return30d <= -10) {
-            return "30일 조정 폭이 커 아직 약세 흐름을 더 확인해야 해요.";
+            return "조정 폭이 커 아직 약세 흐름을 더 확인해야 해요.";
         }
         if (return30d <= -3) {
-            return "30일 흐름이 다소 약해 보수적으로 반영했어요.";
+            return "흐름이 다소 약해 보수적으로 반영했어요.";
         }
-        return "30일 흐름은 중립 구간으로 봤어요.";
+        return "가격 흐름은 중립 구간으로 봤어요.";
     }
 
     private String buildPriceStabilitySummary(PriceSnapshot priceSnapshot) {
         if (priceSnapshot == null) {
-            return "변동성과 하방 리스크를 기준으로 안정성을 평가했어요.";
+            return "변동성과 하방 리스크로 안정성을 평가했어요.";
         }
         if (priceSnapshot.hasSevereDrop()) {
             return "최근 낙폭이 커 하방 리스크를 크게 반영했어요.";
@@ -4530,7 +4574,7 @@ public class RecommendationService {
         final Double abs7d = absoluteOrNull(priceSnapshot.changeRate7d());
         final Double abs30d = absoluteOrNull(priceSnapshot.thirtyDayReturn());
         if (abs7d != null && abs30d != null && abs7d <= 3 && abs30d <= 10) {
-            return "7일과 30일 변동폭이 모두 크지 않아 흔들림이 잔잔한 편이에요.";
+            return "최근 변동폭이 크지 않아 흔들림이 잔잔한 편이에요.";
         }
         if (abs30d != null && abs30d <= 5) {
             return "최근 변동이 크지 않아 안정성은 무난한 편이에요.";
@@ -4547,7 +4591,7 @@ public class RecommendationService {
         if ((abs7d != null && abs7d >= 10) || (abs30d != null && abs30d >= 20)) {
             return "최근 흔들림이 커 안정성은 보수적으로 반영했어요.";
         }
-        return "변동성과 하방 리스크를 기준으로 안정성을 평가했어요.";
+        return "변동성과 하방 리스크로 안정성을 평가했어요.";
     }
 
     private String buildNewsSentimentSummary(
@@ -4559,12 +4603,12 @@ public class RecommendationService {
         }
         if (input != null && input.hardNegativeNews()) {
             return switch (blankToEmpty(input.hardNegativeNewsCategory())) {
-                case "ACCOUNTING_OR_FRAUD" -> "회계 이슈나 신뢰 훼손 성격의 악재가 있어, 숫자보다 기업 신뢰도 리스크를 더 크게 반영했어요.";
-                case "LIQUIDITY_OR_BANKRUPTCY" -> "유동성·상장 유지 성격의 악재라 단기 주가보다 생존 리스크를 더 보수적으로 반영했어요.";
-                case "REGULATORY_INVESTIGATION" -> "규제·조사 성격의 악재가 있어, 결론 전까지 이어질 수 있는 불확실성을 할인 요인으로 반영했어요.";
-                case "GUIDANCE_OR_EARNINGS" -> "실적·가이던스 성격의 악재가 있어, 단기 기대치와 눈높이를 낮추는 쪽으로 반영했어요.";
-                case "LAWSUIT_OR_RECALL" -> "소송·리콜 성격의 악재가 있어, 비용 확대와 평판 부담 가능성을 함께 반영했어요.";
-                case "DEMAND_OR_MARGIN" -> "수요 둔화·마진 압박 성격의 악재가 있어, 이익 체력 둔화 가능성을 경계 신호로 반영했어요.";
+                case "ACCOUNTING_OR_FRAUD" -> "회계·신뢰 이슈가 있어 뉴스 리스크를 크게 반영했어요.";
+                case "LIQUIDITY_OR_BANKRUPTCY" -> "유동성·상장 유지 이슈가 있어 생존 리스크를 보수적으로 반영했어요.";
+                case "REGULATORY_INVESTIGATION" -> "규제·조사 이슈가 있어 불확실성을 할인 요인으로 반영했어요.";
+                case "GUIDANCE_OR_EARNINGS" -> "실적·가이던스 악재가 있어 기대치를 낮춰 반영했어요.";
+                case "LAWSUIT_OR_RECALL" -> "소송·리콜 이슈가 있어 비용과 평판 부담을 반영했어요.";
+                case "DEMAND_OR_MARGIN" -> "수요 둔화·마진 압박 우려가 있어 이익 체력을 보수적으로 봤어요.";
                 default -> "강한 악재 뉴스가 확인돼 다른 긍정 기사보다 우선 반영했어요.";
             };
         }
@@ -4656,26 +4700,26 @@ public class RecommendationService {
         if (profitabilityHeadline != null && balanceSheetHeadline != null) {
             if (!points.isEmpty() && !risks.isEmpty()) {
                 return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요. "
-                        + shortPoints + "은 강점이지만 " + shortRisks + "은 함께 봤어요.";
+                        + shortPoints + "은 강점이고 " + shortRisks + "은 함께 확인했어요.";
             }
             if (!points.isEmpty()) {
                 return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요. "
-                        + shortPoints + "이 보여 기업 체력을 좋게 봤어요.";
+                        + shortPoints + "이 확인돼요.";
             }
             if (!risks.isEmpty()) {
                 return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요. "
-                        + shortRisks + "이 보여 기업 체력은 보수적으로 봤어요.";
+                        + shortRisks + "은 보수적으로 봤어요.";
             }
             return profitabilityHeadline + "이고 " + balanceSheetHeadline + "예요.";
         }
         if (!points.isEmpty() && risks.isEmpty()) {
-            return shortPoints + "이 보여 기업 체력을 좋게 봤어요.";
+            return shortPoints + "이 확인돼요.";
         }
         if (points.isEmpty() && !risks.isEmpty()) {
-            return shortRisks + "이 보여 기업 체력은 보수적으로 봤어요.";
+            return shortRisks + "은 보수적으로 봤어요.";
         }
         if (!points.isEmpty()) {
-            return shortPoints + "은 강점이지만 " + shortRisks + "은 함께 봤어요.";
+            return shortPoints + "은 강점이고 " + shortRisks + "은 함께 확인했어요.";
         }
         return blankToEmpty(assessment.summary()).isBlank()
                 ? "수익성, 성장성, 안정성, 현금흐름을 함께 반영했어요."
@@ -4724,7 +4768,7 @@ public class RecommendationService {
 
     private String buildValuationFactorSummary(FundamentalQualityAssessment assessment) {
         if (assessment == null || assessment.perValue() == null) {
-            return "현재 밸류에이션 정보가 부족해 가격 부담은 중립적으로 봤어요.";
+            return "밸류에이션 정보가 부족해 가격 부담은 중립적으로 봤어요.";
         }
 
         final String perText = "현재 PER은 " + formatDecimal(assessment.perValue(), 1) + "배예요.";
@@ -4738,12 +4782,12 @@ public class RecommendationService {
             case "EXPENSIVE" -> strongCashSupport
                     ? perText + " 다소 비싸지만 현금흐름이 받쳐줘 부담을 일부 낮췄어요."
                     : strongProfitability
-                    ? perText + " 실적 체력은 좋지만 가격 기대도 어느 정도 반영됐어요."
+                    ? perText + " 실적 체력은 좋지만 가격 기대도 반영됐어요."
                     : perText + " 실적 대비 가격 부담이 조금 있는 편이에요.";
             case "VERY_EXPENSIVE" -> weakCashSupport
                     ? perText + " 기대는 높지만 현금흐름 뒷받침이 약해 가격 부담이 커요."
                     : strongProfitability
-                    ? perText + " 좋은 회사여도 이미 기대가 많이 반영돼 추가 매수는 신중히 봤어요."
+                    ? perText + " 좋은 회사여도 기대가 많이 반영돼 추가 매수는 신중히 봤어요."
                     : perText + " 기대가 많이 반영돼 가격 부담이 큰 편이에요.";
             default -> perText + " 가격 부담은 보수적으로 해석했어요.";
         };
@@ -4777,7 +4821,7 @@ public class RecommendationService {
                 && growth >= 0.20
                 && ((cashFlow != null && cashFlow <= 55)
                 || (profitability != null && profitability <= 60))) {
-            return growthText + " 성장 속도는 빠르지만 이익과 현금흐름의 뒷받침은 더 확인이 필요해요.";
+            return growthText + " 성장 속도는 빠르지만 이익 뒷받침은 더 확인이 필요해요.";
         }
         if (growth != null
                 && growth >= 0.05
@@ -4785,7 +4829,7 @@ public class RecommendationService {
                 && profitability >= 72
                 && cashFlow != null
                 && cashFlow >= 68) {
-            return growthText + " 아주 급하진 않지만 질 좋은 성장으로 봤어요.";
+            return growthText + " 무리하지 않지만 질 좋은 성장으로 봤어요.";
         }
         if (growth != null
                 && growth >= 0.05
@@ -4793,14 +4837,14 @@ public class RecommendationService {
                 && profitability >= 75
                 && cashFlow != null
                 && cashFlow >= 60) {
-            return growthText + " 속도는 무리하지 않지만 이익으로 이어지는 힘은 괜찮은 편이에요.";
+            return growthText + " 속도는 무리하지 않지만 이익으로 이어지는 힘은 괜찮아요.";
         }
         if (growth != null
                 && growth < 0.0) {
             return growthText + " 최근 성장 탄력은 약한 편이에요.";
         }
         if (safety != null && safety <= 45) {
-            return growthText + " 성장 수치와 별개로 재무 안정성은 보수적으로 반영했어요.";
+            return growthText + " 다만 재무 안정성은 보수적으로 반영했어요.";
         }
         if (cashFlow != null && cashFlow <= 55) {
             return growthText + " 현금 전환력은 조금 더 확인이 필요해요.";
@@ -4811,7 +4855,7 @@ public class RecommendationService {
         if (growth == null) {
             return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
         }
-        return growthText + " 단순 성장률만이 아니라 수익성과 현금흐름까지 함께 봤어요.";
+        return growthText + " 성장률뿐 아니라 수익성과 현금흐름도 함께 봤어요.";
     }
 
     private String formatDecimal(BigDecimal value, int scale) {
@@ -4857,25 +4901,25 @@ public class RecommendationService {
         final String companyName = target.getCompanyName();
 
         if ("STOP".equals(recommendationStatus)) {
-            return companyName + "은 현재 데이터 기준으로 리스크 관리가 우선이라, 매수보다 중단 또는 관망 쪽에 더 가까운 상태입니다.";
+            return companyName + "은 현재 데이터 기준으로 하방 리스크 관리가 우선이라, 지금은 신규 매수보다 중단 또는 관망이 더 적절합니다.";
         }
         if (newsSentiment.hardNegativeOverride()) {
-            return companyName + "과 직접 관련된 강한 악재가 확인되어, 다른 긍정 기사보다 우선 반영하고 모으기 금액 축소를 권합니다.";
+            return companyName + "과 직접 관련된 강한 악재가 확인되어, 지금은 모으기 금액을 줄이는 감액 판단이 우선입니다.";
         }
         if ("INCREASE".equals(recommendationStatus)) {
             if (v4Context != null
                     && v4Context.valuationScore() != null
                     && v4Context.valuationScore() <= 58) {
-                return companyName + "은 가격 부담이 남아도 기업 체력과 흐름 우위가 더 커, 현재는 증액 쪽 판단이 우세합니다.";
+                return companyName + "은 가격 부담이 일부 남아도 흐름과 펀더멘털 우위가 더 커, 지금은 기존 금액보다 한 단계 더 모으는 증액 판단이 우세합니다.";
             }
             if (v4Context != null
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() >= 70
                     && v4Context.fundamentalQualityScore() != null
                     && v4Context.fundamentalQualityScore() >= 74) {
-                return companyName + "은 기업 체력과 성장의 질이 함께 좋아, 지금은 한 단계 더 모아가는 판단이 자연스럽습니다.";
+                return companyName + "은 성장의 질과 핵심 펀더멘털이 함께 받쳐줘, 지금은 기존 금액보다 한 단계 더 모으는 증액 판단이 자연스럽습니다.";
             }
-            return companyName + "은 여러 핵심 팩터가 강한 편이라, 현재 기준에서는 기존 금액보다 한 단계 더 모아가는 쪽이 적절합니다.";
+            return companyName + "은 여러 핵심 팩터가 강한 편이라, 현재 기준에서는 기존 금액보다 한 단계 더 모으는 증액 쪽이 적절합니다.";
         }
         if ("REDUCE".equals(recommendationStatus)) {
             if (v4Context != null
@@ -4883,12 +4927,12 @@ public class RecommendationService {
                     && v4Context.priceMomentumScore() <= 45
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() <= 58) {
-                return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 감액 쪽이 더 자연스럽습니다.";
+                return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 모으기 금액을 줄이는 감액 판단이 더 자연스럽습니다.";
             }
             if (v4Context != null
                     && v4Context.priceStabilityScore() != null
                     && v4Context.priceStabilityScore() <= 60) {
-                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 금액을 줄여 관찰하는 쪽이 더 적절합니다.";
+                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 지금은 금액을 줄여 보는 감액 판단이 더 적절합니다.";
             }
             if (v4Context != null
                     && v4Context.valuationScore() != null
@@ -4896,7 +4940,7 @@ public class RecommendationService {
                 return companyName + "은 가격 부담이 큰데 추가 확신 신호가 약해, 지금은 감액 쪽으로 더 보수적으로 봤습니다.";
             }
             return companyName + "은 현재 점수 " + finalScore
-                    + "점으로, 공격적으로 늘리기보다 금액을 줄여 관찰하는 쪽이 적절합니다.";
+                    + "점으로, 지금은 금액을 줄여 보는 감액 쪽이 적절합니다.";
         }
         if ("MAINTAIN".equals(recommendationStatus) && v4Context != null) {
             final String maintainComment = buildMaintainAiComment(companyName, v4Context);
@@ -4905,13 +4949,13 @@ public class RecommendationService {
             }
         }
         if ("NEGATIVE".equals(newsSentiment.label())) {
-            return companyName + "은 최근 뉴스 심리가 부정적으로 기울어 있어, 당장 증액보다 현재 금액 유지가 더 안전합니다.";
+            return companyName + "은 최근 뉴스 심리가 부정적으로 기울어 있어, 지금은 기존 금액을 유지하는 쪽이 더 안전합니다.";
         }
         if (priceSnapshot.hasThirtyDayReturn() && priceSnapshot.thirtyDayReturn() >= 10) {
-            return companyName + "은 최근 상승 폭이 있어, 지금은 무리한 증액보다 현재 금액 유지가 더 적절합니다.";
+            return companyName + "은 최근 상승 폭이 있어, 지금은 기존 금액을 유지하면서 확인하는 쪽이 더 적절합니다.";
         }
 
-        return companyName + "은 현재 기준에서 뚜렷한 경고 신호가 없어, 기존 모으기 금액을 유지하는 전략이 가장 자연스럽습니다.";
+        return companyName + "은 현재 기준에서 뚜렷한 경고 신호가 없어, 기존 모으기 금액을 유지하는 쪽이 가장 자연스럽습니다.";
     }
 
     private String buildFinalNote(
@@ -4951,10 +4995,10 @@ public class RecommendationService {
 
     private String defaultRecommendationNote(String recommendationStatus) {
         return switch (blankToEmpty(recommendationStatus)) {
-            case "INCREASE" -> "현재 기준에서는 기존 금액보다 한 단계 더 모아가는 쪽이 적절합니다.";
+            case "INCREASE" -> "현재 기준에서는 기존 금액보다 한 단계 더 모으는 증액 쪽이 적절합니다.";
             case "MAINTAIN" -> "현재 기준에서는 기존 모으기 금액을 유지하는 쪽이 가장 자연스럽습니다.";
-            case "REDUCE" -> "현재 기준에서는 금액을 조금 줄여 보수적으로 보는 편이 적절합니다.";
-            case "STOP" -> "현재 기준에서는 매수보다 중단 또는 관망 쪽이 더 적절합니다.";
+            case "REDUCE" -> "현재 기준에서는 금액을 조금 줄여 보는 감액 쪽이 적절합니다.";
+            case "STOP" -> "현재 기준에서는 신규 매수보다 중단 또는 관망 쪽이 더 적절합니다.";
             default -> "";
         };
     }
@@ -4996,7 +5040,7 @@ public class RecommendationService {
                 || (quality != null && quality <= 58);
 
         if (nearIncrease && valuation != null && valuation <= 58) {
-            return companyName + "은 기업 체력과 흐름은 괜찮지만 가격 부담이 남아 있어, 아직은 유지가 더 자연스럽습니다.";
+            return companyName + "은 전반 흐름은 괜찮지만 가격 부담이 남아 있어, 지금은 기존 금액 유지가 더 자연스럽습니다.";
         }
         if (nearIncrease
                 && momentum != null
@@ -5004,26 +5048,26 @@ public class RecommendationService {
                 && v4Context.priceSnapshot() != null
                 && v4Context.priceSnapshot().thirtyDayReturn() != null
                 && v4Context.priceSnapshot().thirtyDayReturn() >= 15) {
-            return companyName + "은 기업 체력은 좋지만 최근 상승 속도가 빨라, 지금은 증액보다 유지가 더 자연스럽습니다.";
+            return companyName + "은 최근 상승 속도가 빨라, 지금은 기존 금액을 유지하며 확인하는 쪽이 더 자연스럽습니다.";
         }
         if (nearIncrease && quality != null && quality <= 66) {
-            return companyName + "은 흐름은 괜찮지만 성장의 질을 한 번 더 확인해야 해, 지금 판단은 유지예요.";
+            return companyName + "은 흐름은 괜찮지만 성장의 질을 한 번 더 확인할 필요가 있어, 지금은 유지 판단이 맞습니다.";
         }
         if (nearIncrease && fundamental != null && fundamental <= 64) {
-            return companyName + "은 가격 흐름은 괜찮지만 기업 체력 확신이 아주 강한 단계는 아니라, 지금은 유지로 봤어요.";
+            return companyName + "은 가격 흐름은 괜찮지만 확신을 더 주는 근거가 부족해, 지금은 유지로 봤어요.";
         }
         if (nearIncrease) {
-            return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 증액까지는 한 단계 부족해 현재 판단은 유지예요.";
+            return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 더 강하게 모으기에는 한 단계 부족해 현재 판단은 유지예요.";
         }
 
         if (nearReduce && momentum != null && momentum <= 50 && quality != null && quality <= 58) {
-            return companyName + "은 가격 흐름과 성장의 질이 함께 약하지만, 아직은 감액 직전 유지 구간으로 봤어요.";
+            return companyName + "은 가격 흐름과 성장의 질이 함께 약하지만, 아직은 기존 금액을 유지하며 더 지켜볼 구간으로 봤어요.";
         }
         if (nearReduce && stability != null && stability <= 65) {
             return companyName + "은 하락 위험이 아주 크진 않지만 안정성이 충분히 높지 않아, 현재 판단은 유지예요.";
         }
         if (nearReduce) {
-            return companyName + "은 아직 감액까지는 아니지만, 보수적인 유지 구간에 더 가깝습니다.";
+            return companyName + "은 아직 줄일 단계까지는 아니지만, 보수적인 유지 구간에 더 가깝습니다.";
         }
 
         if (valuation != null && valuation <= 58) {

@@ -368,6 +368,18 @@ public class StockPriceSnapshotBatchService {
         StockPriceSnapshotRecord latestSnapshot =
                 stockPriceSnapshotMapper.findLatestSnapshotByStockId(stockId);
         boolean updated = false;
+        final boolean needsImmediateLatestSync = latestSnapshot == null
+                || latestSnapshot.getSnapshotDate() == null
+                || latestSnapshot.getSnapshotDate().isBefore(today)
+                || latestSnapshot.getCurrentPrice() == null
+                || latestSnapshot.getCurrentPrice().doubleValue() <= 0
+                || (hasInsufficientCoreFundamentals(latestSnapshot)
+                && !isRecentlyListedForFundamentals(stock, today));
+
+        if (needsImmediateLatestSync) {
+            updated = syncLatestSnapshotForStock(stockId) || updated;
+            latestSnapshot = stockPriceSnapshotMapper.findLatestSnapshotByStockId(stockId);
+        }
 
         if (needsPriceHistoryBackfill(stock, latestSnapshot, today)) {
             final int savedHistoryRows = backfillHistoricalSnapshotsForStockIds(

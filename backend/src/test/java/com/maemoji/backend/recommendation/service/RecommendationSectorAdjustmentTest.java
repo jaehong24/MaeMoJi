@@ -55,6 +55,7 @@ class RecommendationSectorAdjustmentTest {
                 68,
                 74,
                 61,
+                62,
                 12
         );
         final int techAdjustment = crossFactorAdjustment(
@@ -65,6 +66,7 @@ class RecommendationSectorAdjustmentTest {
                 68,
                 74,
                 61,
+                62,
                 12
         );
 
@@ -81,6 +83,7 @@ class RecommendationSectorAdjustmentTest {
                 62,
                 54,
                 58,
+                62,
                 0
         );
         final int defensiveAdjustment = crossFactorAdjustment(
@@ -91,10 +94,56 @@ class RecommendationSectorAdjustmentTest {
                 62,
                 54,
                 58,
+                62,
                 0
         );
 
         assertThat(financialAdjustment).isLessThan(defensiveAdjustment);
+    }
+
+    @Test
+    void overheatedExpensiveTechnologyNamesReceiveExtraPenalty() throws Exception {
+        final int techAdjustment = crossFactorAdjustment(
+                targetWithSector("Technology"),
+                priceSnapshotWithReturns(6.5, 24.0),
+                36,
+                58,
+                78,
+                76,
+                50,
+                60,
+                8
+        );
+        final int utilityAdjustment = crossFactorAdjustment(
+                targetWithSector("Utilities"),
+                priceSnapshotWithReturns(6.5, 24.0),
+                36,
+                58,
+                78,
+                76,
+                50,
+                60,
+                8
+        );
+
+        assertThat(techAdjustment).isLessThan(utilityAdjustment);
+    }
+
+    @Test
+    void positiveNewsDoesNotOverpowerWeakGrowthAndExpensiveValuation() throws Exception {
+        final int adjustment = crossFactorAdjustment(
+                targetWithSector("Technology"),
+                priceSnapshotWithReturns(1.2, 6.0),
+                60,
+                74,
+                70,
+                68,
+                56,
+                54,
+                24
+        );
+
+        assertThat(adjustment).isNegative();
     }
 
     private int crossFactorAdjustment(
@@ -105,6 +154,7 @@ class RecommendationSectorAdjustmentTest {
             Integer fundamentalQualityScore,
             Integer profitabilityFactorScore,
             Integer valuationScore,
+            Integer qualityOfGrowthScore,
             int weightedSentimentScore
     ) {
         final NewsSentimentService.NewsSentimentResult news = new NewsSentimentService.NewsSentimentResult(
@@ -115,8 +165,9 @@ class RecommendationSectorAdjustmentTest {
                 "test",
                 weightedSentimentScore,
                 false,
+                "NONE",
                 70,
-                true,
+                false,
                 false
         );
         final Integer adjustment = (Integer) ReflectionTestUtils.invokeMethod(
@@ -130,7 +181,7 @@ class RecommendationSectorAdjustmentTest {
                 fundamentalQualityScore,
                 profitabilityFactorScore,
                 valuationScore,
-                62
+                qualityOfGrowthScore
         );
         assertThat(adjustment).isNotNull();
         return adjustment;

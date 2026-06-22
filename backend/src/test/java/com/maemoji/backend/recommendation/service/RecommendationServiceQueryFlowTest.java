@@ -130,7 +130,7 @@ class RecommendationServiceQueryFlowTest {
                 null
         );
 
-        assertThat(comment).contains("더 모아");
+        assertThat(comment).contains("증액");
         assertThat(comment).doesNotContain("유지");
     }
 
@@ -143,7 +143,93 @@ class RecommendationServiceQueryFlowTest {
                 "현재는 기존 금액을 유지하는 것이 좋습니다."
         );
 
-        assertThat(note).contains("더 모아가는");
+        assertThat(note).contains("증액");
+        assertThat(note).doesNotContain("유지하는 것이 좋습니다");
+    }
+
+    @Test
+    void buildAiCommentReturnsMaintainToneForMaintainStatus() throws Exception {
+        final RecommendationTarget target = createTarget(304L, 1004L, 2004L);
+
+        final String comment = (String) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "buildAiComment",
+                target,
+                "MAINTAIN",
+                71,
+                createPriceSnapshot(150.0, 1.8, 8.0),
+                neutralNews(),
+                createV4ScoringContext(
+                        createPriceSnapshot(150.0, 1.8, 8.0),
+                        66,
+                        78,
+                        74,
+                        72,
+                        64
+                )
+        );
+
+        assertThat(comment).contains("유지");
+        assertThat(comment).doesNotContain("증액");
+        assertThat(comment).doesNotContain("감액");
+    }
+
+    @Test
+    void buildAiCommentReturnsReduceToneForReduceStatus() throws Exception {
+        final RecommendationTarget target = createTarget(305L, 1005L, 2005L);
+
+        final String comment = (String) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "buildAiComment",
+                target,
+                "REDUCE",
+                57,
+                createPriceSnapshot(150.0, -3.5, -12.0),
+                neutralNews(),
+                createV4ScoringContext(
+                        createPriceSnapshot(150.0, -3.5, -12.0),
+                        42,
+                        58,
+                        60,
+                        56,
+                        52
+                )
+        );
+
+        assertThat(comment).contains("감액");
+        assertThat(comment).doesNotContain("유지");
+    }
+
+    @Test
+    void buildAiCommentReturnsStopToneForStopStatus() {
+        final RecommendationTarget target = createTarget(306L, 1006L, 2006L);
+
+        final String comment = (String) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "buildAiComment",
+                target,
+                "STOP",
+                28,
+                null,
+                neutralNews(),
+                null
+        );
+
+        assertThat(comment).containsAnyOf("중단", "관망");
+        assertThat(comment).doesNotContain("유지");
+        assertThat(comment).doesNotContain("증액");
+    }
+
+    @Test
+    void normalizeRecommendationNoteFallsBackWhenReduceContainsMaintainTone() {
+        final String note = (String) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "normalizeRecommendationNote",
+                "REDUCE",
+                "현재는 기존 금액을 유지하는 것이 좋습니다."
+        );
+
+        assertThat(note).contains("감액");
         assertThat(note).doesNotContain("유지하는 것이 좋습니다");
     }
 
@@ -293,6 +379,52 @@ class RecommendationServiceQueryFlowTest {
                 null,
                 null,
                 null
+        );
+    }
+
+    private Object createV4ScoringContext(
+            Object priceSnapshot,
+            Integer priceMomentumScore,
+            Integer priceStabilityScore,
+            Integer fundamentalQualityScore,
+            Integer qualityOfGrowthScore,
+            Integer valuationScore
+    ) throws Exception {
+        final Class<?> v4ContextClass = findNestedClass("V4ScoringContext");
+        final Constructor<?> constructor = v4ContextClass.getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        return constructor.newInstance(
+                null,
+                null,
+                priceSnapshot,
+                18,
+                priceMomentumScore,
+                priceStabilityScore,
+                61,
+                fundamentalQualityScore,
+                72,
+                70,
+                valuationScore,
+                qualityOfGrowthScore,
+                68,
+                null,
+                null
+        );
+    }
+
+    private NewsSentimentService.NewsSentimentResult neutralNews() {
+        return new NewsSentimentService.NewsSentimentResult(
+                18,
+                "NEUTRAL",
+                "뉴스는 중립입니다.",
+                List.of(),
+                "gemini",
+                18,
+                false,
+                "NONE",
+                80,
+                false,
+                false
         );
     }
 

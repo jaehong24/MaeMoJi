@@ -55,7 +55,11 @@ class RecommendationSampleSetReportTest {
             "EOG", "MPC", "PSX", "OXY", "KMI",
             "SO", "DUK", "AEP", "D", "CEG",
             "ELV", "CI", "HUM", "REGN", "VRTX",
-            "SHOP", "SNOW", "CRWD", "NET", "MDB"
+            "SHOP", "SNOW", "CRWD", "NET", "MDB",
+            "AXP", "PNC", "USB", "TGT", "CL",
+            "WM", "MAR", "FDX", "PH", "ANET",
+            "CDNS", "MCO", "ICE", "CVS", "DAL",
+            "UAL", "RSG", "KMB", "MNST", "AON"
     );
     private final RecommendationTuningProperties tuningProperties =
             new RecommendationTuningProperties();
@@ -552,13 +556,17 @@ class RecommendationSampleSetReportTest {
         if ("INCREASE".equals(result.recommendationStatus()) && result.increaseEligible()) {
             return "핵심 팩터가 고르게 강해 증액 가능";
         }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && (priceMomentumScore == null || priceStabilityScore == null || fundamentalQualityScore == null)) {
+            return "가격 흐름이나 재무 데이터가 더 쌓여야 해 보수적 유지";
+        }
         if (result.increaseEligible()
                 && "MAINTAIN".equals(result.recommendationStatus())
                 && fundamentalQualityScore != null
                 && fundamentalQualityScore >= conflictRules.getCompounderFundamentalMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= conflictRules.getCompounderGrowthMin()) {
-            return "체력은 강하지만 가격 흐름과 부담을 한 단계 더 확인하는 유지 구간";
+            return "증액 직전이지만 가격 흐름과 부담을 한 단계 더 확인하는 유지";
         }
         if (!result.increaseEligible()
                 && valuationScore != null
@@ -570,6 +578,15 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= conflictRules.getWeakGrowthQualityMax()) {
             return "가격은 무난해도 성장 질이 약해 보수적";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && priceMomentumScore != null
+                && priceMomentumScore <= 46
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 58
+                && priceStabilityScore != null
+                && priceStabilityScore >= 58) {
+            return "감액 직전이지만 방어력은 남아 있어 일단 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && priceMomentumScore != null

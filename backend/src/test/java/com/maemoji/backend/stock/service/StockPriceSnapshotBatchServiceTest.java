@@ -90,6 +90,32 @@ class StockPriceSnapshotBatchServiceTest {
         verify(service, never()).syncLatestSnapshotForStock(303L);
     }
 
+    @Test
+    void ensureRecommendationSnapshotSyncsLatestFirstWhenFundamentalsAreMissing() {
+        final LocalDate today = LocalDate.now();
+        final Stock stock = stock(404L, "NOW", "STOCK");
+        stock.setCreatedAt(OffsetDateTime.now().minusDays(220));
+
+        final StockPriceSnapshotRecord stale = new StockPriceSnapshotRecord();
+        stale.setSnapshotDate(today.minusDays(1));
+        stale.setCurrentPrice(BigDecimal.valueOf(100.0000));
+        stale.setChangeRate7d(BigDecimal.valueOf(1.2000));
+        stale.setChangeRate30d(BigDecimal.valueOf(3.4000));
+        stale.setSource("FINNHUB_FMP");
+
+        final StockPriceSnapshotRecord refreshed = completeSnapshot(today);
+
+        when(mapper.findStockForSnapshotById(404L)).thenReturn(stock);
+        when(mapper.findLatestSnapshotByStockId(404L)).thenReturn(stale, refreshed, refreshed);
+        doReturn(true).when(service).syncLatestSnapshotForStock(404L);
+
+        final boolean updated = service.ensureRecommendationSnapshot(404L);
+
+        assertThat(updated).isTrue();
+        verify(service).syncLatestSnapshotForStock(404L);
+        verify(service, never()).backfillHistoricalSnapshotsForStockIds(anyList(), anyInt());
+    }
+
     private Stock stock(Long id, String ticker, String assetType) {
         final Stock stock = new Stock();
         stock.setId(id);

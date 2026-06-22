@@ -286,19 +286,19 @@ public class RecommendationTuningProperties {
         private int severeDrawdownScore = 18;
         private int deepPullbackScore = 34;
         private int pullbackScore = 48;
-        private int softPullbackScore = 60;
-        private int neutralScore = 72;
-        private int healthyUptrendScore = 68;
-        private int warmUptrendScore = 44;
-        private int overheatedScore = 24;
-        private int euphoricScore = 8;
+        private int softPullbackScore = 62;
+        private int neutralScore = 74;
+        private int healthyUptrendScore = 70;
+        private int warmUptrendScore = 50;
+        private int overheatedScore = 22;
+        private int euphoricScore = 6;
         private int sharpWeeklySurgePenalty = 12;
         private int weeklySurgePenalty = 8;
         private int sharpWeeklyDropPenalty = 8;
         private int weeklyDropPenalty = 4;
         private int reboundBonus = 4;
         private int stableTrendBonus = 1;
-        private int overheatPenalty = 20;
+        private int overheatPenalty = 22;
 
         public int getSevereDrawdownScore() {
             return severeDrawdownScore;
@@ -430,10 +430,10 @@ public class RecommendationTuningProperties {
     }
 
     public static class PriceStability {
-        private int stress5Score = 84;
-        private int stress10Score = 72;
-        private int stress20Score = 52;
-        private int stress30Score = 30;
+        private int stress5Score = 86;
+        private int stress10Score = 74;
+        private int stress20Score = 54;
+        private int stress30Score = 28;
         private int fallbackScore = 18;
 
         public int getStress5Score() {
@@ -556,9 +556,16 @@ public class RecommendationTuningProperties {
         private int positiveNewsExpensiveNewsMin = 68;
         private int positiveNewsExpensiveValuationMax = 50;
         private int positiveNewsExpensivePenalty = -5;
+        private int positiveNewsWeakGrowthNewsMin = 18;
+        private int positiveNewsWeakGrowthQualityMax = 56;
+        private int positiveNewsWeakGrowthValuationMax = 58;
+        private int positiveNewsWeakGrowthPenalty = -3;
         private int slowingGrowthExpensiveQualityMax = 52;
         private int slowingGrowthExpensiveValuationMax = 48;
         private int slowingGrowthExpensivePenalty = -7;
+        private int overheatedExpensiveFundamentalMin = 74;
+        private int overheatedExpensiveValuationMax = 52;
+        private int overheatedExpensivePenalty = -4;
 
         public int getCompounderFundamentalMin() {
             return compounderFundamentalMin;
@@ -800,6 +807,38 @@ public class RecommendationTuningProperties {
             this.positiveNewsExpensivePenalty = positiveNewsExpensivePenalty;
         }
 
+        public int getPositiveNewsWeakGrowthNewsMin() {
+            return positiveNewsWeakGrowthNewsMin;
+        }
+
+        public void setPositiveNewsWeakGrowthNewsMin(int positiveNewsWeakGrowthNewsMin) {
+            this.positiveNewsWeakGrowthNewsMin = positiveNewsWeakGrowthNewsMin;
+        }
+
+        public int getPositiveNewsWeakGrowthQualityMax() {
+            return positiveNewsWeakGrowthQualityMax;
+        }
+
+        public void setPositiveNewsWeakGrowthQualityMax(int positiveNewsWeakGrowthQualityMax) {
+            this.positiveNewsWeakGrowthQualityMax = positiveNewsWeakGrowthQualityMax;
+        }
+
+        public int getPositiveNewsWeakGrowthValuationMax() {
+            return positiveNewsWeakGrowthValuationMax;
+        }
+
+        public void setPositiveNewsWeakGrowthValuationMax(int positiveNewsWeakGrowthValuationMax) {
+            this.positiveNewsWeakGrowthValuationMax = positiveNewsWeakGrowthValuationMax;
+        }
+
+        public int getPositiveNewsWeakGrowthPenalty() {
+            return positiveNewsWeakGrowthPenalty;
+        }
+
+        public void setPositiveNewsWeakGrowthPenalty(int positiveNewsWeakGrowthPenalty) {
+            this.positiveNewsWeakGrowthPenalty = positiveNewsWeakGrowthPenalty;
+        }
+
         public int getSlowingGrowthExpensiveQualityMax() {
             return slowingGrowthExpensiveQualityMax;
         }
@@ -822,6 +861,30 @@ public class RecommendationTuningProperties {
 
         public void setSlowingGrowthExpensivePenalty(int slowingGrowthExpensivePenalty) {
             this.slowingGrowthExpensivePenalty = slowingGrowthExpensivePenalty;
+        }
+
+        public int getOverheatedExpensiveFundamentalMin() {
+            return overheatedExpensiveFundamentalMin;
+        }
+
+        public void setOverheatedExpensiveFundamentalMin(int overheatedExpensiveFundamentalMin) {
+            this.overheatedExpensiveFundamentalMin = overheatedExpensiveFundamentalMin;
+        }
+
+        public int getOverheatedExpensiveValuationMax() {
+            return overheatedExpensiveValuationMax;
+        }
+
+        public void setOverheatedExpensiveValuationMax(int overheatedExpensiveValuationMax) {
+            this.overheatedExpensiveValuationMax = overheatedExpensiveValuationMax;
+        }
+
+        public int getOverheatedExpensivePenalty() {
+            return overheatedExpensivePenalty;
+        }
+
+        public void setOverheatedExpensivePenalty(int overheatedExpensivePenalty) {
+            this.overheatedExpensivePenalty = overheatedExpensivePenalty;
         }
     }
 

@@ -289,7 +289,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '이 종목의 매일 모으기 금액을 어떻게 판단했는지 핵심 이유를 모아 보여드려요.',
+                            '매일 모으기 판단의 핵심 이유만 간단히 보여드려요.',
                             style: theme.textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 16),
@@ -335,7 +335,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                               : resolvedItem.relatedNews.isEmpty
                                     ? (resolvedItem.relatedNewsStatusMessage ??
                                           '오늘 관련 뉴스가 아직 없습니다.')
-                                    : '감성, 관련성, 영향도를 반영한 기사별 분석입니다.',
+                                    : '기사별 핵심만 간단히 정리했어요.',
                           style: theme.textTheme.bodyMedium,
                         ),
                         if (!isEtfPending && resolvedItem.relatedNews.isNotEmpty) ...[

@@ -112,7 +112,7 @@ class _FactorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final score = item.scoreImpact;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -180,17 +180,17 @@ class _FactorCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             item.body,
             style: const TextStyle(
-              fontSize: 12,
-              height: 1.5,
+              fontSize: 11.5,
+              height: 1.4,
               color: MaeMojiColors.inkSoft,
             ),
           ),
           if (_supportsMetricStrip(item.evidenceType)) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _FactorMetricStrip(
               evidenceType: item.evidenceType,
               rawDataJson: item.rawDataJson,
