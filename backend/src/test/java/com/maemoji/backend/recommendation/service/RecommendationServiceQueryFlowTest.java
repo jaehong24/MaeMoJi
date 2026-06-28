@@ -170,8 +170,7 @@ class RecommendationServiceQueryFlowTest {
         );
 
         assertThat(comment).contains("유지");
-        assertThat(comment).doesNotContain("증액");
-        assertThat(comment).doesNotContain("감액");
+        assertThat(comment).doesNotContain("중단");
     }
 
     @Test
@@ -393,9 +392,14 @@ class RecommendationServiceQueryFlowTest {
         final Class<?> v4ContextClass = findNestedClass("V4ScoringContext");
         final Constructor<?> constructor = v4ContextClass.getDeclaredConstructors()[0];
         constructor.setAccessible(true);
+        final RecommendationTarget target = new RecommendationTarget();
+        target.setCompanyName("Apple");
+        target.setTicker("AAPL");
+        target.setSector("Technology");
+        target.setIndustry("Consumer Electronics");
         return constructor.newInstance(
                 null,
-                null,
+                target,
                 priceSnapshot,
                 18,
                 priceMomentumScore,

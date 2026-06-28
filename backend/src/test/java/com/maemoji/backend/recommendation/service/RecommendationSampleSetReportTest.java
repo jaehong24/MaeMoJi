@@ -212,6 +212,9 @@ class RecommendationSampleSetReportTest {
                         balancedNegativeNewsResult.finalScore(),
                         balancedNegativeNewsResult.recommendationStatus(),
                         buildBalancedStatusReason(
+                                symbol,
+                                snapshotRow.sector(),
+                                snapshotRow.industry(),
                                 priceMomentumScore,
                                 priceStabilityScore,
                                 fundamentalQualityScore,
@@ -276,6 +279,8 @@ class RecommendationSampleSetReportTest {
         final String sql = """
                 select
                     s.symbol,
+                    s.sector,
+                    s.industry,
                     p.snapshot_date,
                     p.current_price,
                     p.change_rate_7d,
@@ -312,6 +317,8 @@ class RecommendationSampleSetReportTest {
                 }
                 return new SnapshotRow(
                         resultSet.getString("symbol"),
+                        resultSet.getString("sector"),
+                        resultSet.getString("industry"),
                         resultSet.getDate("snapshot_date").toLocalDate(),
                         getNullableDouble(resultSet, "current_price"),
                         getNullableDouble(resultSet, "change_rate_7d"),
@@ -541,6 +548,9 @@ class RecommendationSampleSetReportTest {
     }
 
     private String buildBalancedStatusReason(
+            String symbol,
+            String sector,
+            String industry,
             Integer priceMomentumScore,
             Integer priceStabilityScore,
             Integer fundamentalQualityScore,
@@ -552,6 +562,20 @@ class RecommendationSampleSetReportTest {
                 tuningProperties.getIncreaseGuard();
         final RecommendationTuningProperties.ConflictRules conflictRules =
                 tuningProperties.getConflictRules();
+        final String normalizedSymbol = blankToEmpty(symbol).toUpperCase(Locale.ROOT);
+        final String normalizedSector = blankToEmpty(sector).toLowerCase(Locale.ROOT);
+        final String normalizedIndustry = blankToEmpty(industry).toLowerCase(Locale.ROOT);
+        final boolean financial = normalizedSector.contains("financial")
+                || List.of("JPM", "BAC", "AXP", "WFC", "C", "GS", "MS", "PNC", "USB").contains(normalizedSymbol);
+        final boolean defensive = normalizedSector.contains("consumer defensive")
+                || normalizedSector.contains("utilities")
+                || normalizedSector.contains("healthcare")
+                || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP").contains(normalizedSymbol);
+        final boolean retailOrHousing = normalizedSector.contains("consumer cyclical")
+                || normalizedIndustry.contains("retail")
+                || normalizedIndustry.contains("home improvement")
+                || normalizedIndustry.contains("consumer staples")
+                || List.of("LOW", "HD", "TGT", "COST", "WMT").contains(normalizedSymbol);
 
         if ("INCREASE".equals(result.recommendationStatus()) && result.increaseEligible()) {
             return "핵심 팩터가 고르게 강해 증액 가능";
@@ -567,6 +591,13 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= conflictRules.getCompounderGrowthMin()) {
             return "증액 직전이지만 가격 흐름과 부담을 한 단계 더 확인하는 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && valuationScore != null
+                && valuationScore <= 58
+                && priceMomentumScore != null
+                && priceMomentumScore >= 48) {
+            return "가격 메리트가 크지 않아 확인이 필요한 가격 부담 유지";
         }
         if (!result.increaseEligible()
                 && valuationScore != null
@@ -587,6 +618,25 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore != null
                 && priceStabilityScore >= 58) {
             return "감액 직전이지만 방어력은 남아 있어 일단 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 60
+                && priceStabilityScore != null
+                && priceStabilityScore >= 72) {
+            return "방어력은 괜찮지만 성장 탄력이 약한 성장 확인 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && !defensive
+                && priceStabilityScore != null
+                && priceStabilityScore >= 84
+                && priceMomentumScore != null
+                && priceMomentumScore >= 65
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 64
+                && valuationScore != null
+                && valuationScore >= 72) {
+            return "기본 체력은 좋지만 기대가 가격에 많이 반영된 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && priceMomentumScore != null
@@ -624,6 +674,100 @@ class RecommendationSampleSetReportTest {
                 && valuationScore <= 70) {
             return "흐름은 괜찮지만 성장의 질과 가격 여유가 증액 기준엔 조금 부족";
         }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && financial
+                && priceStabilityScore != null
+                && priceStabilityScore >= 70
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 64) {
+            return "금융주 특성상 자본 체력은 괜찮지만 이익 재가속 신호가 약해 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && financial
+                && priceStabilityScore != null
+                && priceStabilityScore >= 84
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 65
+                && valuationScore != null
+                && valuationScore >= 75) {
+            return "자본 체력은 안정적이지만 기대가 가격에 많이 반영된 금융주 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && financial
+                && priceStabilityScore != null
+                && priceStabilityScore >= 84
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 65
+                && valuationScore != null
+                && valuationScore <= 60) {
+            return "자본 체력은 안정적이지만 성장 재가속과 가격 메리트가 부족한 금융주 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && financial
+                && valuationScore != null
+                && valuationScore <= 60
+                && priceStabilityScore != null
+                && priceStabilityScore >= 68) {
+            return "금리·경기 민감도 대비 가격 여유가 크지 않아 금융주 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && defensive
+                && priceStabilityScore != null
+                && priceStabilityScore >= 84
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 64
+                && valuationScore != null
+                && valuationScore >= 70) {
+            return "방어력은 강하지만 성장 속도가 완만한 방어형 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && defensive
+                && priceStabilityScore != null
+                && priceStabilityScore >= 74
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 62) {
+            return "방어력은 좋지만 성장 재가속 신호가 약한 방어형 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && retailOrHousing
+                && valuationScore != null
+                && valuationScore >= 75
+                && priceMomentumScore != null
+                && priceMomentumScore >= 60
+                && priceStabilityScore != null
+                && priceStabilityScore >= 80
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 64) {
+            return "기본 체력은 괜찮지만 소비 회복 기대가 가격에 반영된 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && retailOrHousing
+                && valuationScore != null
+                && valuationScore <= 60
+                && priceMomentumScore != null
+                && priceMomentumScore >= 42
+                && priceStabilityScore != null
+                && priceStabilityScore >= 62) {
+            return "소비 회복 기대는 있지만 가격 여유가 크지 않아 확인형 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && retailOrHousing
+                && priceStabilityScore != null
+                && priceStabilityScore >= 84
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 64
+                && valuationScore != null
+                && valuationScore <= 58) {
+            return "기본 체력은 괜찮지만 소비 회복 기대가 일부 반영돼 확인형 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && retailOrHousing
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 63
+                && priceStabilityScore != null
+                && priceStabilityScore >= 66) {
+            return "기본 체력은 버티지만 소비 회복 속도를 더 봐야 해 유지";
+        }
         if ("REDUCE".equals(result.recommendationStatus())
                 && priceMomentumScore != null
                 && priceMomentumScore >= 40
@@ -644,7 +788,7 @@ class RecommendationSampleSetReportTest {
                 && valuationScore < conflictRules.getCompounderValuationMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= 60) {
-            return "기본 체력은 무난하지만 지금 가격 메리트는 크지 않아 유지";
+            return "기본 체력은 무난하지만 지금 가격 메리트가 크지 않은 가격 반영 유지";
         }
         if (priceMomentumScore != null && priceMomentumScore <= 30) {
             return "최근 가격 흐름이 약해 보수적";
@@ -661,6 +805,10 @@ class RecommendationSampleSetReportTest {
         return "핵심 팩터가 엇갈려 유지 구간";
     }
 
+    private String blankToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
     private record DatabaseConfig(
             String url,
             String username,
@@ -670,6 +818,8 @@ class RecommendationSampleSetReportTest {
 
     private record SnapshotRow(
             String symbol,
+            String sector,
+            String industry,
             java.time.LocalDate snapshotDate,
             Double currentPrice,
             Double changeRate7d,
