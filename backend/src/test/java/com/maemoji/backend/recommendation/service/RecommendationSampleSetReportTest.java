@@ -570,12 +570,12 @@ class RecommendationSampleSetReportTest {
         final boolean defensive = normalizedSector.contains("consumer defensive")
                 || normalizedSector.contains("utilities")
                 || normalizedSector.contains("healthcare")
-                || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP").contains(normalizedSymbol);
+                || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP", "AMGN", "NVS", "LLY", "TMO").contains(normalizedSymbol);
         final boolean retailOrHousing = normalizedSector.contains("consumer cyclical")
                 || normalizedIndustry.contains("retail")
                 || normalizedIndustry.contains("home improvement")
                 || normalizedIndustry.contains("consumer staples")
-                || List.of("LOW", "HD", "TGT", "COST", "WMT").contains(normalizedSymbol);
+                || List.of("LOW", "HD", "TGT", "COST", "WMT", "MCD").contains(normalizedSymbol);
 
         if ("INCREASE".equals(result.recommendationStatus()) && result.increaseEligible()) {
             return "핵심 팩터가 고르게 강해 증액 가능";
@@ -590,14 +590,14 @@ class RecommendationSampleSetReportTest {
                 && fundamentalQualityScore >= conflictRules.getCompounderFundamentalMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= conflictRules.getCompounderGrowthMin()) {
-            return "증액 직전이지만 가격 흐름과 부담을 한 단계 더 확인하는 유지";
+            return "강한 편이지만 한 단계 더 확인이 필요한 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && valuationScore != null
                 && valuationScore <= 58
                 && priceMomentumScore != null
                 && priceMomentumScore >= 48) {
-            return "가격 메리트가 크지 않아 확인이 필요한 가격 부담 유지";
+            return "기대가 가격에 먼저 반영된 가격 반영 유지";
         }
         if (!result.increaseEligible()
                 && valuationScore != null
@@ -637,6 +637,18 @@ class RecommendationSampleSetReportTest {
                 && valuationScore != null
                 && valuationScore >= 72) {
             return "기본 체력은 좋지만 기대가 가격에 많이 반영된 가격 반영 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && !defensive
+                && priceStabilityScore != null
+                && priceStabilityScore >= 84
+                && priceMomentumScore != null
+                && priceMomentumScore >= 68
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 68
+                && valuationScore != null
+                && valuationScore >= 60) {
+            return "흐름과 체력은 괜찮지만 추가 가격 여유가 크지 않은 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && priceMomentumScore != null
@@ -713,6 +725,16 @@ class RecommendationSampleSetReportTest {
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && defensive
                 && priceStabilityScore != null
+                && priceStabilityScore >= 70
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 70
+                && valuationScore != null
+                && valuationScore >= 75) {
+            return "방어력은 충분하지만 기대가 가격에 반영된 방어형 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && defensive
+                && priceStabilityScore != null
                 && priceStabilityScore >= 84
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= 64
@@ -727,6 +749,18 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= 62) {
             return "방어력은 좋지만 성장 재가속 신호가 약한 방어형 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && retailOrHousing
+                && valuationScore != null
+                && valuationScore >= 72
+                && priceMomentumScore != null
+                && priceMomentumScore >= 55
+                && priceStabilityScore != null
+                && priceStabilityScore >= 70
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 70) {
+            return "기본 체력은 괜찮지만 소비 기대가 가격에 충분히 반영된 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && retailOrHousing

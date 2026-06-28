@@ -5027,12 +5027,12 @@ public class RecommendationService {
         final boolean defensive = sector.contains("consumer defensive")
                 || sector.contains("utilities")
                 || sector.contains("healthcare")
-                || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP").contains(ticker);
+                || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP", "AMGN", "NVS", "LLY", "TMO").contains(ticker);
         final boolean retailOrHousing = sector.contains("consumer cyclical")
                 || industry.contains("retail")
                 || industry.contains("home improvement")
                 || industry.contains("consumer staples")
-                || List.of("LOW", "HD", "TGT", "COST", "WMT").contains(ticker);
+                || List.of("LOW", "HD", "TGT", "COST", "WMT", "MCD").contains(ticker);
         final boolean priceDataIncomplete = momentum == null || stability == null;
         final boolean fundamentalDataThin = fundamental == null || quality == null;
 
@@ -5054,7 +5054,7 @@ public class RecommendationService {
                 || (quality != null && quality <= 58);
 
         if (nearIncrease && valuation != null && valuation <= 58) {
-            return companyName + "은 전반 흐름은 괜찮지만 가격 부담이 남아 있어, 지금은 가격 부담을 확인하는 증액 직전 유지 구간이에요.";
+            return companyName + "은 전반 흐름은 괜찮지만 기대가 가격에 먼저 반영돼 있어, 지금은 가격 반영 유지 구간으로 봤어요.";
         }
         if (nearIncrease
                 && momentum != null
@@ -5065,13 +5065,13 @@ public class RecommendationService {
             return companyName + "은 최근 상승 속도가 빨라, 지금은 과열 여부를 확인하는 증액 직전 유지 구간이에요.";
         }
         if (nearIncrease && quality != null && quality <= 66) {
-            return companyName + "은 흐름은 괜찮지만 성장의 질을 한 번 더 확인해야 해, 지금은 증액 직전 유지 구간으로 봤어요.";
+            return companyName + "은 흐름은 괜찮지만 성장의 질을 한 번 더 확인해야 해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
         if (nearIncrease && fundamental != null && fundamental <= 64) {
-            return companyName + "은 가격 흐름은 괜찮지만 확신을 더 주는 근거가 부족해, 지금은 증액 직전 유지 구간으로 봤어요.";
+            return companyName + "은 가격 흐름은 괜찮지만 확신을 더 주는 근거가 부족해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
         if (nearIncrease) {
-            return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 더 강하게 모으기엔 한 단계 부족한 증액 직전 유지 구간이에요.";
+            return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 한 단계 더 확인이 필요한 성장 확인 유지 구간이에요.";
         }
 
         if (nearReduce && momentum != null && momentum <= 50 && quality != null && quality <= 58) {
@@ -5094,6 +5094,17 @@ public class RecommendationService {
                 && valuation != null
                 && valuation >= 72) {
             return companyName + "은 기본 체력은 좋지만 기대가 가격에 많이 반영돼 있어, 지금은 가격 반영 유지 구간으로 보는 게 자연스러워요.";
+        }
+        if (!defensive
+                && stability != null
+                && stability >= 84
+                && momentum != null
+                && momentum >= 68
+                && quality != null
+                && quality >= 68
+                && valuation != null
+                && valuation >= 60) {
+            return companyName + "은 흐름과 체력은 괜찮지만 추가 가격 여유가 크지 않아, 지금은 가격 반영 유지 구간으로 봤어요.";
         }
         if (financial
                 && stability != null
@@ -5129,6 +5140,15 @@ public class RecommendationService {
         }
         if (defensive
                 && stability != null
+                && stability >= 70
+                && quality != null
+                && quality >= 70
+                && valuation != null
+                && valuation >= 75) {
+            return companyName + "은 방어력은 충분하지만 기대가 가격에 이미 반영돼 있어, 지금은 방어형 유지 구간으로 보는 게 자연스러워요.";
+        }
+        if (defensive
+                && stability != null
                 && stability >= 84
                 && quality != null
                 && quality >= 64
@@ -5142,6 +5162,17 @@ public class RecommendationService {
                 && quality != null
                 && quality <= 62) {
             return companyName + "은 경기 방어력은 좋지만 성장 재가속 신호가 약해, 지금은 방어형 유지 구간으로 판단했어요.";
+        }
+        if (retailOrHousing
+                && valuation != null
+                && valuation >= 72
+                && momentum != null
+                && momentum >= 55
+                && stability != null
+                && stability >= 70
+                && quality != null
+                && quality >= 70) {
+            return companyName + "은 기본 체력은 괜찮지만 소비 기대가 가격에 충분히 반영돼 있어, 지금은 가격 반영 유지 구간으로 보는 게 자연스러워요.";
         }
         if (retailOrHousing
                 && valuation != null
@@ -5186,7 +5217,7 @@ public class RecommendationService {
             return companyName + "은 방어력은 괜찮지만 성장 탄력이 아직 약해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
         if (valuation != null && valuation <= 58) {
-            return companyName + "은 큰 경고 신호는 없지만 가격 메리트가 아주 크지 않아, 지금은 가격 반영 유지 구간으로 판단했어요.";
+            return companyName + "은 큰 경고 신호는 없지만 기대가 가격에 먼저 반영돼 있어, 지금은 가격 반영 유지 구간으로 판단했어요.";
         }
         return "";
     }
