@@ -16,6 +16,10 @@ public interface StockPriceSnapshotMapper {
 
     List<Stock> findActiveNonPortfolioStocksForSnapshot(@Param("limit") Integer limit);
 
+    List<Stock> findPortfolioStocksNeedingThirtyDayRecovery();
+
+    List<Stock> findNonPortfolioStocksNeedingThirtyDayRecovery(@Param("limit") Integer limit);
+
     Stock findStockForSnapshotById(@Param("stockId") Long stockId);
 
     List<Long> findActivePortfolioStockIds();

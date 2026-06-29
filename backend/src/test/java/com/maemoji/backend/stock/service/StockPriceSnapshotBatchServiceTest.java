@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.stock.config.PriceSnapshotBatchProperties;
 import com.maemoji.backend.stock.domain.Stock;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
+import com.maemoji.backend.stock.dto.PriceHistoryBackfillResult;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import org.junit.jupiter.api.Test;
 
@@ -114,6 +115,32 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(updated).isTrue();
         verify(service).syncLatestSnapshotForStock(404L);
         verify(service, never()).backfillHistoricalSnapshotsForStockIds(anyList(), anyInt());
+    }
+
+    @Test
+    void nullThirtyDayBackfillPrioritizesPortfolioRecoveryBeforeGeneralStocks() throws Exception {
+        final Stock portfolio = stock(501L, "AMD", "STOCK");
+        final Stock general = stock(601L, "WMT", "STOCK");
+
+        when(mapper.findPortfolioStocksNeedingThirtyDayRecovery()).thenReturn(List.of(portfolio));
+        when(mapper.findNonPortfolioStocksNeedingThirtyDayRecovery(300)).thenReturn(List.of(general));
+
+        doReturn(3)
+                .when(service)
+                .backfillHistoricalSnapshotsForStock(portfolio, LocalDate.now().minusDays(120), LocalDate.now().minusDays(1), null);
+
+        doReturn(2)
+                .when(service)
+                .backfillHistoricalSnapshotsForStock(general, LocalDate.now().minusDays(120), LocalDate.now().minusDays(1), null);
+
+        doReturn(true).when(service).syncLatestSnapshotForStock(501L);
+        doReturn(true).when(service).syncLatestSnapshotForStock(601L);
+
+        final PriceHistoryBackfillResult result = service.backfillNullThirtyDaySnapshots(300, 120);
+
+        assertThat(result.requestedStockCount()).isEqualTo(2);
+        assertThat(result.historyRowCount()).isEqualTo(5);
+        assertThat(result.refreshedCurrentSnapshotCount()).isEqualTo(2);
     }
 
     private Stock stock(Long id, String ticker, String assetType) {

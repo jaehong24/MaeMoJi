@@ -47,6 +47,16 @@ public class PriceSnapshotBatchAdminController {
         return ApiResponse.ok(stockPriceSnapshotBatchService.backfillHistoricalSnapshots(limit, days));
     }
 
+    @PostMapping("/history-backfill/null-30d")
+    public ApiResponse<PriceHistoryBackfillResult> backfillNullThirtyDayPriceHistory(
+            @RequestHeader(name = "X-Batch-Secret", required = false) String batchSecret,
+            @RequestParam(name = "limit", required = false) Integer limit,
+            @RequestParam(name = "days", required = false) Integer days
+    ) {
+        authorizer.authorize(batchSecret);
+        return ApiResponse.ok(stockPriceSnapshotBatchService.backfillNullThirtyDaySnapshots(limit, days));
+    }
+
     @PostMapping("/history-backfill-by-stock-ids")
     public ApiResponse<Integer> backfillPriceHistoryByStockIds(
             @RequestHeader(name = "X-Batch-Secret", required = false) String batchSecret,

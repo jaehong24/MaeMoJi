@@ -23,6 +23,7 @@ jobs:
     env:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: ${{ secrets.DATABASE_URL }}
+      FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
       FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       PRICE_LIMIT: ${{ github.event.inputs.price_limit || '500' }}

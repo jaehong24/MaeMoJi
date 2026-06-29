@@ -318,6 +318,71 @@ public class StockPriceSnapshotBatchService {
         );
     }
 
+    public PriceHistoryBackfillResult backfillNullThirtyDaySnapshots(Integer limit, Integer lookbackDays) {
+        final String fmpApiKey = System.getenv("FMP_API_KEY");
+
+        final int effectiveLimit = limit == null || limit <= 0
+                ? properties.getDefaultLimit()
+                : limit;
+        final int effectiveLookbackDays = lookbackDays == null || lookbackDays <= 0
+                ? Math.max(properties.getHistoryLookbackDays(), EXTENDED_RETRY_LOOKBACK_DAYS)
+                : lookbackDays;
+        final SelectedStocks selectedStocks = selectStocksForThirtyDayRecovery(effectiveLimit);
+        final List<Stock> stocks = selectedStocks.stocks();
+        final LocalDate today = LocalDate.now(SNAPSHOT_ZONE);
+        final LocalDate fromDate = today.minusDays(effectiveLookbackDays);
+        final LocalDate toDate = today.minusDays(1);
+
+        int historyRowCount = 0;
+        int refreshedCurrentSnapshotCount = 0;
+        int failedStockCount = 0;
+
+        log.info(
+                "30일 수익률 null 전용 가격 백필을 시작합니다. fromDate={}, toDate={}, totalRequested={}, portfolioStocks={}, generalStocks={}, generalLimit={}",
+                fromDate,
+                toDate,
+                stocks.size(),
+                selectedStocks.portfolioCount(),
+                selectedStocks.generalCount(),
+                effectiveLimit
+        );
+
+        for (Stock stock : stocks) {
+            try {
+                historyRowCount += backfillHistoricalSnapshotsForStock(stock, fromDate, toDate, fmpApiKey);
+                if (syncLatestSnapshotForStock(stock.getId())) {
+                    refreshedCurrentSnapshotCount++;
+                }
+            } catch (Exception exception) {
+                failedStockCount++;
+                log.warn(
+                        "30일 수익률 null 전용 가격 백필에 실패했습니다. stockId={}, ticker={}",
+                        stock.getId(),
+                        stock.getTicker(),
+                        exception
+                );
+            } finally {
+                sleep(Math.max(200, properties.getDelayMillis() / 3));
+            }
+        }
+
+        log.info(
+                "30일 수익률 null 전용 가격 백필이 완료되었습니다. stocks={}, historyRows={}, refreshedCurrent={}, failedStocks={}",
+                stocks.size(),
+                historyRowCount,
+                refreshedCurrentSnapshotCount,
+                failedStockCount
+        );
+        return new PriceHistoryBackfillResult(
+                fromDate,
+                toDate,
+                stocks.size(),
+                historyRowCount,
+                refreshedCurrentSnapshotCount,
+                failedStockCount
+        );
+    }
+
     public boolean syncLatestSnapshotForStock(Long stockId) {
         if (stockId == null) {
             return false;
@@ -572,57 +637,64 @@ public class StockPriceSnapshotBatchService {
         );
     }
 
-    private int backfillHistoricalSnapshotsForStock(
+    int backfillHistoricalSnapshotsForStock(
             Stock stock,
             LocalDate fromDate,
             LocalDate toDate,
             String fmpApiKey
-    ) throws Exception {
+    ) {
         if (fromDate == null || toDate == null || fromDate.isAfter(toDate)) {
             return 0;
         }
-        final String symbol = stock.getFinnhubSymbol() == null || stock.getFinnhubSymbol().isBlank()
-                ? stock.getTicker()
-                : stock.getFinnhubSymbol();
-        final List<HistoricalPricePoint> pricePoints = fetchHistoricalPricePoints(
-                symbol,
-                fromDate,
-                toDate,
-                fmpApiKey
-        );
-        if (pricePoints.isEmpty()) {
-            return 0;
-        }
+        try {
+            final String symbol = stock.getFinnhubSymbol() == null || stock.getFinnhubSymbol().isBlank()
+                    ? stock.getTicker()
+                    : stock.getFinnhubSymbol();
+            final List<HistoricalPricePoint> pricePoints = fetchHistoricalPricePoints(
+                    symbol,
+                    fromDate,
+                    toDate,
+                    fmpApiKey
+            );
+            if (pricePoints.isEmpty()) {
+                return 0;
+            }
 
-        pricePoints.sort(Comparator.comparing(HistoricalPricePoint::date));
-        final Map<LocalDate, BigDecimal> closeByDate = new HashMap<>();
-        int savedRows = 0;
-        for (int index = 0; index < pricePoints.size(); index++) {
-            final HistoricalPricePoint point = pricePoints.get(index);
-            final BigDecimal previousPrice = index == 0 ? null : pricePoints.get(index - 1).closePrice();
-            final BigDecimal sevenDayPrice = findReferencePriceFromSeries(
-                    closeByDate,
-                    point.date().minusDays(7),
-                    point.date().minusDays(14)
+            pricePoints.sort(Comparator.comparing(HistoricalPricePoint::date));
+            final Map<LocalDate, BigDecimal> closeByDate = new HashMap<>();
+            int savedRows = 0;
+            for (int index = 0; index < pricePoints.size(); index++) {
+                final HistoricalPricePoint point = pricePoints.get(index);
+                final BigDecimal previousPrice = index == 0 ? null : pricePoints.get(index - 1).closePrice();
+                final BigDecimal sevenDayPrice = findReferencePriceFromSeries(
+                        closeByDate,
+                        point.date().minusDays(7),
+                        point.date().minusDays(14)
+                );
+                final BigDecimal thirtyDayPrice = findReferencePriceFromSeries(
+                        closeByDate,
+                        point.date().minusDays(30),
+                        point.date().minusDays(40)
+                );
+                stockPriceSnapshotMapper.upsertHistoricalPriceSnapshot(
+                        stock.getId(),
+                        point.date(),
+                        point.closePrice(),
+                        priceReturnCalculator.calculate(point.closePrice(), previousPrice),
+                        priceReturnCalculator.calculate(point.closePrice(), sevenDayPrice),
+                        priceReturnCalculator.calculate(point.closePrice(), thirtyDayPrice),
+                        point.source()
+                );
+                closeByDate.put(point.date(), point.closePrice());
+                savedRows++;
+            }
+            return savedRows;
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "과거 가격 백필 내부 처리에 실패했습니다. stockId=" + stock.getId() + ", ticker=" + stock.getTicker(),
+                    exception
             );
-            final BigDecimal thirtyDayPrice = findReferencePriceFromSeries(
-                    closeByDate,
-                    point.date().minusDays(30),
-                    point.date().minusDays(40)
-            );
-            stockPriceSnapshotMapper.upsertHistoricalPriceSnapshot(
-                    stock.getId(),
-                    point.date(),
-                    point.closePrice(),
-                    priceReturnCalculator.calculate(point.closePrice(), previousPrice),
-                    priceReturnCalculator.calculate(point.closePrice(), sevenDayPrice),
-                    priceReturnCalculator.calculate(point.closePrice(), thirtyDayPrice),
-                    point.source()
-            );
-            closeByDate.put(point.date(), point.closePrice());
-            savedRows++;
         }
-        return savedRows;
     }
 
     private String resolveSnapshotSource(
@@ -1441,6 +1513,16 @@ public class StockPriceSnapshotBatchService {
         final List<Stock> portfolioStocks = stockPriceSnapshotMapper.findActivePortfolioStocksForSnapshot();
         final List<Stock> nonPortfolioStocks =
                 stockPriceSnapshotMapper.findActiveNonPortfolioStocksForSnapshot(effectiveLimit);
+        final List<Stock> stocks = new ArrayList<>(portfolioStocks.size() + nonPortfolioStocks.size());
+        stocks.addAll(portfolioStocks);
+        stocks.addAll(nonPortfolioStocks);
+        return new SelectedStocks(stocks, portfolioStocks.size(), nonPortfolioStocks.size());
+    }
+
+    private SelectedStocks selectStocksForThirtyDayRecovery(int effectiveLimit) {
+        final List<Stock> portfolioStocks = stockPriceSnapshotMapper.findPortfolioStocksNeedingThirtyDayRecovery();
+        final List<Stock> nonPortfolioStocks =
+                stockPriceSnapshotMapper.findNonPortfolioStocksNeedingThirtyDayRecovery(effectiveLimit);
         final List<Stock> stocks = new ArrayList<>(portfolioStocks.size() + nonPortfolioStocks.size());
         stocks.addAll(portfolioStocks);
         stocks.addAll(nonPortfolioStocks);

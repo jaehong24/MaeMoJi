@@ -34,6 +34,19 @@
           )
         order by
             (
+                select case
+                           when latest.change_rate_30d is null then 0
+                           else 1
+                       end
+                from (
+                    select sps.change_rate_30d
+                    from stock_price_snapshots sps
+                    where sps.stock_id = s.id
+                    order by sps.snapshot_date desc, sps.id desc
+                    limit 1
+                ) latest
+            ) asc nulls first,
+            (
                 select max(sps.snapshot_date)
                 from stock_price_snapshots sps
                 where sps.stock_id = s.id
@@ -68,6 +81,124 @@
               from portfolio_items pi
               where pi.stock_id = s.id
                 and pi.is_active = true
+          )
+        order by
+            (
+                select case
+                           when latest.change_rate_30d is null then 0
+                           else 1
+                       end
+                from (
+                    select sps.change_rate_30d
+                    from stock_price_snapshots sps
+                    where sps.stock_id = s.id
+                    order by sps.snapshot_date desc, sps.id desc
+                    limit 1
+                ) latest
+            ) asc nulls first,
+            (
+                select max(sps.snapshot_date)
+                from stock_price_snapshots sps
+                where sps.stock_id = s.id
+            ) asc nulls first,
+            s.id asc
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
+    </select>
+
+    <select id="findPortfolioStocksNeedingThirtyDayRecovery" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            asset_type,
+            ipo_date,
+            is_active,
+            created_at,
+            updated_at
+        from stocks s
+        where s.is_active = true
+          and s.finnhub_symbol is not null
+          and exists (
+              select 1
+              from portfolio_items pi
+              where pi.stock_id = s.id
+                and pi.is_active = true
+          )
+          and not exists (
+              select 1
+              from stock_price_snapshots latest
+              where latest.stock_id = s.id
+                and latest.snapshot_date = (
+                    select max(sps.snapshot_date)
+                    from stock_price_snapshots sps
+                    where sps.stock_id = s.id
+                )
+                and latest.change_rate_30d is not null
+          )
+        order by
+            (
+                select coalesce(max(pi.updated_at), max(pi.created_at))
+                from portfolio_items pi
+                where pi.stock_id = s.id
+                  and pi.is_active = true
+            ) desc nulls last,
+            (
+                select max(sps.snapshot_date)
+                from stock_price_snapshots sps
+                where sps.stock_id = s.id
+            ) asc nulls first,
+            s.id asc
+    </select>
+
+    <select id="findNonPortfolioStocksNeedingThirtyDayRecovery" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            asset_type,
+            ipo_date,
+            is_active,
+            created_at,
+            updated_at
+        from stocks s
+        where s.is_active = true
+          and s.finnhub_symbol is not null
+          and not exists (
+              select 1
+              from portfolio_items pi
+              where pi.stock_id = s.id
+                and pi.is_active = true
+          )
+          and not exists (
+              select 1
+              from stock_price_snapshots latest
+              where latest.stock_id = s.id
+                and latest.snapshot_date = (
+                    select max(sps.snapshot_date)
+                    from stock_price_snapshots sps
+                    where sps.stock_id = s.id
+                )
+                and latest.change_rate_30d is not null
           )
         order by
             (
