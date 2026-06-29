@@ -135,7 +135,7 @@
               where pi.stock_id = s.id
                 and pi.is_active = true
           )
-          and not exists (
+          and exists (
               select 1
               from stock_price_snapshots latest
               where latest.stock_id = s.id
@@ -144,7 +144,7 @@
                     from stock_price_snapshots sps
                     where sps.stock_id = s.id
                 )
-                and latest.change_rate_30d is not null
+                and latest.change_rate_30d is null
           )
         order by
             (
@@ -189,7 +189,7 @@
               where pi.stock_id = s.id
                 and pi.is_active = true
           )
-          and not exists (
+          and exists (
               select 1
               from stock_price_snapshots latest
               where latest.stock_id = s.id
@@ -198,7 +198,7 @@
                     from stock_price_snapshots sps
                     where sps.stock_id = s.id
                 )
-                and latest.change_rate_30d is not null
+                and latest.change_rate_30d is null
           )
         order by
             (

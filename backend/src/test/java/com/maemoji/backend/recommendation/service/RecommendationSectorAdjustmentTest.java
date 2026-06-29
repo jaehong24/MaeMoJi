@@ -146,6 +146,42 @@ class RecommendationSectorAdjustmentTest {
         assertThat(adjustment).isNegative();
     }
 
+    @Test
+    void semiconductorNamesReceiveExtraPenaltyWhenOverheatedAndExpensive() throws Exception {
+        final RecommendationTarget semiconductor = targetWithSector("Technology");
+        semiconductor.setTicker("QCOM");
+        semiconductor.setIndustry("Semiconductors");
+
+        final RecommendationTarget genericTech = targetWithSector("Technology");
+        genericTech.setTicker("TEST");
+        genericTech.setIndustry("Software");
+
+        final int semiconductorAdjustment = crossFactorAdjustment(
+                semiconductor,
+                priceSnapshotWithReturns(6.2, 22.0),
+                48,
+                72,
+                80,
+                82,
+                50,
+                72,
+                16
+        );
+        final int genericAdjustment = crossFactorAdjustment(
+                genericTech,
+                priceSnapshotWithReturns(6.2, 22.0),
+                48,
+                72,
+                80,
+                82,
+                50,
+                72,
+                16
+        );
+
+        assertThat(semiconductorAdjustment).isLessThan(genericAdjustment);
+    }
+
     private int crossFactorAdjustment(
             RecommendationTarget target,
             Object priceSnapshot,

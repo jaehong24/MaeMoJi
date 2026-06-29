@@ -2804,10 +2804,16 @@ public class RecommendationService {
             if (return30d >= -2 && return30d <= 2 && return7d >= -2 && return7d <= 1) {
                 score += 1;
             }
+            if (return30d >= 2 && return30d <= 8 && return7d >= -1 && return7d <= 1.8) {
+                score += 2;
+            }
             if (return30d >= -5 && return30d < 0 && return7d <= -3) {
                 score -= 6;
             }
             if (return30d >= -10 && return30d < -5 && return7d <= -4) {
+                score -= 4;
+            }
+            if (return30d >= 12 && return30d < 22 && return7d <= -2.5) {
                 score -= 4;
             }
             if (return30d >= 8 && return30d < 15 && return7d >= 2.5 && return7d <= 5.5) {
@@ -2860,6 +2866,8 @@ public class RecommendationService {
             stress += 5;
         } else if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 15) {
             stress += 3;
+        } else if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 8) {
+            stress += 1;
         }
         if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() >= 12) {
             stress += 6;
@@ -2874,6 +2882,18 @@ public class RecommendationService {
             stress += 5;
         } else if (priceSnapshot.changeRate7d() != null && priceSnapshot.changeRate7d() <= -5) {
             stress += 3;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 15
+                && priceSnapshot.changeRate7d() != null
+                && priceSnapshot.changeRate7d() <= -2.5) {
+            stress += 4;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 2
+                && priceSnapshot.thirtyDayReturn() <= 8
+                && abs7 <= 1.8) {
+            stress -= 1.5;
         }
 
         int score;
@@ -4093,9 +4113,17 @@ public class RecommendationService {
                 && valuationScore <= conflictRules.getPositiveNewsWeakGrowthValuationMax()) {
             adjustment += conflictRules.getPositiveNewsWeakGrowthPenalty();
         }
+        if (isOverheatedMomentum(priceSnapshot, priceMomentumScore)
+                && valuationScore != null
+                && valuationScore <= 50
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 70) {
+            adjustment -= 4;
+        }
 
         final String sector = blankToEmpty(target.getSector()).toLowerCase(Locale.ROOT);
         final String industry = blankToEmpty(target.getIndustry()).toLowerCase(Locale.ROOT);
+        final String ticker = blankToEmpty(target.getTicker()).toUpperCase(Locale.ROOT);
         if (sector.contains("energy") || sector.contains("materials") || sector.contains("industrial")) {
             if (priceMomentumScore != null
                     && priceMomentumScore >= 44
@@ -4143,6 +4171,33 @@ public class RecommendationService {
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore < 68) {
             adjustment -= 2;
+        }
+        if ((industry.contains("semiconductor")
+                || List.of("QCOM", "TXN", "AVGO", "AMD", "NVDA", "MU", "AMAT", "LRCX", "ASML").contains(ticker))
+                && valuationScore != null
+                && valuationScore <= 55
+                && priceMomentumScore != null
+                && priceMomentumScore <= 52) {
+            adjustment -= 3;
+        }
+        if ((industry.contains("software")
+                || industry.contains("infrastructure")
+                || List.of("ORCL", "ADBE", "CRM", "NOW", "SAP").contains(ticker))
+                && priceStabilityScore != null
+                && priceStabilityScore >= 82
+                && valuationScore != null
+                && valuationScore >= 60
+                && valuationScore <= 72) {
+            adjustment += 1;
+        }
+        if ((industry.contains("asset management")
+                || industry.contains("capital markets")
+                || List.of("BLK", "KKR", "APO", "BX").contains(ticker))
+                && priceStabilityScore != null
+                && priceStabilityScore >= 82
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 72) {
+            adjustment += 1;
         }
         if ((sector.contains("consumer cyclical") || industry.contains("retail") || industry.contains("travel"))
                 && priceMomentumScore != null
@@ -5024,10 +5079,18 @@ public class RecommendationService {
         final String industry = blankToEmpty(v4Context.target().getIndustry()).toLowerCase(Locale.ROOT);
         final boolean financial = sector.contains("financial")
                 || List.of("JPM", "BAC", "AXP", "WFC", "C", "GS", "MS", "PNC", "USB").contains(ticker);
+        final boolean assetManager = industry.contains("asset management")
+                || industry.contains("capital markets")
+                || List.of("BLK", "KKR", "APO", "BX").contains(ticker);
         final boolean defensive = sector.contains("consumer defensive")
                 || sector.contains("utilities")
                 || sector.contains("healthcare")
                 || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP", "AMGN", "NVS", "LLY", "TMO").contains(ticker);
+        final boolean semiconductor = industry.contains("semiconductor")
+                || List.of("QCOM", "TXN", "AVGO", "AMD", "NVDA", "MU", "AMAT", "LRCX", "ASML").contains(ticker);
+        final boolean platformSoftware = industry.contains("software")
+                || industry.contains("infrastructure")
+                || List.of("ORCL", "ADBE", "CRM", "NOW", "SAP").contains(ticker);
         final boolean retailOrHousing = sector.contains("consumer cyclical")
                 || industry.contains("retail")
                 || industry.contains("home improvement")
@@ -5037,13 +5100,16 @@ public class RecommendationService {
         final boolean fundamentalDataThin = fundamental == null || quality == null;
 
         if (priceDataIncomplete && fundamentalDataThin) {
-            return companyName + "은 가격 흐름과 재무 데이터가 더 쌓여야 해, 지금은 보수적인 데이터 부족 유지 구간으로 봤어요.";
+            return companyName + "은 가격 흐름과 재무 데이터가 아직 충분하지 않아, 지금은 데이터 부족 유지 구간으로 봤어요.";
+        }
+        if (momentum == null && stability != null) {
+            return companyName + "은 30일 가격 흐름이 아직 충분히 쌓이지 않아, 지금은 가격 흐름 축적 중인 데이터 부족 유지 구간으로 판단했어요.";
         }
         if (priceDataIncomplete) {
-            return companyName + "은 30일 가격 흐름이 더 쌓여야 해, 지금은 보수적인 데이터 부족 유지 구간으로 판단했어요.";
+            return companyName + "은 가격 흐름 데이터가 더 쌓여야 해, 지금은 데이터 부족 유지 구간으로 판단했어요.";
         }
         if (fundamentalDataThin) {
-            return companyName + "은 핵심 재무 지표가 더 쌓여야 해, 지금은 보수적인 데이터 부족 유지 구간으로 봤어요.";
+            return companyName + "은 핵심 재무 지표가 아직 충분하지 않아, 지금은 재무 공시 대기형 데이터 부족 유지 구간으로 봤어요.";
         }
 
         final boolean nearIncrease = (momentum != null && momentum >= 68)
@@ -5084,6 +5150,33 @@ public class RecommendationService {
             return companyName + "은 아직 줄일 단계까지는 아니지만, 지금은 보수적으로 지켜보는 감액 직전 유지 구간이에요.";
         }
 
+        if (semiconductor
+                && valuation != null
+                && valuation >= 72
+                && quality != null
+                && quality >= 66
+                && stability != null
+                && stability >= 70) {
+            return companyName + "은 반도체 체력은 좋지만 기대가 가격에 충분히 반영돼 있어, 지금은 가격 반영 유지 구간으로 봤어요.";
+        }
+        if (platformSoftware
+                && valuation != null
+                && valuation >= 64
+                && quality != null
+                && quality >= 68
+                && stability != null
+                && stability >= 78) {
+            return companyName + "은 소프트웨어 체력은 안정적이지만 재평가 기대가 가격에 반영돼 있어, 지금은 가격 반영 유지 구간이에요.";
+        }
+        if (assetManager
+                && valuation != null
+                && valuation >= 68
+                && quality != null
+                && quality >= 72
+                && stability != null
+                && stability >= 80) {
+            return companyName + "은 자산운용 체력은 안정적이지만 기대 수익이 가격에 반영돼 있어, 지금은 가격 반영 유지 구간으로 봤어요.";
+        }
         if (!defensive
                 && stability != null
                 && stability >= 84

@@ -567,10 +567,18 @@ class RecommendationSampleSetReportTest {
         final String normalizedIndustry = blankToEmpty(industry).toLowerCase(Locale.ROOT);
         final boolean financial = normalizedSector.contains("financial")
                 || List.of("JPM", "BAC", "AXP", "WFC", "C", "GS", "MS", "PNC", "USB").contains(normalizedSymbol);
+        final boolean assetManager = normalizedIndustry.contains("asset management")
+                || normalizedIndustry.contains("capital markets")
+                || List.of("BLK", "KKR", "APO", "BX").contains(normalizedSymbol);
         final boolean defensive = normalizedSector.contains("consumer defensive")
                 || normalizedSector.contains("utilities")
                 || normalizedSector.contains("healthcare")
                 || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP", "AMGN", "NVS", "LLY", "TMO").contains(normalizedSymbol);
+        final boolean semiconductor = normalizedIndustry.contains("semiconductor")
+                || List.of("QCOM", "TXN", "AVGO", "AMD", "NVDA", "MU", "AMAT", "LRCX", "ASML").contains(normalizedSymbol);
+        final boolean platformSoftware = normalizedIndustry.contains("software")
+                || normalizedIndustry.contains("infrastructure")
+                || List.of("ORCL", "ADBE", "CRM", "NOW", "SAP").contains(normalizedSymbol);
         final boolean retailOrHousing = normalizedSector.contains("consumer cyclical")
                 || normalizedIndustry.contains("retail")
                 || normalizedIndustry.contains("home improvement")
@@ -581,8 +589,19 @@ class RecommendationSampleSetReportTest {
             return "핵심 팩터가 고르게 강해 증액 가능";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
+                && priceMomentumScore == null
+                && priceStabilityScore != null
+                && fundamentalQualityScore != null) {
+            return "30일 가격 흐름 축적 중인 데이터 부족 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && (priceMomentumScore == null || priceStabilityScore == null)
+                && fundamentalQualityScore == null) {
+            return "가격 흐름과 재무 데이터가 모두 부족한 데이터 부족 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
                 && (priceMomentumScore == null || priceStabilityScore == null || fundamentalQualityScore == null)) {
-            return "가격 흐름이나 재무 데이터가 더 쌓여야 해 보수적 유지";
+            return "재무 공시나 가격 데이터가 더 쌓여야 하는 데이터 부족 유지";
         }
         if (result.increaseEligible()
                 && "MAINTAIN".equals(result.recommendationStatus())
@@ -625,6 +644,36 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore != null
                 && priceStabilityScore >= 72) {
             return "방어력은 괜찮지만 성장 탄력이 약한 성장 확인 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && semiconductor
+                && valuationScore != null
+                && valuationScore >= 72
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 66
+                && priceStabilityScore != null
+                && priceStabilityScore >= 70) {
+            return "반도체 체력은 좋지만 기대가 가격에 충분히 반영된 가격 반영 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && platformSoftware
+                && valuationScore != null
+                && valuationScore >= 64
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 68
+                && priceStabilityScore != null
+                && priceStabilityScore >= 78) {
+            return "소프트웨어 체력은 안정적이지만 기대가 가격에 반영된 가격 반영 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && assetManager
+                && valuationScore != null
+                && valuationScore >= 68
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 72
+                && priceStabilityScore != null
+                && priceStabilityScore >= 80) {
+            return "자산운용 체력은 안정적이지만 기대 수익이 가격에 반영된 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && !defensive
