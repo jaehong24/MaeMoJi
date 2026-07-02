@@ -271,6 +271,7 @@ public class StockPriceSnapshotBatchService {
         int historyRowCount = 0;
         int refreshedCurrentSnapshotCount = 0;
         int failedStockCount = 0;
+        final List<String> failedTickers = new ArrayList<>();
 
         log.info(
                 "과거 가격 백필을 시작합니다. fromDate={}, toDate={}, totalRequested={}, portfolioStocks={}, generalStocks={}, generalLimit={}",
@@ -314,7 +315,8 @@ public class StockPriceSnapshotBatchService {
                 stocks.size(),
                 historyRowCount,
                 refreshedCurrentSnapshotCount,
-                failedStockCount
+                failedStockCount,
+                List.of()
         );
     }
 
@@ -336,6 +338,7 @@ public class StockPriceSnapshotBatchService {
         int historyRowCount = 0;
         int refreshedCurrentSnapshotCount = 0;
         int failedStockCount = 0;
+        final List<String> failedTickers = new ArrayList<>();
 
         log.info(
                 "30일 수익률 null 전용 가격 백필을 시작합니다. fromDate={}, toDate={}, totalRequested={}, portfolioStocks={}, generalStocks={}, generalLimit={}",
@@ -355,6 +358,7 @@ public class StockPriceSnapshotBatchService {
                 }
             } catch (Exception exception) {
                 failedStockCount++;
+                failedTickers.add(stock.getTicker());
                 log.warn(
                         "30일 수익률 null 전용 가격 백필에 실패했습니다. stockId={}, ticker={}",
                         stock.getId(),
@@ -367,11 +371,12 @@ public class StockPriceSnapshotBatchService {
         }
 
         log.info(
-                "30일 수익률 null 전용 가격 백필이 완료되었습니다. stocks={}, historyRows={}, refreshedCurrent={}, failedStocks={}",
+                "30일 수익률 null 전용 가격 백필이 완료되었습니다. stocks={}, historyRows={}, refreshedCurrent={}, failedStocks={}, failedTickers={}",
                 stocks.size(),
                 historyRowCount,
                 refreshedCurrentSnapshotCount,
-                failedStockCount
+                failedStockCount,
+                failedTickers
         );
         return new PriceHistoryBackfillResult(
                 fromDate,
@@ -379,7 +384,8 @@ public class StockPriceSnapshotBatchService {
                 stocks.size(),
                 historyRowCount,
                 refreshedCurrentSnapshotCount,
-                failedStockCount
+                failedStockCount,
+                List.copyOf(failedTickers)
         );
     }
 

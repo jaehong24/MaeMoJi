@@ -141,6 +141,8 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(result.requestedStockCount()).isEqualTo(2);
         assertThat(result.historyRowCount()).isEqualTo(5);
         assertThat(result.refreshedCurrentSnapshotCount()).isEqualTo(2);
+        assertThat(result.failedStockCount()).isZero();
+        assertThat(result.failedTickers()).isEmpty();
     }
 
     private Stock stock(Long id, String ticker, String assetType) {

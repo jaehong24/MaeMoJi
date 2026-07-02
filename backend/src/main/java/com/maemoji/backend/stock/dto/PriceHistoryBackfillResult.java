@@ -1,6 +1,7 @@
 package com.maemoji.backend.stock.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record PriceHistoryBackfillResult(
         LocalDate fromDate,
@@ -8,6 +9,7 @@ public record PriceHistoryBackfillResult(
         int requestedStockCount,
         int historyRowCount,
         int refreshedCurrentSnapshotCount,
-        int failedStockCount
+        int failedStockCount,
+        List<String> failedTickers
 ) {
 }

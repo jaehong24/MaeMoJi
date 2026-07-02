@@ -51,15 +51,27 @@ public class NullThirtyDayBackfillRunOnceRunner implements ApplicationRunner {
         final PriceHistoryBackfillResult result =
                 stockPriceSnapshotBatchService.backfillNullThirtyDaySnapshots(limit, lookbackDays);
 
-        final boolean failed = result.failedStockCount() > 0;
+        final boolean madeMeaningfulProgress =
+                result.historyRowCount() > 0 || result.refreshedCurrentSnapshotCount() > 0;
+        final boolean failed = result.failedStockCount() > 0 && !madeMeaningfulProgress;
         final int exitCode = failed ? 1 : 0;
 
+        if (result.failedStockCount() > 0) {
+            log.warn(
+                    "30일 수익률 null 복구 단발 실행 중 일부 종목이 실패했습니다. failedStocks={}, failedTickers={}, progress={}",
+                    result.failedStockCount(),
+                    result.failedTickers(),
+                    madeMeaningfulProgress ? "PARTIAL_SUCCESS" : "FAILED"
+            );
+        }
+
         log.info(
-                "30일 수익률 null 복구 단발 실행을 종료합니다. requested={}, historyRows={}, refreshedCurrent={}, failedStocks={}, exitCode={}",
+                "30일 수익률 null 복구 단발 실행을 종료합니다. requested={}, historyRows={}, refreshedCurrent={}, failedStocks={}, failedTickers={}, exitCode={}",
                 result.requestedStockCount(),
                 result.historyRowCount(),
                 result.refreshedCurrentSnapshotCount(),
                 result.failedStockCount(),
+                result.failedTickers(),
                 exitCode
         );
 
