@@ -145,6 +145,31 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(result.failedTickers()).isEmpty();
     }
 
+    @Test
+    void nullThirtyDayBackfillSkipsRecentlyListedStocks() throws Exception {
+        final LocalDate today = LocalDate.now();
+        final Stock recentListing = stock(701L, "SPCX", "STOCK");
+        recentListing.setIpoDate(today.minusDays(20));
+
+        final Stock mature = stock(702L, "WMT", "STOCK");
+        mature.setIpoDate(today.minusDays(120));
+
+        when(mapper.findPortfolioStocksNeedingThirtyDayRecovery()).thenReturn(List.of(recentListing));
+        when(mapper.findNonPortfolioStocksNeedingThirtyDayRecovery(300)).thenReturn(List.of(mature));
+
+        doReturn(4)
+                .when(service)
+                .backfillHistoricalSnapshotsForStock(mature, LocalDate.now().minusDays(120), LocalDate.now().minusDays(1), null);
+        doReturn(true).when(service).syncLatestSnapshotForStock(702L);
+
+        final PriceHistoryBackfillResult result = service.backfillNullThirtyDaySnapshots(300, 120);
+
+        assertThat(result.requestedStockCount()).isEqualTo(1);
+        assertThat(result.historyRowCount()).isEqualTo(4);
+        assertThat(result.refreshedCurrentSnapshotCount()).isEqualTo(1);
+        verify(service, never()).syncLatestSnapshotForStock(701L);
+    }
+
     private Stock stock(Long id, String ticker, String assetType) {
         final Stock stock = new Stock();
         stock.setId(id);

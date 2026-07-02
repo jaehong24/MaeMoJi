@@ -1526,13 +1526,48 @@ public class StockPriceSnapshotBatchService {
     }
 
     private SelectedStocks selectStocksForThirtyDayRecovery(int effectiveLimit) {
-        final List<Stock> portfolioStocks = stockPriceSnapshotMapper.findPortfolioStocksNeedingThirtyDayRecovery();
-        final List<Stock> nonPortfolioStocks =
-                stockPriceSnapshotMapper.findNonPortfolioStocksNeedingThirtyDayRecovery(effectiveLimit);
+        final LocalDate today = LocalDate.now(SNAPSHOT_ZONE);
+        final List<Stock> portfolioStocks = filterEligibleThirtyDayRecoveryStocks(
+                stockPriceSnapshotMapper.findPortfolioStocksNeedingThirtyDayRecovery(),
+                today,
+                "portfolio"
+        );
+        final List<Stock> nonPortfolioStocks = filterEligibleThirtyDayRecoveryStocks(
+                stockPriceSnapshotMapper.findNonPortfolioStocksNeedingThirtyDayRecovery(effectiveLimit),
+                today,
+                "general"
+        );
         final List<Stock> stocks = new ArrayList<>(portfolioStocks.size() + nonPortfolioStocks.size());
         stocks.addAll(portfolioStocks);
         stocks.addAll(nonPortfolioStocks);
         return new SelectedStocks(stocks, portfolioStocks.size(), nonPortfolioStocks.size());
+    }
+
+    private List<Stock> filterEligibleThirtyDayRecoveryStocks(List<Stock> source, LocalDate today, String bucket) {
+        final List<Stock> eligibleStocks = new ArrayList<>();
+        final List<String> skippedRecentListings = new ArrayList<>();
+        for (Stock stock : source) {
+            if (stock == null) {
+                continue;
+            }
+            if (isEtfStock(stock)) {
+                continue;
+            }
+            if (isRecentlyListedForPriceHistory(stock, today)) {
+                skippedRecentListings.add(stock.getTicker());
+                continue;
+            }
+            eligibleStocks.add(stock);
+        }
+        if (!skippedRecentListings.isEmpty()) {
+            log.info(
+                    "30일 수익률 null 복구 대상에서 최근 상장 종목을 제외했습니다. bucket={}, skippedCount={}, tickers={}",
+                    bucket,
+                    skippedRecentListings.size(),
+                    skippedRecentListings
+            );
+        }
+        return eligibleStocks;
     }
 
     private BigDecimal findReferencePriceFromSeries(
