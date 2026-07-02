@@ -1446,16 +1446,7 @@ public class StockPriceSnapshotBatchService {
         if (stock == null) {
             return null;
         }
-        if (stock.getIpoDate() != null) {
-            return stock.getIpoDate();
-        }
-        if (stock.getCreatedAt() != null) {
-            return stock.getCreatedAt().toLocalDate();
-        }
-        if (stock.getId() == null) {
-            return null;
-        }
-        return stockPriceSnapshotMapper.findOldestSnapshotDateByStockId(stock.getId());
+        return stock.getIpoDate();
     }
 
     private void refreshStockIpoDateIfMissing(Stock stock, String fmpApiKey) {

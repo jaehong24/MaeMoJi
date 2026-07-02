@@ -51,7 +51,7 @@ class StockPriceSnapshotBatchServiceTest {
     void ensureRecommendationSnapshotAllowsRecentListingWithoutThirtyDayReturn() {
         final LocalDate today = LocalDate.now();
         final Stock stock = stock(202L, "CRCL", "STOCK");
-        stock.setCreatedAt(OffsetDateTime.now().minusDays(10));
+        stock.setIpoDate(today.minusDays(10));
         final StockPriceSnapshotRecord latest = completeSnapshot(today);
         latest.setChangeRate7d(BigDecimal.valueOf(4.2000));
         latest.setChangeRate30d(null);
@@ -168,6 +168,26 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(result.historyRowCount()).isEqualTo(4);
         assertThat(result.refreshedCurrentSnapshotCount()).isEqualTo(1);
         verify(service, never()).syncLatestSnapshotForStock(701L);
+    }
+
+    @Test
+    void nullThirtyDayBackfillDoesNotTreatRecentlyImportedStockAsRecentListingWithoutIpoDate() throws Exception {
+        final Stock importedRecently = stock(801L, "ABG", "STOCK");
+        importedRecently.setCreatedAt(OffsetDateTime.now().minusDays(5));
+
+        when(mapper.findPortfolioStocksNeedingThirtyDayRecovery()).thenReturn(List.of(importedRecently));
+        when(mapper.findNonPortfolioStocksNeedingThirtyDayRecovery(300)).thenReturn(List.of());
+
+        doReturn(2)
+                .when(service)
+                .backfillHistoricalSnapshotsForStock(importedRecently, LocalDate.now().minusDays(120), LocalDate.now().minusDays(1), null);
+        doReturn(true).when(service).syncLatestSnapshotForStock(801L);
+
+        final PriceHistoryBackfillResult result = service.backfillNullThirtyDaySnapshots(300, 120);
+
+        assertThat(result.requestedStockCount()).isEqualTo(1);
+        assertThat(result.historyRowCount()).isEqualTo(2);
+        verify(service).syncLatestSnapshotForStock(801L);
     }
 
     private Stock stock(Long id, String ticker, String assetType) {
