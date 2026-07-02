@@ -42,6 +42,7 @@ public class StockPriceSnapshotBatchService {
     private static final String FMP_EMPTY_SOURCE = "FINNHUB_FMP_EMPTY";
     private static final int MINIMUM_CORE_FUNDAMENTAL_FIELDS = 4;
     private static final int EXTENDED_RETRY_LOOKBACK_DAYS = 120;
+    private static final int FORWARD_REFERENCE_TOLERANCE_DAYS = 2;
 
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final PriceSnapshotBatchProperties properties;
@@ -675,12 +676,14 @@ public class StockPriceSnapshotBatchService {
                 final BigDecimal sevenDayPrice = findReferencePriceFromSeries(
                         closeByDate,
                         point.date().minusDays(7),
-                        point.date().minusDays(14)
+                        point.date().minusDays(14),
+                        point.date().minusDays(7 - FORWARD_REFERENCE_TOLERANCE_DAYS)
                 );
                 final BigDecimal thirtyDayPrice = findReferencePriceFromSeries(
                         closeByDate,
                         point.date().minusDays(30),
-                        point.date().minusDays(40)
+                        point.date().minusDays(40),
+                        point.date().minusDays(30 - FORWARD_REFERENCE_TOLERANCE_DAYS)
                 );
                 stockPriceSnapshotMapper.upsertHistoricalPriceSnapshot(
                         stock.getId(),
@@ -1100,15 +1103,17 @@ public class StockPriceSnapshotBatchService {
     ) {
         final BigDecimal previousPrice =
                 stockPriceSnapshotMapper.findPreviousPrice(stockId, snapshotDate);
-        final BigDecimal sevenDayPrice = stockPriceSnapshotMapper.findReferencePrice(
+        final BigDecimal sevenDayPrice = findReferencePriceWithTolerance(
                 stockId,
                 snapshotDate.minusDays(7),
-                snapshotDate.minusDays(14)
+                snapshotDate.minusDays(14),
+                snapshotDate.minusDays(7 - FORWARD_REFERENCE_TOLERANCE_DAYS)
         );
-        final BigDecimal thirtyDayPrice = stockPriceSnapshotMapper.findReferencePrice(
+        final BigDecimal thirtyDayPrice = findReferencePriceWithTolerance(
                 stockId,
                 snapshotDate.minusDays(30),
-                snapshotDate.minusDays(40)
+                snapshotDate.minusDays(40),
+                snapshotDate.minusDays(30 - FORWARD_REFERENCE_TOLERANCE_DAYS)
         );
 
         return new PriceReturns(
@@ -1561,10 +1566,35 @@ public class StockPriceSnapshotBatchService {
         return eligibleStocks;
     }
 
+    private BigDecimal findReferencePriceWithTolerance(
+            Long stockId,
+            LocalDate targetDate,
+            LocalDate oldestDate,
+            LocalDate newestDate
+    ) {
+        final BigDecimal backwardPrice = stockPriceSnapshotMapper.findReferencePrice(
+                stockId,
+                targetDate,
+                oldestDate
+        );
+        if (backwardPrice != null) {
+            return backwardPrice;
+        }
+        if (newestDate == null || newestDate.isBefore(targetDate.plusDays(1))) {
+            return null;
+        }
+        return stockPriceSnapshotMapper.findReferencePriceForward(
+                stockId,
+                targetDate,
+                newestDate
+        );
+    }
+
     private BigDecimal findReferencePriceFromSeries(
             Map<LocalDate, BigDecimal> closeByDate,
             LocalDate targetDate,
-            LocalDate oldestDate
+            LocalDate oldestDate,
+            LocalDate newestDate
     ) {
         if (closeByDate.isEmpty()) {
             return null;
@@ -1576,6 +1606,17 @@ public class StockPriceSnapshotBatchService {
                 return price;
             }
             current = current.minusDays(1);
+        }
+        if (newestDate == null || newestDate.isBefore(targetDate.plusDays(1))) {
+            return null;
+        }
+        current = targetDate.plusDays(1);
+        while (current != null && !current.isAfter(newestDate)) {
+            final BigDecimal price = closeByDate.get(current);
+            if (price != null && price.signum() > 0) {
+                return price;
+            }
+            current = current.plusDays(1);
         }
         return null;
     }

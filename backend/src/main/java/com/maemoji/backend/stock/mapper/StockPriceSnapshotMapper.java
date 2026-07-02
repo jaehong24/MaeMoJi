@@ -44,6 +44,12 @@ public interface StockPriceSnapshotMapper {
             @Param("oldestDate") LocalDate oldestDate
     );
 
+    BigDecimal findReferencePriceForward(
+            @Param("stockId") Long stockId,
+            @Param("targetDate") LocalDate targetDate,
+            @Param("newestDate") LocalDate newestDate
+    );
+
     void upsertPriceSnapshot(
             @Param("stockId") Long stockId,
             @Param("snapshotDate") LocalDate snapshotDate,

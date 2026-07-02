@@ -7,11 +7,14 @@ import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.dto.PriceHistoryBackfillResult;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -188,6 +191,43 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(result.requestedStockCount()).isEqualTo(1);
         assertThat(result.historyRowCount()).isEqualTo(2);
         verify(service).syncLatestSnapshotForStock(801L);
+    }
+
+    @Test
+    void findReferencePriceWithToleranceFallsForwardWhenBoundaryDateIsMissing() {
+        when(mapper.findReferencePrice(6401L, LocalDate.of(2026, 6, 2), LocalDate.of(2026, 5, 23)))
+                .thenReturn(null);
+        when(mapper.findReferencePriceForward(6401L, LocalDate.of(2026, 6, 2), LocalDate.of(2026, 6, 4)))
+                .thenReturn(BigDecimal.valueOf(50.4000));
+
+        final BigDecimal resolved = ReflectionTestUtils.invokeMethod(
+                service,
+                "findReferencePriceWithTolerance",
+                6401L,
+                LocalDate.of(2026, 6, 2),
+                LocalDate.of(2026, 5, 23),
+                LocalDate.of(2026, 6, 4)
+        );
+
+        assertThat(resolved).isEqualByComparingTo("50.4000");
+    }
+
+    @Test
+    void findReferencePriceFromSeriesFallsForwardWithinToleranceWindow() {
+        final Map<LocalDate, BigDecimal> closeByDate = new LinkedHashMap<>();
+        closeByDate.put(LocalDate.of(2026, 6, 3), BigDecimal.valueOf(50.4000));
+        closeByDate.put(LocalDate.of(2026, 6, 4), BigDecimal.valueOf(52.0000));
+
+        final BigDecimal resolved = ReflectionTestUtils.invokeMethod(
+                service,
+                "findReferencePriceFromSeries",
+                closeByDate,
+                LocalDate.of(2026, 6, 2),
+                LocalDate.of(2026, 5, 23),
+                LocalDate.of(2026, 6, 4)
+        );
+
+        assertThat(resolved).isEqualByComparingTo("50.4000");
     }
 
     private Stock stock(Long id, String ticker, String assetType) {

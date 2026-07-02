@@ -317,6 +317,18 @@
         limit 1
     </select>
 
+    <select id="findReferencePriceForward" resultType="java.math.BigDecimal">
+        select current_price
+        from stock_price_snapshots
+        where stock_id = #{stockId}
+          and snapshot_date &gt; #{targetDate}
+          and snapshot_date &lt;= #{newestDate}
+          and current_price is not null
+          and current_price &gt; 0
+        order by snapshot_date asc, id asc
+        limit 1
+    </select>
+
     <insert id="upsertPriceSnapshot">
         insert into stock_price_snapshots (
             stock_id,
