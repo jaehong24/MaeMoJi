@@ -107,6 +107,85 @@
         </if>
     </select>
 
+    <select id="findActivePortfolioEtfStocksForSnapshot" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            asset_type,
+            ipo_date,
+            is_active,
+            created_at,
+            updated_at
+        from stocks s
+        where s.is_active = true
+          and s.finnhub_symbol is not null
+          and coalesce(s.asset_type, '') = 'ETF'
+          and exists (
+              select 1
+              from portfolio_items pi
+              where pi.stock_id = s.id
+                and pi.is_active = true
+          )
+        order by
+            (
+                select max(sps.snapshot_date)
+                from stock_price_snapshots sps
+                where sps.stock_id = s.id
+            ) asc nulls first,
+            s.id asc
+    </select>
+
+    <select id="findActiveNonPortfolioEtfStocksForSnapshot" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            ticker,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            market_type,
+            asset_type,
+            ipo_date,
+            is_active,
+            created_at,
+            updated_at
+        from stocks s
+        where s.is_active = true
+          and s.finnhub_symbol is not null
+          and coalesce(s.asset_type, '') = 'ETF'
+          and not exists (
+              select 1
+              from portfolio_items pi
+              where pi.stock_id = s.id
+                and pi.is_active = true
+          )
+        order by
+            (
+                select max(sps.snapshot_date)
+                from stock_price_snapshots sps
+                where sps.stock_id = s.id
+            ) asc nulls first,
+            s.id asc
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
+    </select>
+
     <select id="findPortfolioStocksNeedingThirtyDayRecovery" resultType="com.maemoji.backend.stock.domain.Stock">
         select
             id,

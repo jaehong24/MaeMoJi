@@ -83,7 +83,10 @@ public class StockPriceSnapshotBatchService {
                 ? properties.getDefaultLimit()
                 : limit;
         final String fmpApiKey = System.getenv("FMP_API_KEY");
-        final SelectedStocks selectedStocks = selectStocksForSnapshot(effectiveLimit);
+        final SelectedStocks selectedStocks = selectStocksForLiveSnapshot(
+                effectiveLimit,
+                properties.getEtfPriceOnlyLimit()
+        );
         final List<Stock> stocks = selectedStocks.stocks();
         final Set<Long> portfolioStockIds =
                 new HashSet<>(stockPriceSnapshotMapper.findActivePortfolioStockIds());
@@ -94,12 +97,14 @@ public class StockPriceSnapshotBatchService {
         int failedCount = 0;
 
         log.info(
-                "가격 스냅샷 배치를 시작합니다. snapshotDate={}, totalRequested={}, portfolioStocks={}, generalStocks={}, generalLimit={}, requestMode=QUOTE_ALL_METRIC_PORTFOLIO",
+                "가격 스냅샷 배치를 시작합니다. snapshotDate={}, totalRequested={}, portfolioStocks={}, generalStocks={}, etfPriceOnlyStocks={}, generalLimit={}, etfLimit={}, requestMode=QUOTE_ALL_METRIC_PORTFOLIO_ETF_PRICE_ONLY",
                 snapshotDate,
                 stocks.size(),
                 selectedStocks.portfolioCount(),
                 selectedStocks.generalCount(),
-                effectiveLimit
+                selectedStocks.etfCount(),
+                effectiveLimit,
+                properties.getEtfPriceOnlyLimit()
         );
         for (int index = 0; index < stocks.size(); index++) {
             final Stock stock = stocks.get(index);
@@ -109,8 +114,9 @@ public class StockPriceSnapshotBatchService {
                         : stock.getFinnhubSymbol();
                 final StockPriceSnapshotRecord previousSnapshot =
                         stockPriceSnapshotMapper.findLatestSnapshotByStockId(stock.getId());
-                final boolean fetchMetrics = portfolioStockIds.contains(stock.getId())
-                        || needsFundamentalRefresh(previousSnapshot, snapshotDate);
+                final boolean fetchMetrics = !isEtfStock(stock)
+                        && (portfolioStockIds.contains(stock.getId())
+                        || needsFundamentalRefresh(previousSnapshot, snapshotDate));
                 final SnapshotData snapshotData = fetchSnapshotData(
                         symbol,
                         apiKey,
@@ -408,12 +414,13 @@ public class StockPriceSnapshotBatchService {
         final String fmpApiKey = System.getenv("FMP_API_KEY");
         final LocalDate snapshotDate = LocalDate.now(SNAPSHOT_ZONE);
         try {
+            final boolean fetchMetrics = !isEtfStock(stock);
             saveSnapshotForStock(
                     stock,
                     snapshotDate,
                     apiKey,
                     fmpApiKey,
-                    true
+                    fetchMetrics
             );
             log.info("단일 종목 가격 스냅샷을 갱신했습니다. stockId={}, ticker={}", stockId, stock.getTicker());
             return true;
@@ -1518,7 +1525,33 @@ public class StockPriceSnapshotBatchService {
         final List<Stock> stocks = new ArrayList<>(portfolioStocks.size() + nonPortfolioStocks.size());
         stocks.addAll(portfolioStocks);
         stocks.addAll(nonPortfolioStocks);
-        return new SelectedStocks(stocks, portfolioStocks.size(), nonPortfolioStocks.size());
+        return new SelectedStocks(stocks, portfolioStocks.size(), nonPortfolioStocks.size(), 0);
+    }
+
+    private SelectedStocks selectStocksForLiveSnapshot(int effectiveLimit, int etfPriceOnlyLimit) {
+        final List<Stock> portfolioStocks = stockPriceSnapshotMapper.findActivePortfolioStocksForSnapshot();
+        final List<Stock> nonPortfolioStocks =
+                stockPriceSnapshotMapper.findActiveNonPortfolioStocksForSnapshot(effectiveLimit);
+        final List<Stock> portfolioEtfStocks = stockPriceSnapshotMapper.findActivePortfolioEtfStocksForSnapshot();
+        final List<Stock> nonPortfolioEtfStocks =
+                stockPriceSnapshotMapper.findActiveNonPortfolioEtfStocksForSnapshot(etfPriceOnlyLimit);
+
+        final List<Stock> stocks = new ArrayList<>(
+                portfolioStocks.size()
+                        + nonPortfolioStocks.size()
+                        + portfolioEtfStocks.size()
+                        + nonPortfolioEtfStocks.size()
+        );
+        stocks.addAll(portfolioStocks);
+        stocks.addAll(nonPortfolioStocks);
+        stocks.addAll(portfolioEtfStocks);
+        stocks.addAll(nonPortfolioEtfStocks);
+        return new SelectedStocks(
+                stocks,
+                portfolioStocks.size(),
+                nonPortfolioStocks.size(),
+                portfolioEtfStocks.size() + nonPortfolioEtfStocks.size()
+        );
     }
 
     private SelectedStocks selectStocksForThirtyDayRecovery(int effectiveLimit) {
@@ -1536,7 +1569,7 @@ public class StockPriceSnapshotBatchService {
         final List<Stock> stocks = new ArrayList<>(portfolioStocks.size() + nonPortfolioStocks.size());
         stocks.addAll(portfolioStocks);
         stocks.addAll(nonPortfolioStocks);
-        return new SelectedStocks(stocks, portfolioStocks.size(), nonPortfolioStocks.size());
+        return new SelectedStocks(stocks, portfolioStocks.size(), nonPortfolioStocks.size(), 0);
     }
 
     private List<Stock> filterEligibleThirtyDayRecoveryStocks(List<Stock> source, LocalDate today, String bucket) {
@@ -1677,7 +1710,8 @@ public class StockPriceSnapshotBatchService {
     private record SelectedStocks(
             List<Stock> stocks,
             int portfolioCount,
-            int generalCount
+            int generalCount,
+            int etfCount
     ) {
     }
 

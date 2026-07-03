@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -228,6 +229,38 @@ class StockPriceSnapshotBatchServiceTest {
         );
 
         assertThat(resolved).isEqualByComparingTo("50.4000");
+    }
+
+    @Test
+    void liveSnapshotSelectionIncludesEtfPriceOnlyStocksSeparately() throws Exception {
+        final Stock portfolio = stock(901L, "AAPL", "STOCK");
+        final Stock general = stock(902L, "MSFT", "STOCK");
+        final Stock portfolioEtf = stock(903L, "QQQ", "ETF");
+        final Stock generalEtf = stock(904L, "SPY", "ETF");
+
+        when(mapper.findActivePortfolioStocksForSnapshot()).thenReturn(List.of(portfolio));
+        when(mapper.findActiveNonPortfolioStocksForSnapshot(500)).thenReturn(List.of(general));
+        when(mapper.findActivePortfolioEtfStocksForSnapshot()).thenReturn(List.of(portfolioEtf));
+        when(mapper.findActiveNonPortfolioEtfStocksForSnapshot(250)).thenReturn(List.of(generalEtf));
+
+        final Object selected = ReflectionTestUtils.invokeMethod(service, "selectStocksForLiveSnapshot", 500, 250);
+
+        final Method stocksMethod = selected.getClass().getDeclaredMethod("stocks");
+        final Method portfolioCountMethod = selected.getClass().getDeclaredMethod("portfolioCount");
+        final Method generalCountMethod = selected.getClass().getDeclaredMethod("generalCount");
+        final Method etfCountMethod = selected.getClass().getDeclaredMethod("etfCount");
+        stocksMethod.setAccessible(true);
+        portfolioCountMethod.setAccessible(true);
+        generalCountMethod.setAccessible(true);
+        etfCountMethod.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        final List<Stock> stocks = (List<Stock>) stocksMethod.invoke(selected);
+
+        assertThat(stocks).extracting(Stock::getTicker).containsExactly("AAPL", "MSFT", "QQQ", "SPY");
+        assertThat((Integer) portfolioCountMethod.invoke(selected)).isEqualTo(1);
+        assertThat((Integer) generalCountMethod.invoke(selected)).isEqualTo(1);
+        assertThat((Integer) etfCountMethod.invoke(selected)).isEqualTo(2);
     }
 
     private Stock stock(Long id, String ticker, String assetType) {
