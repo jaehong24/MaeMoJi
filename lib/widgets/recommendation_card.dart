@@ -7,8 +7,10 @@ import '../models/recommendation_item.dart';
 import '../screens/stock_detail_screen.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/recommendation_headline_resolver.dart';
 import 'app_section_card.dart';
 import 'recommendation_badge.dart';
+import 'recommendation_reason_chip.dart';
 
 class RecommendationCard extends StatelessWidget {
   const RecommendationCard({
@@ -65,7 +67,9 @@ class RecommendationCard extends StatelessWidget {
                   (item.isEtfAnalysisPending
                       ? 'ETF 전용 분석은 준비 중입니다.'
                       : '지표 수집과 가격 흐름 확인을 먼저 진행하고 있어요.'))
-            : item.note;
+            : (compact
+                  ? buildCompactRecommendationSummary(item)
+                  : item.note);
 
         final card = AppSectionCard(
           padding: EdgeInsets.all(compact ? 18 : 22),
@@ -142,13 +146,27 @@ class RecommendationCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (!isPending) ...[
+                const SizedBox(height: 10),
+                RecommendationReasonChip(
+                  item: item,
+                  compact: true,
+                  showDescription: false,
+                ),
+              ],
               if (showMemo) ...[
                 const SizedBox(height: 12),
                 Text(
                   noteText,
-                  maxLines: compact ? 2 : 3,
+                  maxLines: compact ? 1 : 3,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium,
+                  style: compact
+                      ? theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 13,
+                          height: 1.35,
+                          color: MaeMojiColors.inkMuted,
+                        )
+                      : theme.textTheme.bodyMedium,
                 ),
               ],
               const SizedBox(height: 12),

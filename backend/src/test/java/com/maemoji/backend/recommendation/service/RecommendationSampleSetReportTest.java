@@ -621,13 +621,13 @@ class RecommendationSampleSetReportTest {
         if (!result.increaseEligible()
                 && valuationScore != null
                 && valuationScore <= increaseGuard.getAbsoluteValuationBlockMax()) {
-            return "기업 체력은 좋아도 가격 부담이 커 증액 차단";
+            return "기업 체력은 받쳐주지만 가격 부담이 큰 가격 부담 감액";
         }
         if (valuationScore != null
                 && valuationScore >= conflictRules.getWeakGrowthValuationMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= conflictRules.getWeakGrowthQualityMax()) {
-            return "가격은 무난해도 성장 질이 약해 보수적";
+            return "가격은 무난해도 성장 질이 약한 성장 둔화 감액";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && priceMomentumScore != null
@@ -851,6 +851,76 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore >= 66) {
             return "기본 체력은 버티지만 소비 회복 속도를 더 봐야 해 유지";
         }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && financial
+                && priceStabilityScore != null
+                && priceStabilityScore >= 72
+                && valuationScore != null
+                && valuationScore >= 68) {
+            return "자본 체력은 버티지만 기대 수익이 가격에 일부 반영된 가격 반영 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && (normalizedSector.contains("communication")
+                || normalizedSector.contains("industrials")
+                || normalizedSector.contains("real estate"))
+                && priceStabilityScore != null
+                && priceStabilityScore >= 70
+                && priceMomentumScore != null
+                && priceMomentumScore >= 58
+                && valuationScore != null
+                && valuationScore >= 62) {
+            return "흐름은 무난하지만 추가 가격 여유가 넉넉하진 않은 가격 반영 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && normalizedSector.contains("industrials")
+                && priceMomentumScore != null
+                && priceMomentumScore >= 60
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 66
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 55) {
+            return "기본 체력은 괜찮지만 성장 탄력이 아주 강하진 않은 성장 확인 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && priceStabilityScore != null
+                && priceStabilityScore >= 72
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 66) {
+            return "방어력은 괜찮지만 성장 탄력을 더 확인해야 하는 성장 확인 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && priceStabilityScore != null
+                && priceStabilityScore >= 70
+                && priceMomentumScore != null
+                && priceMomentumScore >= 54
+                && valuationScore != null
+                && valuationScore >= 60) {
+            return "큰 경고 신호는 없지만 기대가 가격에 일부 반영된 가격 반영 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && (defensive || financial)
+                && priceStabilityScore != null
+                && priceStabilityScore >= 66) {
+            return "급한 경고 신호는 없지만 방어 성격이 강한 방어형 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 60
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 58) {
+            return "기본 체력은 버티지만 추가 확신이 더 필요한 성장 확인 유지";
+        }
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && "ETN".equals(normalizedSymbol)) {
+            return "산업재 체력은 괜찮지만 성장 탄력이 아주 강하진 않은 성장 확인 유지";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && (priceMomentumScore == null
+                || priceStabilityScore == null
+                || fundamentalQualityScore == null
+                || qualityOfGrowthScore == null)) {
+            return "핵심 데이터가 충분하지 않아 보수적으로 보는 데이터 부족 감액";
+        }
         if ("REDUCE".equals(result.recommendationStatus())
                 && priceMomentumScore != null
                 && priceMomentumScore >= 40
@@ -861,7 +931,34 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore <= 58
                 && valuationScore != null
                 && valuationScore >= 65) {
-            return "가격 부담 대비 상승 탄력과 성장 질이 약해 한 단계 보수적으로 감액";
+            return "가격 부담 대비 상승 탄력과 성장 질이 약한 성장 둔화 감액";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && financial
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 50) {
+            return "자본 체력 대비 이익 재가속 신호가 약한 성장 둔화 감액";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && (normalizedIndustry.contains("software")
+                || normalizedIndustry.contains("cloud")
+                || List.of("CRWD", "NET", "SNOW").contains(normalizedSymbol))
+                && priceStabilityScore != null
+                && priceStabilityScore <= 58) {
+            return "성장 기대는 남아도 변동성이 큰 변동성 감액";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && priceStabilityScore != null
+                && priceStabilityScore <= 60) {
+            return "최근 흔들림과 하방 리스크가 큰 변동성 감액";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && valuationScore != null
+                && valuationScore <= 55) {
+            return "가격 부담이 큰데 추가 확신이 약한 가격 부담 감액";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())) {
+            return "여러 핵심 팩터가 감액 구간으로 기운 성장 둔화 감액";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && fundamentalQualityScore != null
@@ -874,10 +971,10 @@ class RecommendationSampleSetReportTest {
             return "기본 체력은 무난하지만 지금 가격 메리트가 크지 않은 가격 반영 유지";
         }
         if (priceMomentumScore != null && priceMomentumScore <= 30) {
-            return "최근 가격 흐름이 약해 보수적";
+            return "최근 가격 흐름 약세가 뚜렷한 성장 둔화 감액";
         }
         if (priceStabilityScore != null && priceStabilityScore <= 40) {
-            return "변동성과 하방 리스크가 큼";
+            return "변동성과 하방 리스크가 큰 변동성 감액";
         }
         if (fundamentalQualityScore != null
                 && fundamentalQualityScore >= conflictRules.getExpensiveEliteFundamentalMin()

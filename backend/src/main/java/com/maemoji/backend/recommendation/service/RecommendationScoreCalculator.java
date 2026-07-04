@@ -378,13 +378,25 @@ public class RecommendationScoreCalculator {
                 && valuation <= rule.getExpensiveGoodValuationMax()
                 && ((momentum != null && momentum <= rule.getExpensiveGoodMomentumMax())
                 || (stability != null && stability <= rule.getExpensiveGoodStabilityMax()))) {
-            adjustment += rule.getExpensiveGoodPenalty();
-            if (momentum != null
-                    && momentum <= rule.getExpensiveGoodMomentumMax()
-                    && stability != null
-                    && stability <= rule.getExpensiveGoodStabilityMax()) {
-                adjustment -= 2;
-            }
+                adjustment += rule.getExpensiveGoodPenalty();
+                if (momentum != null
+                        && momentum <= rule.getExpensiveGoodMomentumMax()
+                        && stability != null
+                        && stability <= rule.getExpensiveGoodStabilityMax()) {
+                    adjustment -= 2;
+                }
+        }
+        if (fundamental != null
+                && fundamental >= 82
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 88
+                && valuation != null
+                && valuation <= 40
+                && stability != null
+                && stability >= 84
+                && momentum != null
+                && momentum >= 58) {
+            adjustment += 2;
         }
         if (valuation != null
                 && valuation >= rule.getWeakGrowthValuationMin()

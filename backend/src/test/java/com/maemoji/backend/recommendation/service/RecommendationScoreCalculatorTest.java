@@ -977,4 +977,61 @@ class RecommendationScoreCalculatorTest {
         assertThat(result.finalScore()).isGreaterThan(result.rawScore());
         assertThat(result.recommendationStatus()).isEqualTo("INCREASE");
     }
+
+    @Test
+    void v4PenalizesHighQualityNamesMoreWhenPriceLooksOverheatedAndExpensive() {
+        final RecommendationScoreCalculator.V4ScoreResult calmCompounder = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        64,
+                        20,
+                        86,
+                        12,
+                        null,
+                        0,
+                        82,
+                        14,
+                        70,
+                        12,
+                        78,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        80
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult overheatedCompounder = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        44,
+                        20,
+                        74,
+                        12,
+                        null,
+                        0,
+                        82,
+                        14,
+                        54,
+                        12,
+                        78,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        80
+                )
+        );
+
+        assertThat(overheatedCompounder.crossFactorAdjustment())
+                .isLessThan(calmCompounder.crossFactorAdjustment());
+        assertThat(overheatedCompounder.finalScore())
+                .isLessThan(calmCompounder.finalScore());
+    }
 }

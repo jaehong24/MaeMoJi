@@ -2801,6 +2801,9 @@ public class RecommendationService {
             if (return30d >= 8 && return30d < 18 && return7d >= 0.8 && return7d <= 3.2) {
                 score += 1;
             }
+            if (return30d >= 6 && return30d <= 14 && return7d >= 0.5 && return7d <= 2.5) {
+                score += 2;
+            }
             if (return30d >= -2 && return30d <= 2 && return7d >= -2 && return7d <= 1) {
                 score += 1;
             }
@@ -2816,13 +2819,22 @@ public class RecommendationService {
             if (return30d >= 12 && return30d < 22 && return7d <= -2.5) {
                 score -= 4;
             }
+            if (return30d >= 10 && return30d < 18 && return7d >= 4 && return7d <= 6) {
+                score -= 3;
+            }
             if (return30d >= 8 && return30d < 15 && return7d >= 2.5 && return7d <= 5.5) {
                 score -= 2;
             }
             if (return30d >= 15 && return30d < 25 && return7d >= 3.5) {
                 score -= 3;
             }
+            if (return30d >= 18 && return30d < 30 && return7d >= 2 && return7d <= 4.5) {
+                score -= 4;
+            }
             if (return30d >= 16 && return30d < 25 && return7d >= 5) {
+                score -= 5;
+            }
+            if (return30d >= 22 && return7d >= 3) {
                 score -= 5;
             }
             if (return30d >= 25 && return30d < 35 && return7d >= 4) {
@@ -2894,6 +2906,28 @@ public class RecommendationService {
                 && priceSnapshot.thirtyDayReturn() <= 8
                 && abs7 <= 1.8) {
             stress -= 1.5;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 4
+                && priceSnapshot.thirtyDayReturn() <= 10
+                && abs7 <= 1.5) {
+            stress -= 1.5;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 12
+                && priceSnapshot.thirtyDayReturn() <= 22
+                && abs7 <= 3.5) {
+            stress += 2;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 18
+                && abs7 <= 4) {
+            stress += 3;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 25
+                && abs7 <= 3.5) {
+            stress += 4;
         }
 
         int score;
@@ -4120,6 +4154,28 @@ public class RecommendationService {
                 && qualityOfGrowthScore >= 70) {
             adjustment -= 4;
         }
+        if (isOverheatedMomentum(priceSnapshot, priceMomentumScore)
+                && valuationScore != null
+                && valuationScore <= 58
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 78
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 72) {
+            adjustment -= 3;
+        }
+        if (!isOverheatedMomentum(priceSnapshot, priceMomentumScore)
+                && priceMomentumScore != null
+                && priceMomentumScore >= 60
+                && priceStabilityScore != null
+                && priceStabilityScore >= 82
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 78
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 72
+                && valuationScore != null
+                && valuationScore >= 68) {
+            adjustment += 2;
+        }
 
         final String sector = blankToEmpty(target.getSector()).toLowerCase(Locale.ROOT);
         final String industry = blankToEmpty(target.getIndustry()).toLowerCase(Locale.ROOT);
@@ -4959,7 +5015,7 @@ public class RecommendationService {
             return companyName + "은 현재 데이터 기준으로 하방 리스크 관리가 우선이라, 지금은 신규 매수보다 중단 또는 관망이 더 적절합니다.";
         }
         if (newsSentiment.hardNegativeOverride()) {
-            return companyName + "과 직접 관련된 강한 악재가 확인되어, 지금은 모으기 금액을 줄이는 감액 판단이 우선입니다.";
+            return companyName + "과 직접 관련된 강한 악재가 확인되어, 지금은 성장 둔화 감액보다도 더 보수적으로 보는 게 우선입니다.";
         }
         if ("INCREASE".equals(recommendationStatus)) {
             if (v4Context != null
@@ -4978,24 +5034,51 @@ public class RecommendationService {
         }
         if ("REDUCE".equals(recommendationStatus)) {
             if (v4Context != null
+                    && (v4Context.priceMomentumScore() == null
+                    || v4Context.priceStabilityScore() == null
+                    || v4Context.fundamentalQualityScore() == null
+                    || v4Context.qualityOfGrowthScore() == null)) {
+                return companyName + "은 아직 핵심 데이터가 충분히 쌓이지 않았고 현재 점수도 보수 구간이라, 지금은 데이터 부족 감액으로 보는 게 더 안전합니다.";
+            }
+            final String reduceSector = v4Context == null ? "" : blankToEmpty(v4Context.target().getSector()).toLowerCase(Locale.ROOT);
+            final String reduceIndustry = v4Context == null ? "" : blankToEmpty(v4Context.target().getIndustry()).toLowerCase(Locale.ROOT);
+            final String reduceTicker = v4Context == null ? "" : blankToEmpty(v4Context.target().getTicker()).toUpperCase(Locale.ROOT);
+            final boolean reduceFinancial = reduceSector.contains("financial")
+                    || List.of("JPM", "BAC", "AXP", "WFC", "C", "GS", "MS", "PNC", "USB", "KKR", "BX", "APO").contains(reduceTicker);
+            final boolean reduceHighBetaSoftware = reduceIndustry.contains("software")
+                    || reduceIndustry.contains("cloud")
+                    || List.of("CRWD", "NET", "SNOW").contains(reduceTicker);
+            if (v4Context != null
                     && v4Context.priceMomentumScore() != null
                     && v4Context.priceMomentumScore() <= 45
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() <= 58) {
-                return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 모으기 금액을 줄이는 감액 판단이 더 자연스럽습니다.";
+                return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 성장 둔화 감액으로 보는 게 더 자연스럽습니다.";
+            }
+            if (v4Context != null
+                    && reduceFinancial
+                    && v4Context.qualityOfGrowthScore() != null
+                    && v4Context.qualityOfGrowthScore() <= 50) {
+                return companyName + "은 자본 체력 대비 이익 재가속 신호가 약해, 지금은 성장 둔화 감액으로 보는 게 더 적절합니다.";
             }
             if (v4Context != null
                     && v4Context.priceStabilityScore() != null
                     && v4Context.priceStabilityScore() <= 60) {
-                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 지금은 금액을 줄여 보는 감액 판단이 더 적절합니다.";
+                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 지금은 변동성 감액으로 보는 게 더 적절합니다.";
+            }
+            if (v4Context != null
+                    && reduceHighBetaSoftware
+                    && v4Context.priceStabilityScore() != null
+                    && v4Context.priceStabilityScore() <= 58) {
+                return companyName + "은 성장 기대는 남아도 변동성이 커서, 지금은 변동성 감액으로 보는 게 더 안전합니다.";
             }
             if (v4Context != null
                     && v4Context.valuationScore() != null
                     && v4Context.valuationScore() <= 55) {
-                return companyName + "은 가격 부담이 큰데 추가 확신 신호가 약해, 지금은 감액 쪽으로 더 보수적으로 봤습니다.";
+                return companyName + "은 가격 부담이 큰데 추가 확신 신호가 약해, 지금은 가격 부담 감액으로 더 보수적으로 봤습니다.";
             }
-            return companyName + "은 현재 점수 " + finalScore
-                    + "점으로, 지금은 금액을 줄여 보는 감액 쪽이 적절합니다.";
+            return companyName + "은 여러 핵심 팩터가 감액 구간으로 기울어 현재 점수 " + finalScore
+                    + "점으로 봤고, 지금은 성장 둔화 감액으로 보는 게 더 적절합니다.";
         }
         if ("MAINTAIN".equals(recommendationStatus) && v4Context != null) {
             final String maintainComment = buildMaintainAiComment(companyName, v4Context);
@@ -5302,6 +5385,61 @@ public class RecommendationService {
                 && stability != null
                 && stability >= 66) {
             return companyName + "은 기본 체력은 버티지만 소비 회복 속도를 더 확인해야 해, 지금은 확인형 유지 구간으로 봤어요.";
+        }
+        if (financial
+                && stability != null
+                && stability >= 72
+                && valuation != null
+                && valuation >= 68) {
+            return companyName + "은 자본 체력은 버티지만 기대 수익이 가격에 일부 반영돼 있어, 지금은 가격 반영 유지 구간으로 봤어요.";
+        }
+        if ((sector.contains("communication")
+                || sector.contains("industrials")
+                || sector.contains("real estate"))
+                && stability != null
+                && stability >= 70
+                && momentum != null
+                && momentum >= 58
+                && valuation != null
+                && valuation >= 62) {
+            return companyName + "은 흐름은 무난하지만 추가 가격 여유가 넉넉하진 않아, 지금은 가격 반영 유지 구간으로 봤어요.";
+        }
+        if (sector.contains("industrials")
+                && momentum != null
+                && momentum >= 60
+                && fundamental != null
+                && fundamental >= 66
+                && quality != null
+                && quality <= 55) {
+            return companyName + "은 기본 체력은 괜찮지만 성장 탄력이 아주 강하진 않아, 지금은 성장 확인 유지 구간으로 봤어요.";
+        }
+        if (stability != null
+                && stability >= 72
+                && quality != null
+                && quality <= 66) {
+            return companyName + "은 방어력은 괜찮지만 성장 탄력을 더 확인해야 해, 지금은 성장 확인 유지 구간으로 판단했어요.";
+        }
+        if (stability != null
+                && stability >= 70
+                && momentum != null
+                && momentum >= 54
+                && valuation != null
+                && valuation >= 60) {
+            return companyName + "은 큰 경고 신호는 없지만 기대가 가격에 일부 반영돼 있어, 지금은 가격 반영 유지 구간으로 봤어요.";
+        }
+        if ((defensive || financial)
+                && stability != null
+                && stability >= 66) {
+            return companyName + "은 급한 경고 신호는 없지만 방어 성격이 강해, 지금은 방어형 유지 구간으로 보는 게 자연스러워요.";
+        }
+        if (fundamental != null
+                && fundamental >= 60
+                && quality != null
+                && quality >= 58) {
+            return companyName + "은 기본 체력은 버티지만 추가 확신이 더 필요해, 지금은 성장 확인 유지 구간으로 봤어요.";
+        }
+        if ("ETN".equals(ticker)) {
+            return companyName + "은 산업재 체력은 괜찮지만 성장 탄력이 아주 강하진 않아, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
         if (quality != null
                 && quality <= 60

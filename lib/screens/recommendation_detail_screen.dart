@@ -11,6 +11,7 @@ import '../utils/currency_formatter.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/evidence_section.dart';
 import '../widgets/recommendation_badge.dart';
+import '../widgets/recommendation_reason_chip.dart';
 
 class RecommendationDetailScreen extends StatelessWidget {
   const RecommendationDetailScreen({super.key, required this.item});
@@ -118,6 +119,8 @@ class RecommendationDetailScreen extends StatelessWidget {
                       children: [
                         Text('추천 근거', style: theme.textTheme.titleLarge),
                         const SizedBox(height: 8),
+                        RecommendationReasonChip(item: item),
+                        const SizedBox(height: 10),
                         Text(
                           isEtfPending
                               ? (item.analysisStageMessage ??

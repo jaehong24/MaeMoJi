@@ -16,6 +16,7 @@ import '../utils/currency_formatter.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/evidence_section.dart';
 import '../widgets/recommendation_badge.dart';
+import '../widgets/recommendation_reason_chip.dart';
 
 class StockDetailScreen extends StatefulWidget {
   const StockDetailScreen({
@@ -288,6 +289,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
+                          RecommendationReasonChip(item: resolvedItem),
+                          const SizedBox(height: 10),
                           Text(
                             '매일 모으기 판단의 핵심 이유만 간단히 보여드려요.',
                             style: theme.textTheme.bodyMedium,
