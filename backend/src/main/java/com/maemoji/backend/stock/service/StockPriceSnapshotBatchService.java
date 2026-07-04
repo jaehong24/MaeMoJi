@@ -95,6 +95,7 @@ public class StockPriceSnapshotBatchService {
 
         int savedCount = 0;
         int failedCount = 0;
+        final List<String> failedTickers = new ArrayList<>();
 
         log.info(
                 "가격 스냅샷 배치를 시작합니다. snapshotDate={}, totalRequested={}, portfolioStocks={}, generalStocks={}, etfPriceOnlyStocks={}, generalLimit={}, etfLimit={}, requestMode=QUOTE_ALL_METRIC_PORTFOLIO_ETF_PRICE_ONLY",
@@ -232,6 +233,7 @@ public class StockPriceSnapshotBatchService {
                 throw exception;
             } catch (Exception exception) {
                 failedCount++;
+                failedTickers.add(stock.getTicker() + "(" + rootMessage(exception) + ")");
                 log.warn("가격 스냅샷 적재에 실패했습니다. stockId={}, ticker={}", stock.getId(), stock.getTicker(), exception);
             } finally {
                 sleep(properties.getDelayMillis());
@@ -250,7 +252,12 @@ public class StockPriceSnapshotBatchService {
             }
         }
 
-        log.info("가격 스냅샷 배치가 완료되었습니다. saved={}, failed={}", savedCount, failedCount);
+        log.info(
+                "가격 스냅샷 배치가 완료되었습니다. saved={}, failed={}, failedTickers={}",
+                savedCount,
+                failedCount,
+                failedTickers
+        );
         return new PriceSnapshotBatchResult(
                 snapshotDate,
                 stocks.size(),

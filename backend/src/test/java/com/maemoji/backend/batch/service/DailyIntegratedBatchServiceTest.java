@@ -3,7 +3,9 @@ package com.maemoji.backend.batch.service;
 import com.maemoji.backend.batch.dto.DailyBatchResult;
 import com.maemoji.backend.recommendation.service.RecommendationService;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
+import com.maemoji.backend.stock.dto.StockAssetTypeNormalizeResult;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
+import com.maemoji.backend.stock.service.StockAssetTypeMaintenanceService;
 import com.maemoji.backend.user.mapper.UserMapper;
 import org.junit.jupiter.api.Test;
 
@@ -22,14 +24,24 @@ class DailyIntegratedBatchServiceTest {
 
     private final StockPriceSnapshotBatchService priceService =
             mock(StockPriceSnapshotBatchService.class);
+    private final StockAssetTypeMaintenanceService assetTypeMaintenanceService =
+            mock(StockAssetTypeMaintenanceService.class);
     private final RecommendationService recommendationService =
             mock(RecommendationService.class);
     private final UserMapper userMapper = mock(UserMapper.class);
     private final DailyIntegratedBatchService service =
-            new DailyIntegratedBatchService(priceService, recommendationService, userMapper);
+            new DailyIntegratedBatchService(
+                    priceService,
+                    assetTypeMaintenanceService,
+                    recommendationService,
+                    userMapper
+            );
 
     @Test
     void 가격과추천배치를순서대로완료한다() {
+        when(assetTypeMaintenanceService.normalizeAssetTypes()).thenReturn(
+                new StockAssetTypeNormalizeResult(1, 1, 0, List.of())
+        );
         when(priceService.syncSnapshots(500, true)).thenReturn(
                 new PriceSnapshotBatchResult(LocalDate.now(), 500, 500, 0, true)
         );
@@ -44,6 +56,7 @@ class DailyIntegratedBatchServiceTest {
 
         assertThat(result.status()).isEqualTo("SUCCESS");
         assertThat(result.recommendationCount()).isZero();
+        verify(assetTypeMaintenanceService).normalizeAssetTypes();
         verify(priceService).syncSnapshots(500, true);
         verify(userMapper).findActiveUserIdsWithPortfolioItems();
         verify(recommendationService).warmUpSharedNewsAnalysis();
@@ -53,6 +66,9 @@ class DailyIntegratedBatchServiceTest {
 
     @Test
     void 일부사용자추천에실패해도부분성공으로기록한다() {
+        when(assetTypeMaintenanceService.normalizeAssetTypes()).thenReturn(
+                new StockAssetTypeNormalizeResult(0, 0, 0, List.of())
+        );
         when(priceService.syncSnapshots(500, true)).thenReturn(
                 new PriceSnapshotBatchResult(LocalDate.now(), 500, 495, 5, true)
         );
@@ -74,6 +90,9 @@ class DailyIntegratedBatchServiceTest {
 
     @Test
     void 가격을한건도저장하지못하면추천을생성하지않는다() {
+        when(assetTypeMaintenanceService.normalizeAssetTypes()).thenReturn(
+                new StockAssetTypeNormalizeResult(0, 0, 0, List.of())
+        );
         when(priceService.syncSnapshots(500, true)).thenReturn(
                 new PriceSnapshotBatchResult(LocalDate.now(), 500, 0, 500, true)
         );
@@ -87,6 +106,9 @@ class DailyIntegratedBatchServiceTest {
 
     @Test
     void 조회대상종목이없어도실패로기록한다() {
+        when(assetTypeMaintenanceService.normalizeAssetTypes()).thenReturn(
+                new StockAssetTypeNormalizeResult(0, 0, 0, List.of())
+        );
         when(priceService.syncSnapshots(500, true)).thenReturn(
                 new PriceSnapshotBatchResult(LocalDate.now(), 0, 0, 0, true)
         );

@@ -4,7 +4,9 @@ import com.maemoji.backend.batch.dto.DailyBatchResult;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.service.RecommendationService;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
+import com.maemoji.backend.stock.dto.StockAssetTypeNormalizeResult;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
+import com.maemoji.backend.stock.service.StockAssetTypeMaintenanceService;
 import com.maemoji.backend.user.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,16 +24,19 @@ public class DailyIntegratedBatchService {
     private static final ZoneId BATCH_ZONE = ZoneId.of("Asia/Seoul");
 
     private final StockPriceSnapshotBatchService priceSnapshotBatchService;
+    private final StockAssetTypeMaintenanceService stockAssetTypeMaintenanceService;
     private final RecommendationService recommendationService;
     private final UserMapper userMapper;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     public DailyIntegratedBatchService(
             StockPriceSnapshotBatchService priceSnapshotBatchService,
+            StockAssetTypeMaintenanceService stockAssetTypeMaintenanceService,
             RecommendationService recommendationService,
             UserMapper userMapper
     ) {
         this.priceSnapshotBatchService = priceSnapshotBatchService;
+        this.stockAssetTypeMaintenanceService = stockAssetTypeMaintenanceService;
         this.recommendationService = recommendationService;
         this.userMapper = userMapper;
     }
@@ -46,6 +51,14 @@ public class DailyIntegratedBatchService {
 
         try {
             log.info("일일 통합 배치를 시작합니다. startedAt={}, priceLimit={}", startedAt, priceLimit);
+            final StockAssetTypeNormalizeResult assetTypeNormalizeResult =
+                    stockAssetTypeMaintenanceService.normalizeAssetTypes();
+            log.info(
+                    "종목 asset_type 선보정을 완료했습니다. suspiciousBefore={}, updated={}, suspiciousAfter={}",
+                    assetTypeNormalizeResult.suspiciousCountBefore(),
+                    assetTypeNormalizeResult.updatedCount(),
+                    assetTypeNormalizeResult.suspiciousCountAfter()
+            );
             priceResult = priceSnapshotBatchService.syncSnapshots(priceLimit, true);
 
             if (priceResult.requestedCount() == 0 || priceResult.savedCount() == 0) {

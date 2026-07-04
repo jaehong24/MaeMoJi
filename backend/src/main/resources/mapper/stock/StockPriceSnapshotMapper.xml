@@ -137,6 +137,13 @@
                 and pi.is_active = true
           )
         order by
+            case
+                when upper(coalesce(s.ticker, '')) in (
+                    'QQQ', 'SPY', 'VOO', 'IVV', 'VTI', 'SCHD', 'JEPI', 'JEPQ',
+                    'VYM', 'SOXX', 'SMH', 'IBIT', 'FBTC', 'ETHA', 'ARKK'
+                ) then 0
+                else 1
+            end asc,
             (
                 select max(sps.snapshot_date)
                 from stock_price_snapshots sps
@@ -175,6 +182,13 @@
                 and pi.is_active = true
           )
         order by
+            case
+                when upper(coalesce(s.ticker, '')) in (
+                    'QQQ', 'SPY', 'VOO', 'IVV', 'VTI', 'SCHD', 'JEPI', 'JEPQ',
+                    'VYM', 'SOXX', 'SMH', 'IBIT', 'FBTC', 'ETHA', 'ARKK'
+                ) then 0
+                else 1
+            end asc,
             (
                 select max(sps.snapshot_date)
                 from stock_price_snapshots sps

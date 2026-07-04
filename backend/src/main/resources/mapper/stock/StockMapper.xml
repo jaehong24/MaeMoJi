@@ -133,21 +133,49 @@
                 market_type,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
-                    when upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND|INNOVATORS ETF)%' then 'ETF'
-                    when upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
-                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%COMMON STOCK%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '%ORDINARY SHARES%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '% ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%ETF %' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '% ETN%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%EXCHANGE TRADED%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%INDEX FUND%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%TREASURY%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%BOND%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '% TRUST%' 
+                         or upper(coalesce(name_en, '')) like '% FUND%'
+                         or upper(coalesce(name_en, '')) like '% SHARES%' then 'ETF'
                     else 'STOCK'
                 end as suggested_asset_type,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%'
                          and upper(coalesce(asset_type, '')) &lt;&gt; 'ETF' then 'market_type says ETF'
                     when upper(coalesce(asset_type, '')) = 'ETF'
-                         and upper(coalesce(name_en, '')) similar to '%(COMMON STOCK|ORDINARY SHARES)%' then 'etf tag looks like common stock'
+                         and (
+                             upper(coalesce(name_en, '')) like '%COMMON STOCK%'
+                             or upper(coalesce(name_en, '')) like '%ORDINARY SHARES%'
+                             or upper(coalesce(name_en, '')) like '%PREFERRED STOCK%'
+                         ) then 'etf tag looks like common stock'
                     when upper(coalesce(asset_type, '')) = 'STOCK'
-                         and upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND)%' then 'stock tag looks like ETF keyword'
+                         and (
+                             upper(coalesce(name_en, '')) like '% ETF%'
+                             or upper(coalesce(name_en, '')) like '%ETF %'
+                             or upper(coalesce(name_en, '')) like '% ETN%'
+                             or upper(coalesce(name_en, '')) like '%EXCHANGE TRADED%'
+                             or upper(coalesce(name_en, '')) like '%INDEX FUND%'
+                             or upper(coalesce(name_en, '')) like '%TREASURY%'
+                             or upper(coalesce(name_en, '')) like '%BOND%'
+                         ) then 'stock tag looks like ETF keyword'
                     when upper(coalesce(asset_type, '')) = 'STOCK'
-                         and upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
-                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'stock tag looks like trust/fund/share product'
+                         and (
+                             upper(coalesce(name_en, '')) like '% TRUST%'
+                             or upper(coalesce(name_en, '')) like '% FUND%'
+                             or upper(coalesce(name_en, '')) like '% SHARES%'
+                         )
+                         and upper(coalesce(name_en, '')) not like '%COMMON STOCK%'
+                         and upper(coalesce(name_en, '')) not like '%ORDINARY SHARES%'
+                         and upper(coalesce(name_en, '')) not like '%PREFERRED STOCK%' then 'stock tag looks like trust/fund/share product'
                     else null
                 end as reason
             from stocks
@@ -176,21 +204,49 @@
                 asset_type,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
-                    when upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND|INNOVATORS ETF)%' then 'ETF'
-                    when upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
-                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%COMMON STOCK%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '%ORDINARY SHARES%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '% ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%ETF %' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '% ETN%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%EXCHANGE TRADED%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%INDEX FUND%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%TREASURY%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%BOND%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '% TRUST%'
+                         or upper(coalesce(name_en, '')) like '% FUND%'
+                         or upper(coalesce(name_en, '')) like '% SHARES%' then 'ETF'
                     else 'STOCK'
                 end as suggested_asset_type,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%'
                          and upper(coalesce(asset_type, '')) &lt;&gt; 'ETF' then 1
                     when upper(coalesce(asset_type, '')) = 'ETF'
-                         and upper(coalesce(name_en, '')) similar to '%(COMMON STOCK|ORDINARY SHARES)%' then 1
+                         and (
+                             upper(coalesce(name_en, '')) like '%COMMON STOCK%'
+                             or upper(coalesce(name_en, '')) like '%ORDINARY SHARES%'
+                             or upper(coalesce(name_en, '')) like '%PREFERRED STOCK%'
+                         ) then 1
                     when upper(coalesce(asset_type, '')) = 'STOCK'
-                         and upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND)%' then 1
+                         and (
+                             upper(coalesce(name_en, '')) like '% ETF%'
+                             or upper(coalesce(name_en, '')) like '%ETF %'
+                             or upper(coalesce(name_en, '')) like '% ETN%'
+                             or upper(coalesce(name_en, '')) like '%EXCHANGE TRADED%'
+                             or upper(coalesce(name_en, '')) like '%INDEX FUND%'
+                             or upper(coalesce(name_en, '')) like '%TREASURY%'
+                             or upper(coalesce(name_en, '')) like '%BOND%'
+                         ) then 1
                     when upper(coalesce(asset_type, '')) = 'STOCK'
-                         and upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
-                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 1
+                         and (
+                             upper(coalesce(name_en, '')) like '% TRUST%'
+                             or upper(coalesce(name_en, '')) like '% FUND%'
+                             or upper(coalesce(name_en, '')) like '% SHARES%'
+                         )
+                         and upper(coalesce(name_en, '')) not like '%COMMON STOCK%'
+                         and upper(coalesce(name_en, '')) not like '%ORDINARY SHARES%'
+                         and upper(coalesce(name_en, '')) not like '%PREFERRED STOCK%' then 1
                     else 0
                 end as suspicious_flag
             from stocks
@@ -209,9 +265,19 @@
                 id,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
-                    when upper(coalesce(name_en, '')) similar to '%(ETF|ETN|EXCHANGE TRADED|INDEX FUND|TREASURY|BOND|INNOVATORS ETF)%' then 'ETF'
-                    when upper(coalesce(name_en, '')) similar to '%( TRUST| FUND| SHARES)%'
-                         and upper(coalesce(name_en, '')) not similar to '%(COMMON STOCK|ORDINARY SHARES|PREFERRED STOCK)%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%COMMON STOCK%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '%ORDINARY SHARES%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'STOCK'
+                    when upper(coalesce(name_en, '')) like '% ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%ETF %' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '% ETN%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%EXCHANGE TRADED%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%INDEX FUND%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%TREASURY%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%BOND%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '% TRUST%'
+                         or upper(coalesce(name_en, '')) like '% FUND%'
+                         or upper(coalesce(name_en, '')) like '% SHARES%' then 'ETF'
                     else 'STOCK'
                 end as suggested_asset_type
             from stocks
