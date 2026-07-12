@@ -72,12 +72,17 @@ class RecommendationCard extends StatelessWidget {
                   : item.note);
 
         final card = AppSectionCard(
-          padding: EdgeInsets.all(compact ? 18 : 22),
+          padding: EdgeInsets.fromLTRB(
+            compact ? 18 : 22,
+            compact ? 16 : 22,
+            compact ? 18 : 22,
+            compact ? 14 : 22,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   _RecommendationLogo(
                     ticker: item.ticker,
@@ -96,20 +101,22 @@ class RecommendationCard extends StatelessWidget {
                           style: compact
                               ? theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
+                                  height: 1.15,
                                 )
                               : theme.textTheme.titleLarge,
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           item.ticker,
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
+                            height: 1.1,
                             color: MaeMojiColors.inkMuted,
                           ),
                         ),
                         if (item.analysisStageLabel != null) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 7),
                           _RecommendationStageChip(
                             label: item.analysisStageLabel!,
                           ),
@@ -125,7 +132,7 @@ class RecommendationCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: compact ? 12 : 14),
               Row(
                 children: [
                   Expanded(
@@ -147,7 +154,7 @@ class RecommendationCard extends StatelessWidget {
                 ],
               ),
               if (!isPending) ...[
-                const SizedBox(height: 10),
+                SizedBox(height: compact ? 8 : 10),
                 RecommendationReasonChip(
                   item: item,
                   compact: true,
@@ -155,7 +162,7 @@ class RecommendationCard extends StatelessWidget {
                 ),
               ],
               if (showMemo) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: compact ? 10 : 12),
                 Text(
                   noteText,
                   maxLines: compact ? 1 : 3,
@@ -169,7 +176,7 @@ class RecommendationCard extends StatelessWidget {
                       : theme.textTheme.bodyMedium,
                 ),
               ],
-              const SizedBox(height: 12),
+              SizedBox(height: compact ? 8 : 12),
               Row(
                 children: [
                   const Spacer(),
@@ -178,7 +185,7 @@ class RecommendationCard extends StatelessWidget {
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
-                        vertical: 6,
+                        vertical: 4,
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,

@@ -125,7 +125,7 @@ class RecommendationDetailScreen extends StatelessWidget {
                           isEtfPending
                               ? (item.analysisStageMessage ??
                                     'ETF 전용 분석은 준비 중입니다.')
-                              : '카드별 근거와 마지막 종합 판단을 함께 볼 수 있어요.',
+                              : '핵심 근거와 마지막 판단만 모아봤어요.',
                           style: theme.textTheme.bodyMedium,
                         ),
                         if (!isEtfPending) ...[
@@ -164,7 +164,7 @@ class RecommendationDetailScreen extends StatelessWidget {
                               : item.relatedNews.isEmpty
                               ? (item.relatedNewsStatusMessage ??
                                     '관련 뉴스가 아직 없어요.')
-                              : '관련성, 감성, 영향도 기준으로 최근 뉴스만 보여드려요.',
+                              : '관련성 높은 최근 뉴스만 보여드려요.',
                           style: theme.textTheme.bodyMedium,
                         ),
                         if (!isEtfPending && item.relatedNews.isNotEmpty) ...[

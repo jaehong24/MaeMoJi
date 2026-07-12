@@ -6,9 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/api_config.dart';
 import '../currency/currency_scope.dart';
 import '../models/display_currency.dart';
+import '../models/portfolio_reason.dart';
 import '../models/recommendation_item.dart';
 import '../models/recommendation_news_item.dart';
 import '../models/stock_quote.dart';
+import '../services/portfolio_insight_service.dart';
 import '../services/recommendation_service.dart';
 import '../services/stock_quote_service.dart';
 import '../theme/app_theme.dart';
@@ -35,6 +37,8 @@ class StockDetailScreen extends StatefulWidget {
 class _StockDetailScreenState extends State<StockDetailScreen> {
   final RecommendationService _recommendationService =
       const RecommendationService();
+  final PortfolioInsightService _portfolioInsightService =
+      const PortfolioInsightService();
   final StockQuoteService _stockQuoteService = const StockQuoteService();
   final DateFormat _quoteTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
   final DateFormat _metaTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
@@ -45,7 +49,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   int? _loadedQuoteStockId;
   bool _isRefreshingLatest = false;
   bool _isLoadingQuote = false;
+  bool _isLoadingReasons = false;
   String? _statusMessage;
+  String? _reasonError;
+  List<PortfolioReason> _portfolioReasons = const [];
 
   @override
   void initState() {
@@ -55,6 +62,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       widget.portfolioItemId,
     );
     _detailFuture.then(_applyFetchedItem).catchError((_) {});
+    _loadPortfolioReasons();
 
     if (widget.initialItem != null) {
       _loadQuote(widget.initialItem!.stockId);
@@ -292,7 +300,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           RecommendationReasonChip(item: resolvedItem),
                           const SizedBox(height: 10),
                           Text(
-                            '매일 모으기 판단의 핵심 이유만 간단히 보여드려요.',
+                            '핵심 이유만 짧게 정리했어요.',
                             style: theme.textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 16),
@@ -338,7 +346,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                               : resolvedItem.relatedNews.isEmpty
                                     ? (resolvedItem.relatedNewsStatusMessage ??
                                           '오늘 관련 뉴스가 아직 없습니다.')
-                                    : '기사별 핵심만 간단히 정리했어요.',
+                                    : '최근 기사 핵심만 보여드려요.',
                           style: theme.textTheme.bodyMedium,
                         ),
                         if (!isEtfPending && resolvedItem.relatedNews.isNotEmpty) ...[
@@ -358,6 +366,45 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                             );
                           }),
                         ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  AppSectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('내가 담은 이유', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Text(
+                          '처음 이 종목을 담을 때 남긴 이유예요.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        if (_isLoadingReasons)
+                          const Center(child: CircularProgressIndicator())
+                        else if (_reasonError != null)
+                          Text(
+                            _reasonError!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: MaeMojiColors.stop,
+                            ),
+                          )
+                        else if (_portfolioReasons.isEmpty)
+                          Text(
+                            '아직 선택한 이유가 없어요.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: MaeMojiColors.inkMuted,
+                            ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _portfolioReasons
+                                .map((reason) => _ReasonTag(label: reason.label))
+                                .toList(),
+                          ),
                       ],
                     ),
                   ),
@@ -399,7 +446,40 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       );
     });
     _detailFuture.then(_applyFetchedItem).catchError((_) {});
+    _loadPortfolioReasons();
     _refreshLatestRecommendation();
+  }
+
+  Future<void> _loadPortfolioReasons() async {
+    setState(() {
+      _isLoadingReasons = true;
+      _reasonError = null;
+    });
+
+    try {
+      final reasons = await _portfolioInsightService.fetchPortfolioReasons(
+        widget.portfolioItemId,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _portfolioReasons = reasons;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _reasonError = '담은 이유를 아직 불러오지 못했어요.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingReasons = false;
+        });
+      }
+    }
   }
 
   Future<void> _refreshLatestRecommendation() async {
@@ -627,6 +707,31 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         current.currentAmountUsd != next.currentAmountUsd ||
         current.recommendedAmountUsd != next.recommendedAmountUsd ||
         current.relatedNews.length != next.relatedNews.length;
+  }
+}
+
+class _ReasonTag extends StatelessWidget {
+  const _ReasonTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: MaeMojiColors.paperSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MaeMojiColors.stroke),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: MaeMojiColors.ink,
+        ),
+      ),
+    );
   }
 }
 

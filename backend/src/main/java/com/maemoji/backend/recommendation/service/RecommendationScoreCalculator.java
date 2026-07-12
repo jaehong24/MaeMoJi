@@ -398,6 +398,20 @@ public class RecommendationScoreCalculator {
                 && momentum >= 58) {
             adjustment += 2;
         }
+        if (fundamental != null
+                && fundamental >= 80
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 78
+                && valuation != null
+                && valuation >= 76
+                && momentum != null
+                && momentum >= 36
+                && momentum <= 48
+                && stability != null
+                && stability >= 42
+                && stability <= 58) {
+            adjustment += 3;
+        }
         if (valuation != null
                 && valuation >= rule.getWeakGrowthValuationMin()
                 && qualityOfGrowth != null
@@ -439,6 +453,42 @@ public class RecommendationScoreCalculator {
             if (momentum != null && momentum <= rule.getExpensiveGoodMomentumMax()) {
                 adjustment -= 2;
             }
+        }
+        if (fundamental != null
+                && fundamental >= 82
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 88
+                && valuation != null
+                && valuation >= 32
+                && valuation <= 45
+                && stability != null
+                && stability >= 44
+                && momentum != null
+                && momentum >= 40) {
+            adjustment += 3;
+        }
+        if (valuation != null
+                && valuation <= 58
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 60
+                && qualityOfGrowth <= 72
+                && stability != null
+                && stability <= 58
+                && momentum != null
+                && momentum <= 58) {
+            adjustment -= 3;
+        }
+        if (momentum != null
+                && momentum <= 42
+                && stability != null
+                && stability <= 50
+                && fundamental != null
+                && fundamental >= 78
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 76
+                && valuation != null
+                && valuation >= 74) {
+            adjustment += 2;
         }
 
         return adjustment;

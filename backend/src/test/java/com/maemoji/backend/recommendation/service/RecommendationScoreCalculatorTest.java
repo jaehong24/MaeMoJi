@@ -225,6 +225,99 @@ class RecommendationScoreCalculatorTest {
     }
 
     @Test
+    void v4KeepsMegaCompounderPullbackCloserToMaintainWhenQualityIsStillStrong() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        40,
+                        20,
+                        46,
+                        12,
+                        null,
+                        0,
+                        83,
+                        14,
+                        79,
+                        12,
+                        82,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        78
+                )
+        );
+
+        assertThat(result.finalScore()).isGreaterThanOrEqualTo(58);
+        assertThat(result.recommendationStatus()).isEqualTo("MAINTAIN");
+    }
+
+    @Test
+    void v4KeepsExpensiveHighBetaGrowthNamesInReduceWhenStabilityIsWeak() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        58,
+                        20,
+                        52,
+                        12,
+                        null,
+                        0,
+                        68,
+                        14,
+                        52,
+                        12,
+                        66,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        78
+                )
+        );
+
+        assertThat(result.finalScore()).isLessThan(58);
+        assertThat(result.recommendationStatus()).isEqualTo("REDUCE");
+    }
+
+    @Test
+    void v4DoesNotPushEliteButVeryExpensiveGrowthNameStraightToStopWhenVolatilityIsContained() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        43,
+                        20,
+                        46,
+                        12,
+                        null,
+                        0,
+                        85,
+                        14,
+                        37,
+                        12,
+                        91,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        78
+                )
+        );
+
+        assertThat(result.finalScore()).isGreaterThanOrEqualTo(35);
+        assertThat(result.recommendationStatus()).isEqualTo("REDUCE");
+    }
+
+    @Test
     void v4HardRiskStillCapsToStopRange() {
         final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
                 new RecommendationScoreCalculator.V4Input(

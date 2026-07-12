@@ -112,7 +112,7 @@ class _FactorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final score = item.scoreImpact;
     return Container(
-      padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -183,14 +183,16 @@ class _FactorCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             item.body,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 11.5,
-              height: 1.4,
+              fontSize: 11,
+              height: 1.34,
               color: MaeMojiColors.inkSoft,
             ),
           ),
           if (_supportsMetricStrip(item.evidenceType)) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _FactorMetricStrip(
               evidenceType: item.evidenceType,
               rawDataJson: item.rawDataJson,
@@ -225,12 +227,12 @@ class _FactorMetricStrip extends StatelessWidget {
     }
 
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 7,
+      runSpacing: 7,
       children: metrics
           .map(
             (metric) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
               decoration: BoxDecoration(
                 color: const Color(0xFFF7F1E4),
                 borderRadius: BorderRadius.circular(14),
@@ -467,7 +469,7 @@ class _AiNoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: MaeMojiColors.paperSoft,
         borderRadius: BorderRadius.circular(20),
@@ -500,9 +502,11 @@ class _AiNoteCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             item.body,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 13,
-              height: 1.55,
+              fontSize: 12.5,
+              height: 1.45,
               color: MaeMojiColors.inkSoft,
             ),
           ),
@@ -521,7 +525,7 @@ class _EvidenceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: MaeMojiColors.paperSoft,
         borderRadius: BorderRadius.circular(20),
@@ -541,9 +545,11 @@ class _EvidenceCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             item.body,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 13,
-              height: 1.55,
+              fontSize: 12.5,
+              height: 1.45,
               color: MaeMojiColors.inkSoft,
             ),
           ),

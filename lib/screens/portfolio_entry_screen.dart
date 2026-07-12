@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 
 import '../currency/currency_scope.dart';
 import '../models/portfolio_item_summary.dart';
+import '../models/portfolio_reason_option.dart';
 import '../models/stock_quote.dart';
+import '../services/portfolio_insight_service.dart';
 import '../services/portfolio_service.dart';
 import '../services/stock_quote_service.dart';
 import '../theme/app_theme.dart';
@@ -36,6 +38,8 @@ class PortfolioEntryScreen extends StatefulWidget {
 
 class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
   final PortfolioService _portfolioService = const PortfolioService();
+  final PortfolioInsightService _portfolioInsightService =
+      const PortfolioInsightService();
   final StockQuoteService _stockQuoteService = const StockQuoteService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
@@ -47,9 +51,13 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
 
   bool _isSaving = false;
   bool _isLoadingPrice = false;
+  bool _isLoadingReasonOptions = false;
   StockQuote? _quote;
   String? _priceError;
+  String? _reasonError;
   DateTime? _selectedInvestmentStartDate;
+  List<PortfolioReasonOption> _reasonOptions = const [];
+  Set<String> _selectedReasonCodes = <String>{};
 
   @override
   void initState() {
@@ -74,6 +82,7 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
     }
 
     _loadCurrentPrice();
+    _loadReasonOptions();
   }
 
   @override
@@ -185,6 +194,14 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
                         hint: '예: AI 반도체 장기 적립 중',
                         maxLines: 4,
                       ),
+                      const SizedBox(height: 16),
+                      _ReasonSelectionSection(
+                        isLoading: _isLoadingReasonOptions,
+                        errorMessage: _reasonError,
+                        options: _reasonOptions,
+                        selectedCodes: _selectedReasonCodes,
+                        onToggle: _toggleReasonCode,
+                      ),
                       const SizedBox(height: 18),
                       SizedBox(
                         width: double.infinity,
@@ -264,6 +281,59 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
     });
   }
 
+  Future<void> _loadReasonOptions() async {
+    setState(() {
+      _isLoadingReasonOptions = true;
+      _reasonError = null;
+    });
+
+    try {
+      final options = await _portfolioInsightService.fetchReasonOptions();
+      Set<String> selectedCodes = _selectedReasonCodes;
+
+      final initialItem = widget.initialItem;
+      if (initialItem != null) {
+        final reasons = await _portfolioInsightService.fetchPortfolioReasons(
+          initialItem.id,
+        );
+        selectedCodes = reasons.map((item) => item.code).toSet();
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _reasonOptions = options;
+        _selectedReasonCodes = selectedCodes;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _reasonError = '담은 이유 항목을 불러오지 못했어요.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingReasonOptions = false;
+        });
+      }
+    }
+  }
+
+  void _toggleReasonCode(String code) {
+    setState(() {
+      final next = <String>{..._selectedReasonCodes};
+      if (!next.add(code)) {
+        next.remove(code);
+      }
+      _selectedReasonCodes = next;
+    });
+  }
+
   String _buildCurrentPriceLabel(double? usdToKrwRate) {
     final quote = _quote;
     if (quote == null) {
@@ -292,13 +362,21 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
     });
 
     try {
-      await _portfolioService.savePortfolioItem(
+      final items = await _portfolioService.savePortfolioItem(
         stockId: widget.stockId,
         dailyInvestAmount: _dailyInvestAmountController.text.trim(),
         holdingQuantity: _holdingQuantityController.text.trim(),
         investmentStartDate: _investmentStartDateController.text.trim(),
         memo: _memoController.text.trim(),
       );
+      final portfolioItemId = widget.initialItem?.id ?? _resolveSavedPortfolioItemId(items);
+
+      if (portfolioItemId != null) {
+        await _portfolioInsightService.updatePortfolioReasons(
+          portfolioItemId,
+          _selectedReasonCodes.toList(),
+        );
+      }
 
       if (!mounted) {
         return;
@@ -337,6 +415,15 @@ class _PortfolioEntryScreenState extends State<PortfolioEntryScreen> {
         });
       }
     }
+  }
+
+  int? _resolveSavedPortfolioItemId(List<PortfolioItemSummary> items) {
+    for (final item in items) {
+      if (item.stockId == widget.stockId) {
+        return item.id;
+      }
+    }
+    return null;
   }
 }
 
@@ -515,6 +602,152 @@ class _DatePickerField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ReasonSelectionSection extends StatelessWidget {
+  const _ReasonSelectionSection({
+    required this.isLoading,
+    required this.errorMessage,
+    required this.options,
+    required this.selectedCodes,
+    required this.onToggle,
+  });
+
+  final bool isLoading;
+  final String? errorMessage;
+  final List<PortfolioReasonOption> options;
+  final Set<String> selectedCodes;
+  final ValueChanged<String> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '내가 담은 이유',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: MaeMojiColors.ink,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '이번 주에 다시 봐도 납득되도록, 담은 이유를 가볍게 남겨둘 수 있어요.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: MaeMojiColors.inkMuted,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (errorMessage != null)
+          Text(
+            errorMessage!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: MaeMojiColors.stop,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: options.map((option) {
+              final isSelected = selectedCodes.contains(option.code);
+              return _ReasonChoiceChip(
+                label: option.label,
+                description: option.description,
+                isSelected: isSelected,
+                onTap: () => onToggle(option.code),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+}
+
+class _ReasonChoiceChip extends StatelessWidget {
+  const _ReasonChoiceChip({
+    required this.label,
+    required this.description,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String description;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? MaeMojiColors.paperDeep : MaeMojiColors.paperSoft,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected
+                ? MaeMojiColors.maintain.withValues(alpha: 0.38)
+                : MaeMojiColors.stroke,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: MaeMojiColors.ink,
+                    ),
+                  ),
+                ),
+                if (isSelected) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: MaeMojiColors.maintain,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: Text(
+                description,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: MaeMojiColors.inkMuted,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

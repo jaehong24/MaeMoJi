@@ -13,6 +13,7 @@ import 'services/auth_service.dart';
 import 'services/auth_session_store.dart';
 import 'services/api_exception.dart';
 import 'services/local_dev_preferences_store.dart';
+import 'services/notification_registration_service.dart';
 import 'theme/app_theme.dart';
 
 class MaeMojiApp extends StatefulWidget {
@@ -31,6 +32,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
   bool _checkingSavedSession = true;
   bool _localDevAutoLoginInFlight = false;
   bool _showLaunchScreen = true;
+  bool _notificationBootstrapRequested = false;
 
   @override
   void initState() {
@@ -97,6 +99,13 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
 
             if (!(_authSessionStore.session?.user.hasRiskProfile ?? false)) {
               return const InvestmentDnaSurveyScreen();
+            }
+
+            if (!_notificationBootstrapRequested) {
+              _notificationBootstrapRequested = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                NotificationRegistrationService.instance.initializeIfSupported();
+              });
             }
 
             return const AppShell();
@@ -175,6 +184,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
       await _authSessionStore.clear();
     } finally {
       _localDevAutoLoginInFlight = false;
+      _notificationBootstrapRequested = false;
       if (mounted) {
         setState(() {
           _checkingSavedSession = false;

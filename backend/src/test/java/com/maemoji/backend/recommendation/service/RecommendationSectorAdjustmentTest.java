@@ -182,6 +182,150 @@ class RecommendationSectorAdjustmentTest {
         assertThat(semiconductorAdjustment).isLessThan(genericAdjustment);
     }
 
+    @Test
+    void megaPlatformPullbackGetsLessPenaltyThanGenericTechnologyWhenQualityRemainsStrong() throws Exception {
+        final RecommendationTarget megaPlatform = targetWithSector("Communication Services");
+        megaPlatform.setTicker("META");
+        megaPlatform.setIndustry("Internet Content & Information");
+
+        final RecommendationTarget genericTechnology = targetWithSector("Technology");
+        genericTechnology.setTicker("TEST");
+        genericTechnology.setIndustry("Hardware");
+
+        final int megaPlatformAdjustment = crossFactorAdjustment(
+                megaPlatform,
+                priceSnapshotWithReturns(-3.2, -11.0),
+                40,
+                46,
+                83,
+                86,
+                79,
+                82,
+                10
+        );
+        final int genericAdjustment = crossFactorAdjustment(
+                genericTechnology,
+                priceSnapshotWithReturns(-3.2, -11.0),
+                40,
+                46,
+                83,
+                86,
+                79,
+                82,
+                10
+        );
+
+        assertThat(megaPlatformAdjustment).isGreaterThan(genericAdjustment);
+    }
+
+    @Test
+    void highBetaSoftwareKeepsExtraPenaltyWhenValuationAndStabilityAreWeak() throws Exception {
+        final RecommendationTarget highBetaSoftware = targetWithSector("Technology");
+        highBetaSoftware.setTicker("SHOP");
+        highBetaSoftware.setIndustry("Software - Application");
+
+        final RecommendationTarget genericIndustrial = targetWithSector("Industrials");
+        genericIndustrial.setTicker("TEST");
+        genericIndustrial.setIndustry("Industrial Distribution");
+
+        final int softwareAdjustment = crossFactorAdjustment(
+                highBetaSoftware,
+                priceSnapshotWithReturns(1.6, 12.0),
+                58,
+                52,
+                68,
+                70,
+                52,
+                66,
+                8
+        );
+        final int genericAdjustment = crossFactorAdjustment(
+                genericIndustrial,
+                priceSnapshotWithReturns(1.6, 12.0),
+                58,
+                52,
+                68,
+                70,
+                52,
+                66,
+                8
+        );
+
+        assertThat(softwareAdjustment).isLessThan(genericAdjustment);
+    }
+
+    @Test
+    void unknownSoftwareTickerStillReceivesHighBetaGrowthPenaltyByIndustry() throws Exception {
+        final RecommendationTarget unknownSoftware = targetWithSector("Technology");
+        unknownSoftware.setTicker("ABCD");
+        unknownSoftware.setIndustry("Cloud Software");
+
+        final RecommendationTarget genericIndustrial = targetWithSector("Industrials");
+        genericIndustrial.setTicker("EFGH");
+        genericIndustrial.setIndustry("Industrial Distribution");
+
+        final int unknownSoftwareAdjustment = crossFactorAdjustment(
+                unknownSoftware,
+                priceSnapshotWithReturns(1.8, 11.0),
+                57,
+                54,
+                67,
+                69,
+                54,
+                65,
+                6
+        );
+        final int genericIndustrialAdjustment = crossFactorAdjustment(
+                genericIndustrial,
+                priceSnapshotWithReturns(1.8, 11.0),
+                57,
+                54,
+                67,
+                69,
+                54,
+                65,
+                6
+        );
+
+        assertThat(unknownSoftwareAdjustment).isLessThan(genericIndustrialAdjustment);
+    }
+
+    @Test
+    void unknownMegaPlatformTickerStillGetsPullbackSupportByIndustry() throws Exception {
+        final RecommendationTarget unknownPlatform = targetWithSector("Communication Services");
+        unknownPlatform.setTicker("WXYZ");
+        unknownPlatform.setIndustry("Interactive Media & Services");
+
+        final RecommendationTarget genericTech = targetWithSector("Technology");
+        genericTech.setTicker("QRST");
+        genericTech.setIndustry("Computer Hardware");
+
+        final int unknownPlatformAdjustment = crossFactorAdjustment(
+                unknownPlatform,
+                priceSnapshotWithReturns(-3.0, -10.5),
+                40,
+                46,
+                84,
+                85,
+                78,
+                82,
+                10
+        );
+        final int genericTechAdjustment = crossFactorAdjustment(
+                genericTech,
+                priceSnapshotWithReturns(-3.0, -10.5),
+                40,
+                46,
+                84,
+                85,
+                78,
+                82,
+                10
+        );
+
+        assertThat(unknownPlatformAdjustment).isGreaterThan(genericTechAdjustment);
+    }
+
     private int crossFactorAdjustment(
             RecommendationTarget target,
             Object priceSnapshot,

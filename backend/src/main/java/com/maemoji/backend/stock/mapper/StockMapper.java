@@ -43,6 +43,8 @@ public interface StockMapper {
 
     Long findStockIdByFinnhubSymbol(@Param("finnhubSymbol") String finnhubSymbol);
 
+    Stock findActiveStockBySymbol(@Param("symbol") String symbol);
+
     void upsertStockMaster(
             @Param("ticker") String ticker,
             @Param("exchangeCode") String exchangeCode,

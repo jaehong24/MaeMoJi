@@ -3,6 +3,7 @@ package com.maemoji.backend.recommendation.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.recommendation.config.RecommendationTuningProperties;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
+import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.junit.jupiter.api.Test;
@@ -137,6 +138,35 @@ class RecommendationSampleSetReportTest {
                         "resolveQualityOfGrowthScore",
                         assessment
                 );
+                final RecommendationTarget reportTarget = new RecommendationTarget();
+                reportTarget.setTicker(symbol);
+                reportTarget.setSector(snapshotRow.sector());
+                reportTarget.setIndustry(snapshotRow.industry());
+                final Integer crossFactorAdjustment = (Integer) ReflectionTestUtils.invokeMethod(
+                        recommendationService,
+                        "resolveCrossFactorAdjustment",
+                        reportTarget,
+                        priceSnapshot,
+                        new NewsSentimentService.NewsSentimentResult(
+                                0,
+                                "NEUTRAL",
+                                "",
+                                List.of(),
+                                "report",
+                                0,
+                                false,
+                                "NONE",
+                                70,
+                                false,
+                                false
+                        ),
+                        priceMomentumScore,
+                        priceStabilityScore,
+                        fundamentalQualityScore,
+                        profitabilityFactorScore,
+                        valuationScore,
+                        qualityOfGrowthScore
+                );
 
                 final int companyTotalScore = weightedAverage(
                         priceMomentumScore, tuningProperties.getFactorWeights().getPriceMomentum(),
@@ -161,7 +191,7 @@ class RecommendationSampleSetReportTest {
                                 tuningProperties.getFactorWeights().getQualityOfGrowth(),
                                 60,
                                 tuningProperties.getFactorWeights().getUserFit(),
-                                0,
+                                crossFactorAdjustment == null ? 0 : crossFactorAdjustment,
                                 0,
                                 "BALANCED",
                                 false,
@@ -185,7 +215,7 @@ class RecommendationSampleSetReportTest {
                                 tuningProperties.getFactorWeights().getQualityOfGrowth(),
                                 60,
                                 tuningProperties.getFactorWeights().getUserFit(),
-                                0,
+                                crossFactorAdjustment == null ? 0 : crossFactorAdjustment,
                                 0,
                                 "BALANCED",
                                 false,
@@ -562,28 +592,14 @@ class RecommendationSampleSetReportTest {
                 tuningProperties.getIncreaseGuard();
         final RecommendationTuningProperties.ConflictRules conflictRules =
                 tuningProperties.getConflictRules();
-        final String normalizedSymbol = blankToEmpty(symbol).toUpperCase(Locale.ROOT);
         final String normalizedSector = blankToEmpty(sector).toLowerCase(Locale.ROOT);
         final String normalizedIndustry = blankToEmpty(industry).toLowerCase(Locale.ROOT);
-        final boolean financial = normalizedSector.contains("financial")
-                || List.of("JPM", "BAC", "AXP", "WFC", "C", "GS", "MS", "PNC", "USB").contains(normalizedSymbol);
-        final boolean assetManager = normalizedIndustry.contains("asset management")
-                || normalizedIndustry.contains("capital markets")
-                || List.of("BLK", "KKR", "APO", "BX").contains(normalizedSymbol);
-        final boolean defensive = normalizedSector.contains("consumer defensive")
-                || normalizedSector.contains("utilities")
-                || normalizedSector.contains("healthcare")
-                || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP", "AMGN", "NVS", "LLY", "TMO").contains(normalizedSymbol);
-        final boolean semiconductor = normalizedIndustry.contains("semiconductor")
-                || List.of("QCOM", "TXN", "AVGO", "AMD", "NVDA", "MU", "AMAT", "LRCX", "ASML").contains(normalizedSymbol);
-        final boolean platformSoftware = normalizedIndustry.contains("software")
-                || normalizedIndustry.contains("infrastructure")
-                || List.of("ORCL", "ADBE", "CRM", "NOW", "SAP").contains(normalizedSymbol);
-        final boolean retailOrHousing = normalizedSector.contains("consumer cyclical")
-                || normalizedIndustry.contains("retail")
-                || normalizedIndustry.contains("home improvement")
-                || normalizedIndustry.contains("consumer staples")
-                || List.of("LOW", "HD", "TGT", "COST", "WMT", "MCD").contains(normalizedSymbol);
+        final boolean financial = isFinancialLike(normalizedSector, normalizedIndustry);
+        final boolean assetManager = isAssetManagerLike(normalizedSector, normalizedIndustry);
+        final boolean defensive = isDefensiveLike(normalizedSector, normalizedIndustry);
+        final boolean semiconductor = isSemiconductorLike(normalizedSector, normalizedIndustry);
+        final boolean platformSoftware = isEnterpriseSoftwareLike(normalizedSector, normalizedIndustry);
+        final boolean retailOrHousing = isRetailOrHousingLike(normalizedSector, normalizedIndustry);
 
         if ("INCREASE".equals(result.recommendationStatus()) && result.increaseEligible()) {
             return "핵심 팩터가 고르게 강해 증액 가능";
@@ -623,7 +639,8 @@ class RecommendationSampleSetReportTest {
                 && valuationScore <= increaseGuard.getAbsoluteValuationBlockMax()) {
             return "기업 체력은 받쳐주지만 가격 부담이 큰 가격 부담 감액";
         }
-        if (valuationScore != null
+        if ("REDUCE".equals(result.recommendationStatus())
+                && valuationScore != null
                 && valuationScore >= conflictRules.getWeakGrowthValuationMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= conflictRules.getWeakGrowthQualityMax()) {
@@ -910,10 +927,6 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore >= 58) {
             return "기본 체력은 버티지만 추가 확신이 더 필요한 성장 확인 유지";
         }
-        if ("MAINTAIN".equals(result.recommendationStatus())
-                && "ETN".equals(normalizedSymbol)) {
-            return "산업재 체력은 괜찮지만 성장 탄력이 아주 강하진 않은 성장 확인 유지";
-        }
         if ("REDUCE".equals(result.recommendationStatus())
                 && (priceMomentumScore == null
                 || priceStabilityScore == null
@@ -940,9 +953,7 @@ class RecommendationSampleSetReportTest {
             return "자본 체력 대비 이익 재가속 신호가 약한 성장 둔화 감액";
         }
         if ("REDUCE".equals(result.recommendationStatus())
-                && (normalizedIndustry.contains("software")
-                || normalizedIndustry.contains("cloud")
-                || List.of("CRWD", "NET", "SNOW").contains(normalizedSymbol))
+                && isHighBetaGrowthLike(normalizedSector, normalizedIndustry)
                 && priceStabilityScore != null
                 && priceStabilityScore <= 58) {
             return "성장 기대는 남아도 변동성이 큰 변동성 감액";
@@ -976,13 +987,94 @@ class RecommendationSampleSetReportTest {
         if (priceStabilityScore != null && priceStabilityScore <= 40) {
             return "변동성과 하방 리스크가 큰 변동성 감액";
         }
-        if (fundamentalQualityScore != null
+        if ("MAINTAIN".equals(result.recommendationStatus())
+                && fundamentalQualityScore != null
                 && fundamentalQualityScore >= conflictRules.getExpensiveEliteFundamentalMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= conflictRules.getExpensiveEliteGrowthMin()) {
             return "체력은 강하지만 증액 기준에는 아직 못 미침";
         }
         return "핵심 팩터가 엇갈려 유지 구간";
+    }
+
+    private boolean isFinancialLike(String sector, String industry) {
+        return sector.contains("financial")
+                || industry.contains("bank")
+                || industry.contains("credit")
+                || industry.contains("capital markets")
+                || industry.contains("asset management")
+                || industry.contains("insurance")
+                || industry.contains("broker")
+                || industry.contains("lending")
+                || industry.contains("payment")
+                || industry.contains("card");
+    }
+
+    private boolean isAssetManagerLike(String sector, String industry) {
+        return isFinancialLike(sector, industry)
+                && (industry.contains("asset management")
+                || industry.contains("capital markets")
+                || industry.contains("investment")
+                || industry.contains("exchange"));
+    }
+
+    private boolean isDefensiveLike(String sector, String industry) {
+        return sector.contains("consumer defensive")
+                || sector.contains("utilities")
+                || sector.contains("healthcare")
+                || industry.contains("drug")
+                || industry.contains("medical")
+                || industry.contains("biotech")
+                || industry.contains("beverage")
+                || industry.contains("household")
+                || industry.contains("grocery")
+                || industry.contains("pharmaceutical")
+                || industry.contains("managed health")
+                || industry.contains("regulated electric")
+                || industry.contains("regulated gas");
+    }
+
+    private boolean isSemiconductorLike(String sector, String industry) {
+        return industry.contains("semiconductor")
+                || industry.contains("chip")
+                || industry.contains("wafer")
+                || industry.contains("equipment")
+                || industry.contains("memory");
+    }
+
+    private boolean isEnterpriseSoftwareLike(String sector, String industry) {
+        return industry.contains("software")
+                || industry.contains("infrastructure")
+                || industry.contains("application")
+                || industry.contains("saas")
+                || industry.contains("it service")
+                || industry.contains("enterprise")
+                || (sector.contains("technology") && industry.contains("cloud"));
+    }
+
+    private boolean isHighBetaGrowthLike(String sector, String industry) {
+        return industry.contains("software")
+                || industry.contains("cloud")
+                || industry.contains("internet retail")
+                || industry.contains("internet")
+                || industry.contains("cybersecurity")
+                || industry.contains("application")
+                || industry.contains("data")
+                || industry.contains("platform")
+                || industry.contains("ai")
+                || (sector.contains("technology") && industry.contains("platform"));
+    }
+
+    private boolean isRetailOrHousingLike(String sector, String industry) {
+        return sector.contains("consumer cyclical")
+                || industry.contains("retail")
+                || industry.contains("home improvement")
+                || industry.contains("restaurant")
+                || industry.contains("consumer staples")
+                || industry.contains("discount store")
+                || industry.contains("apparel")
+                || industry.contains("specialty store")
+                || industry.contains("consumer electronics");
     }
 
     private String blankToEmpty(String value) {

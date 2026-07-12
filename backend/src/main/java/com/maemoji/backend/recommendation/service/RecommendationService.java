@@ -4179,7 +4179,6 @@ public class RecommendationService {
 
         final String sector = blankToEmpty(target.getSector()).toLowerCase(Locale.ROOT);
         final String industry = blankToEmpty(target.getIndustry()).toLowerCase(Locale.ROOT);
-        final String ticker = blankToEmpty(target.getTicker()).toUpperCase(Locale.ROOT);
         if (sector.contains("energy") || sector.contains("materials") || sector.contains("industrial")) {
             if (priceMomentumScore != null
                     && priceMomentumScore >= 44
@@ -4228,17 +4227,14 @@ public class RecommendationService {
                 && qualityOfGrowthScore < 68) {
             adjustment -= 2;
         }
-        if ((industry.contains("semiconductor")
-                || List.of("QCOM", "TXN", "AVGO", "AMD", "NVDA", "MU", "AMAT", "LRCX", "ASML").contains(ticker))
+        if (isSemiconductorLike(sector, industry)
                 && valuationScore != null
                 && valuationScore <= 55
                 && priceMomentumScore != null
                 && priceMomentumScore <= 52) {
             adjustment -= 3;
         }
-        if ((industry.contains("software")
-                || industry.contains("infrastructure")
-                || List.of("ORCL", "ADBE", "CRM", "NOW", "SAP").contains(ticker))
+        if (isEnterpriseSoftwareLike(sector, industry)
                 && priceStabilityScore != null
                 && priceStabilityScore >= 82
                 && valuationScore != null
@@ -4246,9 +4242,31 @@ public class RecommendationService {
                 && valuationScore <= 72) {
             adjustment += 1;
         }
-        if ((industry.contains("asset management")
-                || industry.contains("capital markets")
-                || List.of("BLK", "KKR", "APO", "BX").contains(ticker))
+        if (isMegaPlatformLike(sector, industry)
+                && priceMomentumScore != null
+                && priceMomentumScore >= 38
+                && priceMomentumScore <= 48
+                && priceStabilityScore != null
+                && priceStabilityScore >= 42
+                && priceStabilityScore <= 58
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 80
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 78
+                && valuationScore != null
+                && valuationScore >= 76) {
+            adjustment += 3;
+        }
+        if (isHighBetaGrowthLike(sector, industry)
+                && valuationScore != null
+                && valuationScore <= 58
+                && priceStabilityScore != null
+                && priceStabilityScore <= 58
+                && priceMomentumScore != null
+                && priceMomentumScore <= 58) {
+            adjustment -= 3;
+        }
+        if (isAssetManagerLike(sector, industry)
                 && priceStabilityScore != null
                 && priceStabilityScore >= 82
                 && qualityOfGrowthScore != null
@@ -4830,10 +4848,10 @@ public class RecommendationService {
             return shortRisks + "은 보수적으로 봤어요.";
         }
         if (!points.isEmpty()) {
-            return shortPoints + "은 강점이고 " + shortRisks + "은 함께 확인했어요.";
+            return shortPoints + "은 강점이고 " + shortRisks + "은 함께 봤어요.";
         }
         return blankToEmpty(assessment.summary()).isBlank()
-                ? "수익성, 성장성, 안정성, 현금흐름을 함께 반영했어요."
+                ? "수익성, 성장성, 안정성을 함께 봤어요."
                 : assessment.summary();
     }
 
@@ -4882,31 +4900,31 @@ public class RecommendationService {
             return "밸류에이션 정보가 부족해 가격 부담은 중립적으로 봤어요.";
         }
 
-        final String perText = "현재 PER은 " + formatDecimal(assessment.perValue(), 1) + "배예요.";
+        final String perText = "PER " + formatDecimal(assessment.perValue(), 1) + "배예요.";
         final boolean strongCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() >= 78;
         final boolean weakCashSupport = assessment.cashFlowScore() != null && assessment.cashFlowScore() <= 55;
         final boolean strongProfitability = assessment.profitabilityScore() != null
                 && assessment.profitabilityScore() >= 80;
         return switch (blankToEmpty(assessment.perBand())) {
-            case "ATTRACTIVE" -> perText + " 가격 부담이 낮은 편이에요.";
+            case "ATTRACTIVE" -> perText + " 가격 부담은 낮아요.";
             case "FAIR" -> perText + " 과하게 비싼 구간은 아니에요.";
             case "EXPENSIVE" -> strongCashSupport
-                    ? perText + " 다소 비싸지만 현금흐름이 받쳐줘 부담을 일부 낮췄어요."
+                    ? perText + " 다소 비싸지만 현금흐름이 받쳐줘요."
                     : strongProfitability
-                    ? perText + " 실적 체력은 좋지만 가격 기대도 반영됐어요."
-                    : perText + " 실적 대비 가격 부담이 조금 있는 편이에요.";
+                    ? perText + " 실적은 좋지만 기대도 반영됐어요."
+                    : perText + " 실적 대비 가격 부담이 있어요.";
             case "VERY_EXPENSIVE" -> weakCashSupport
-                    ? perText + " 기대는 높지만 현금흐름 뒷받침이 약해 가격 부담이 커요."
+                    ? perText + " 기대는 높지만 현금흐름 뒷받침이 약해요."
                     : strongProfitability
-                    ? perText + " 좋은 회사여도 기대가 많이 반영돼 추가 매수는 신중히 봤어요."
-                    : perText + " 기대가 많이 반영돼 가격 부담이 큰 편이에요.";
-            default -> perText + " 가격 부담은 보수적으로 해석했어요.";
+                    ? perText + " 좋은 회사여도 기대가 많이 반영됐어요."
+                    : perText + " 기대가 많이 반영돼 부담이 커요.";
+            default -> perText + " 가격 부담은 보수적으로 봤어요.";
         };
     }
 
     private String buildQualityOfGrowthFactorSummary(FundamentalQualityAssessment assessment) {
         if (assessment == null) {
-            return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
+            return "매출, 이익, 현금흐름을 함께 보고 성장의 질을 봤어요.";
         }
 
         final Double growth = assessment.revenueGrowthYoy() == null
@@ -4918,7 +4936,7 @@ public class RecommendationService {
 
         final String growthText = assessment.revenueGrowthYoy() == null
                 ? "성장률 데이터가 아직 충분하지 않아요."
-                : "매출 성장률은 " + formatPercent(assessment.revenueGrowthYoy()) + "예요.";
+                : "매출 성장은 " + formatPercent(assessment.revenueGrowthYoy()) + "예요.";
 
         if (growth != null
                 && growth >= 0.20
@@ -4926,13 +4944,13 @@ public class RecommendationService {
                 && profitability >= 80
                 && cashFlow != null
                 && cashFlow >= 75) {
-            return growthText + " 성장세가 수익성과 현금흐름으로 잘 이어지고 있어요.";
+            return growthText + " 수익성과 현금흐름도 잘 받쳐줘요.";
         }
         if (growth != null
                 && growth >= 0.20
                 && ((cashFlow != null && cashFlow <= 55)
                 || (profitability != null && profitability <= 60))) {
-            return growthText + " 성장 속도는 빠르지만 이익 뒷받침은 더 확인이 필요해요.";
+            return growthText + " 성장 속도는 빠르지만 이익 확인은 더 필요해요.";
         }
         if (growth != null
                 && growth >= 0.05
@@ -4940,7 +4958,7 @@ public class RecommendationService {
                 && profitability >= 72
                 && cashFlow != null
                 && cashFlow >= 68) {
-            return growthText + " 무리하지 않지만 질 좋은 성장으로 봤어요.";
+            return growthText + " 무리하지 않지만 질은 괜찮아요.";
         }
         if (growth != null
                 && growth >= 0.05
@@ -4948,25 +4966,25 @@ public class RecommendationService {
                 && profitability >= 75
                 && cashFlow != null
                 && cashFlow >= 60) {
-            return growthText + " 속도는 무리하지 않지만 이익으로 이어지는 힘은 괜찮아요.";
+            return growthText + " 속도는 무난하고 이익 연결도 괜찮아요.";
         }
         if (growth != null
                 && growth < 0.0) {
-            return growthText + " 최근 성장 탄력은 약한 편이에요.";
+            return growthText + " 최근 성장 탄력은 약해요.";
         }
         if (safety != null && safety <= 45) {
-            return growthText + " 다만 재무 안정성은 보수적으로 반영했어요.";
+            return growthText + " 재무 안정성은 보수적으로 봤어요.";
         }
         if (cashFlow != null && cashFlow <= 55) {
-            return growthText + " 현금 전환력은 조금 더 확인이 필요해요.";
+            return growthText + " 현금 전환력은 더 확인이 필요해요.";
         }
         if (profitability != null && profitability >= 82) {
-            return growthText + " 수익성으로 이어지는 힘은 강한 편이에요.";
+            return growthText + " 수익성 연결도 강한 편이에요.";
         }
         if (growth == null) {
-            return "매출, 이익, 마진, 현금흐름을 함께 보고 성장의 질을 계산했어요.";
+            return "매출, 이익, 현금흐름을 함께 보고 성장의 질을 봤어요.";
         }
-        return growthText + " 성장률뿐 아니라 수익성과 현금흐름도 함께 봤어요.";
+        return growthText + " 수익성과 현금흐름도 함께 봤어요.";
     }
 
     private String formatDecimal(BigDecimal value, int scale) {
@@ -5012,25 +5030,25 @@ public class RecommendationService {
         final String companyName = target.getCompanyName();
 
         if ("STOP".equals(recommendationStatus)) {
-            return companyName + "은 현재 데이터 기준으로 하방 리스크 관리가 우선이라, 지금은 신규 매수보다 중단 또는 관망이 더 적절합니다.";
+            return companyName + "은 하방 리스크 관리가 우선이라, 지금은 중단 또는 관망이 더 적절합니다.";
         }
         if (newsSentiment.hardNegativeOverride()) {
-            return companyName + "과 직접 관련된 강한 악재가 확인되어, 지금은 성장 둔화 감액보다도 더 보수적으로 보는 게 우선입니다.";
+            return companyName + "은 강한 악재가 확인돼, 지금은 더 보수적으로 보는 게 우선입니다.";
         }
         if ("INCREASE".equals(recommendationStatus)) {
             if (v4Context != null
                     && v4Context.valuationScore() != null
                     && v4Context.valuationScore() <= 58) {
-                return companyName + "은 가격 부담이 일부 남아도 흐름과 펀더멘털 우위가 더 커, 지금은 기존 금액보다 한 단계 더 모으는 증액 판단이 우세합니다.";
+                return companyName + "은 가격 부담보다 흐름과 펀더멘털 우위가 커, 지금은 증액 판단이 우세합니다.";
             }
             if (v4Context != null
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() >= 70
                     && v4Context.fundamentalQualityScore() != null
                     && v4Context.fundamentalQualityScore() >= 74) {
-                return companyName + "은 성장의 질과 핵심 펀더멘털이 함께 받쳐줘, 지금은 기존 금액보다 한 단계 더 모으는 증액 판단이 자연스럽습니다.";
+                return companyName + "은 성장의 질과 펀더멘털이 함께 받쳐줘, 지금은 증액 판단이 자연스럽습니다.";
             }
-            return companyName + "은 여러 핵심 팩터가 강한 편이라, 현재 기준에서는 기존 금액보다 한 단계 더 모으는 증액 쪽이 적절합니다.";
+            return companyName + "은 여러 핵심 팩터가 강해, 현재 기준에서는 증액 쪽이 적절합니다.";
         }
         if ("REDUCE".equals(recommendationStatus)) {
             if (v4Context != null
@@ -5038,47 +5056,43 @@ public class RecommendationService {
                     || v4Context.priceStabilityScore() == null
                     || v4Context.fundamentalQualityScore() == null
                     || v4Context.qualityOfGrowthScore() == null)) {
-                return companyName + "은 아직 핵심 데이터가 충분히 쌓이지 않았고 현재 점수도 보수 구간이라, 지금은 데이터 부족 감액으로 보는 게 더 안전합니다.";
+                return companyName + "은 핵심 데이터가 아직 부족해, 지금은 데이터 부족 감액이 더 안전합니다.";
             }
             final String reduceSector = v4Context == null ? "" : blankToEmpty(v4Context.target().getSector()).toLowerCase(Locale.ROOT);
             final String reduceIndustry = v4Context == null ? "" : blankToEmpty(v4Context.target().getIndustry()).toLowerCase(Locale.ROOT);
-            final String reduceTicker = v4Context == null ? "" : blankToEmpty(v4Context.target().getTicker()).toUpperCase(Locale.ROOT);
-            final boolean reduceFinancial = reduceSector.contains("financial")
-                    || List.of("JPM", "BAC", "AXP", "WFC", "C", "GS", "MS", "PNC", "USB", "KKR", "BX", "APO").contains(reduceTicker);
-            final boolean reduceHighBetaSoftware = reduceIndustry.contains("software")
-                    || reduceIndustry.contains("cloud")
-                    || List.of("CRWD", "NET", "SNOW").contains(reduceTicker);
+            final boolean reduceFinancial = isFinancialLike(reduceSector, reduceIndustry);
+            final boolean reduceHighBetaSoftware = isHighBetaGrowthLike(reduceSector, reduceIndustry);
             if (v4Context != null
                     && v4Context.priceMomentumScore() != null
                     && v4Context.priceMomentumScore() <= 45
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() <= 58) {
-                return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 성장 둔화 감액으로 보는 게 더 자연스럽습니다.";
+                return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 성장 둔화 감액이 자연스럽습니다.";
             }
             if (v4Context != null
                     && reduceFinancial
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() <= 50) {
-                return companyName + "은 자본 체력 대비 이익 재가속 신호가 약해, 지금은 성장 둔화 감액으로 보는 게 더 적절합니다.";
+                return companyName + "은 자본 체력 대비 이익 재가속 신호가 약해, 지금은 성장 둔화 감액이 적절합니다.";
             }
             if (v4Context != null
                     && v4Context.priceStabilityScore() != null
                     && v4Context.priceStabilityScore() <= 60) {
-                return companyName + "은 최근 흔들림과 하방 리스크가 커져, 지금은 변동성 감액으로 보는 게 더 적절합니다.";
+                return companyName + "은 최근 흔들림과 하방 리스크가 커, 지금은 변동성 감액이 적절합니다.";
             }
             if (v4Context != null
                     && reduceHighBetaSoftware
                     && v4Context.priceStabilityScore() != null
                     && v4Context.priceStabilityScore() <= 58) {
-                return companyName + "은 성장 기대는 남아도 변동성이 커서, 지금은 변동성 감액으로 보는 게 더 안전합니다.";
+                return companyName + "은 성장 기대는 남아도 변동성이 커서, 지금은 변동성 감액이 더 안전합니다.";
             }
             if (v4Context != null
                     && v4Context.valuationScore() != null
                     && v4Context.valuationScore() <= 55) {
-                return companyName + "은 가격 부담이 큰데 추가 확신 신호가 약해, 지금은 가격 부담 감액으로 더 보수적으로 봤습니다.";
+                return companyName + "은 가격 부담이 큰데 추가 확신이 약해, 지금은 가격 부담 감액으로 봤습니다.";
             }
             return companyName + "은 여러 핵심 팩터가 감액 구간으로 기울어 현재 점수 " + finalScore
-                    + "점으로 봤고, 지금은 성장 둔화 감액으로 보는 게 더 적절합니다.";
+                    + "점으로 봤고, 지금은 성장 둔화 감액이 더 적절합니다.";
         }
         if ("MAINTAIN".equals(recommendationStatus) && v4Context != null) {
             final String maintainComment = buildMaintainAiComment(companyName, v4Context);
@@ -5157,28 +5171,14 @@ public class RecommendationService {
         final Integer valuation = v4Context.valuationScore();
         final Integer quality = v4Context.qualityOfGrowthScore();
         final Integer fundamental = v4Context.fundamentalQualityScore();
-        final String ticker = blankToEmpty(v4Context.target().getTicker()).toUpperCase(Locale.ROOT);
         final String sector = blankToEmpty(v4Context.target().getSector()).toLowerCase(Locale.ROOT);
         final String industry = blankToEmpty(v4Context.target().getIndustry()).toLowerCase(Locale.ROOT);
-        final boolean financial = sector.contains("financial")
-                || List.of("JPM", "BAC", "AXP", "WFC", "C", "GS", "MS", "PNC", "USB").contains(ticker);
-        final boolean assetManager = industry.contains("asset management")
-                || industry.contains("capital markets")
-                || List.of("BLK", "KKR", "APO", "BX").contains(ticker);
-        final boolean defensive = sector.contains("consumer defensive")
-                || sector.contains("utilities")
-                || sector.contains("healthcare")
-                || List.of("PG", "KO", "PEP", "CL", "KMB", "DUK", "SO", "JNJ", "NEE", "AEP", "AMGN", "NVS", "LLY", "TMO").contains(ticker);
-        final boolean semiconductor = industry.contains("semiconductor")
-                || List.of("QCOM", "TXN", "AVGO", "AMD", "NVDA", "MU", "AMAT", "LRCX", "ASML").contains(ticker);
-        final boolean platformSoftware = industry.contains("software")
-                || industry.contains("infrastructure")
-                || List.of("ORCL", "ADBE", "CRM", "NOW", "SAP").contains(ticker);
-        final boolean retailOrHousing = sector.contains("consumer cyclical")
-                || industry.contains("retail")
-                || industry.contains("home improvement")
-                || industry.contains("consumer staples")
-                || List.of("LOW", "HD", "TGT", "COST", "WMT", "MCD").contains(ticker);
+        final boolean financial = isFinancialLike(sector, industry);
+        final boolean assetManager = isAssetManagerLike(sector, industry);
+        final boolean defensive = isDefensiveLike(sector, industry);
+        final boolean semiconductor = isSemiconductorLike(sector, industry);
+        final boolean platformSoftware = isEnterpriseSoftwareLike(sector, industry);
+        final boolean retailOrHousing = isRetailOrHousingLike(sector, industry);
         final boolean priceDataIncomplete = momentum == null || stability == null;
         final boolean fundamentalDataThin = fundamental == null || quality == null;
 
@@ -5438,9 +5438,6 @@ public class RecommendationService {
                 && quality >= 58) {
             return companyName + "은 기본 체력은 버티지만 추가 확신이 더 필요해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
-        if ("ETN".equals(ticker)) {
-            return companyName + "은 산업재 체력은 괜찮지만 성장 탄력이 아주 강하진 않아, 지금은 성장 확인 유지 구간으로 봤어요.";
-        }
         if (quality != null
                 && quality <= 60
                 && stability != null
@@ -5451,6 +5448,98 @@ public class RecommendationService {
             return companyName + "은 큰 경고 신호는 없지만 기대가 가격에 먼저 반영돼 있어, 지금은 가격 반영 유지 구간으로 판단했어요.";
         }
         return "";
+    }
+
+    private boolean isFinancialLike(String sector, String industry) {
+        return sector.contains("financial")
+                || industry.contains("bank")
+                || industry.contains("credit")
+                || industry.contains("capital markets")
+                || industry.contains("asset management")
+                || industry.contains("insurance")
+                || industry.contains("broker")
+                || industry.contains("lending")
+                || industry.contains("payment")
+                || industry.contains("card");
+    }
+
+    private boolean isAssetManagerLike(String sector, String industry) {
+        return isFinancialLike(sector, industry)
+                && (industry.contains("asset management")
+                || industry.contains("capital markets")
+                || industry.contains("investment")
+                || industry.contains("exchange"));
+    }
+
+    private boolean isDefensiveLike(String sector, String industry) {
+        return sector.contains("consumer defensive")
+                || sector.contains("utilities")
+                || sector.contains("healthcare")
+                || industry.contains("drug")
+                || industry.contains("medical")
+                || industry.contains("biotech")
+                || industry.contains("beverage")
+                || industry.contains("household")
+                || industry.contains("grocery")
+                || industry.contains("pharmaceutical")
+                || industry.contains("managed health")
+                || industry.contains("regulated electric")
+                || industry.contains("regulated gas");
+    }
+
+    private boolean isSemiconductorLike(String sector, String industry) {
+        return industry.contains("semiconductor")
+                || industry.contains("chip")
+                || industry.contains("wafer")
+                || industry.contains("equipment")
+                || industry.contains("memory");
+    }
+
+    private boolean isEnterpriseSoftwareLike(String sector, String industry) {
+        return industry.contains("software")
+                || industry.contains("infrastructure")
+                || industry.contains("application")
+                || industry.contains("saas")
+                || industry.contains("it service")
+                || industry.contains("enterprise")
+                || (sector.contains("technology") && industry.contains("cloud"));
+    }
+
+    private boolean isMegaPlatformLike(String sector, String industry) {
+        return (sector.contains("technology") || sector.contains("communication"))
+                && (industry.contains("internet")
+                || industry.contains("interactive media")
+                || industry.contains("consumer electronics")
+                || industry.contains("software - infrastructure")
+                || industry.contains("internet retail")
+                || industry.contains("communication services")
+                || industry.contains("digital advertising")
+                || industry.contains("online marketplace"));
+    }
+
+    private boolean isHighBetaGrowthLike(String sector, String industry) {
+        return industry.contains("software")
+                || industry.contains("cloud")
+                || industry.contains("internet retail")
+                || industry.contains("internet")
+                || industry.contains("cybersecurity")
+                || industry.contains("application")
+                || industry.contains("data")
+                || industry.contains("platform")
+                || industry.contains("ai")
+                || (sector.contains("technology") && industry.contains("platform"));
+    }
+
+    private boolean isRetailOrHousingLike(String sector, String industry) {
+        return sector.contains("consumer cyclical")
+                || industry.contains("retail")
+                || industry.contains("home improvement")
+                || industry.contains("restaurant")
+                || industry.contains("consumer staples")
+                || industry.contains("discount store")
+                || industry.contains("apparel")
+                || industry.contains("specialty store")
+                || industry.contains("consumer electronics");
     }
 
     private String resolveRecommendationStatus(int finalScore) {

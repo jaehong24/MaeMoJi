@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.maemoji.backend.toss.mapper.TossIntegrationMapper">
+
+    <insert id="insertConnection" useGeneratedKeys="true" keyProperty="connection.id">
+        insert into toss_connections (
+            user_id,
+            connection_name,
+            client_id,
+            client_secret_encrypted,
+            client_secret_masked,
+            status,
+            is_primary
+        ) values (
+            #{connection.userId},
+            #{connection.connectionName},
+            #{connection.clientId},
+            #{connection.clientSecretEncrypted},
+            #{connection.clientSecretMasked},
+            #{connection.status},
+            #{connection.isPrimary}
+        )
+    </insert>
+
+    <select id="findConnectionsByUserId"
+            resultType="com.maemoji.backend.toss.domain.TossConnectionRecord">
+        select
+            id,
+            user_id,
+            connection_name,
+            client_id,
+            client_secret_encrypted,
+            client_secret_masked,
+            status,
+            last_token_issued_at,
+            last_sync_at,
+            last_sync_status,
+            last_sync_error_code,
+            last_sync_error_message,
+            is_primary,
+            created_at,
+            updated_at
+        from toss_connections
+        where user_id = #{userId}
+        order by is_primary desc, created_at desc
+    </select>
+
+    <select id="findConnectionByIdAndUserId"
+            resultType="com.maemoji.backend.toss.domain.TossConnectionRecord">
+        select
+            id,
+            user_id,
+            connection_name,
+            client_id,
+            client_secret_encrypted,
+            client_secret_masked,
+            status,
+            last_token_issued_at,
+            last_sync_at,
+            last_sync_status,
+            last_sync_error_code,
+            last_sync_error_message,
+            is_primary,
+            created_at,
+            updated_at
+        from toss_connections
+        where id = #{connectionId}
+          and user_id = #{userId}
+        limit 1
+    </select>
+
+    <update id="clearPrimaryConnectionForUser">
+        update toss_connections
+        set
+            is_primary = false,
+            updated_at = now()
+        where user_id = #{userId}
+          and is_primary = true
+    </update>
+
+    <update id="markConnectionAsPrimary">
+        update toss_connections
+        set
+            is_primary = true,
+            updated_at = now()
+        where id = #{connectionId}
+    </update>
+
+    <update id="updateConnectionHeartbeat">
+        update toss_connections
+        set
+            last_token_issued_at = #{lastTokenIssuedAt},
+            updated_at = now()
+        where id = #{connectionId}
+    </update>
+
+    <insert id="upsertAccount">
+        insert into toss_accounts (
+            connection_id,
+            account_seq,
+            account_type,
+            account_no_masked,
+            display_name,
+            status,
+            is_active,
+            last_synced_at
+        ) values (
+            #{connectionId},
+            #{accountSeq},
+            #{accountType},
+            #{accountNoMasked},
+            #{displayName},
+            'ACTIVE',
+            true,
+            #{lastSyncedAt}
+        )
+        on conflict (connection_id, account_seq) do update
+        set
+            account_type = excluded.account_type,
+            account_no_masked = excluded.account_no_masked,
+            display_name = excluded.display_name,
+            status = 'ACTIVE',
+            is_active = true,
+            last_synced_at = excluded.last_synced_at,
+            updated_at = now()
+    </insert>
+
+    <select id="findAccountsByConnectionId"
+            resultType="com.maemoji.backend.toss.domain.TossAccountRecord">
+        select
+            id,
+            connection_id,
+            account_seq,
+            account_type,
+            account_no_masked,
+            display_name,
+            status,
+            is_selected,
+            is_active,
+            last_synced_at,
+            created_at,
+            updated_at
+        from toss_accounts
+        where connection_id = #{connectionId}
+          and is_active = true
+        order by is_selected desc, created_at asc
+    </select>
+
+    <select id="findAccountByIdAndUserId"
+            resultType="com.maemoji.backend.toss.domain.TossAccountRecord">
+        select
+            ta.id,
+            ta.connection_id,
+            ta.account_seq,
+            ta.account_type,
+            ta.account_no_masked,
+            ta.display_name,
+            ta.status,
+            ta.is_selected,
+            ta.is_active,
+            ta.last_synced_at,
+            ta.created_at,
+            ta.updated_at
+        from toss_accounts ta
+        join toss_connections tc on tc.id = ta.connection_id
+        where ta.id = #{accountId}
+          and tc.user_id = #{userId}
+        limit 1
+    </select>
+
+    <update id="clearSelectedAccountByConnectionId">
+        update toss_accounts
+        set
+            is_selected = false,
+            updated_at = now()
+        where connection_id = #{connectionId}
+          and is_selected = true
+    </update>
+
+    <update id="markAccountSelected">
+        update toss_accounts
+        set
+            is_selected = true,
+            updated_at = now()
+        where id = #{accountId}
+    </update>
+</mapper>

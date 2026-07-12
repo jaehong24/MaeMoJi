@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.maemoji.backend.portfolioinsight.mapper.PortfolioInsightMapper">
+
+    <select id="findOwnedActivePortfolioItemId" resultType="long">
+        select id
+        from portfolio_items
+        where id = #{portfolioItemId}
+          and user_id = #{userId}
+          and is_active = true
+        limit 1
+    </select>
+
+    <delete id="deletePortfolioReasons">
+        delete from portfolio_item_reasons
+        where portfolio_item_id = #{portfolioItemId}
+    </delete>
+
+    <insert id="insertPortfolioReason">
+        insert into portfolio_item_reasons (
+            portfolio_item_id,
+            reason_code,
+            display_order
+        ) values (
+            #{portfolioItemId},
+            #{reasonCode},
+            #{displayOrder}
+        )
+    </insert>
+
+    <select id="findPortfolioReasons"
+            resultType="com.maemoji.backend.portfolioinsight.domain.PortfolioReasonRecord">
+        select
+            pir.reason_code,
+            pir.display_order
+        from portfolio_item_reasons pir
+        join portfolio_items pi on pi.id = pir.portfolio_item_id
+        where pir.portfolio_item_id = #{portfolioItemId}
+          and pi.user_id = #{userId}
+          and pi.is_active = true
+        order by pir.display_order asc, pir.id asc
+    </select>
+
+    <select id="findLatestWeeklyReportByUserId"
+            resultType="com.maemoji.backend.portfolioinsight.domain.WeeklyReportRecord">
+        select
+            id,
+            report_week,
+            generated_at,
+            headline,
+            summary,
+            changed_item_count,
+            alert_item_count,
+            positive_item_count,
+            negative_item_count
+        from portfolio_weekly_reports
+        where user_id = #{userId}
+        order by report_week desc, generated_at desc
+        limit 1
+    </select>
+
+    <select id="findWeeklyReportsByUserId"
+            resultType="com.maemoji.backend.portfolioinsight.domain.WeeklyReportRecord">
+        select
+            id,
+            report_week,
+            generated_at,
+            headline,
+            summary,
+            changed_item_count,
+            alert_item_count,
+            positive_item_count,
+            negative_item_count
+        from portfolio_weekly_reports
+        where user_id = #{userId}
+        order by report_week desc, generated_at desc
+    </select>
+
+    <select id="findWeeklyReportItemsByReportId"
+            resultType="com.maemoji.backend.portfolioinsight.domain.WeeklyReportItemRecord">
+        select
+            pwri.portfolio_item_id,
+            pwri.stock_id,
+            coalesce(s.name_ko, s.name_en) as company_name,
+            s.ticker,
+            s.logo_url,
+            pwri.current_status,
+            pwri.previous_status,
+            pwri.score_delta,
+            pwri.headline_label,
+            pwri.change_type,
+            pwri.summary
+        from portfolio_weekly_report_items pwri
+        join stocks s on s.id = pwri.stock_id
+        where pwri.report_id = #{reportId}
+        order by pwri.display_order asc, pwri.id asc
+    </select>
+
+    <select id="findRecommendationTrendRowsByUserId"
+            resultType="com.maemoji.backend.portfolioinsight.domain.RecommendationTrendRow">
+        with ranked as (
+            select
+                r.portfolio_item_id,
+                pi.stock_id,
+                coalesce(s.name_ko, s.name_en) as company_name,
+                s.ticker,
+                s.logo_url,
+                r.recommendation_status,
+                r.engine_score,
+                r.news_score,
+                r.price_momentum_score,
+                r.price_stability_score,
+                r.fundamental_quality_score,
+                row_number() over (
+                    partition by r.portfolio_item_id
+                    order by r.recommendation_date desc, r.created_at desc
+                ) as row_number
+            from recommendations r
+            join portfolio_items pi on pi.id = r.portfolio_item_id
+            join stocks s on s.id = pi.stock_id
+            where r.user_id = #{userId}
+              and pi.is_active = true
+        )
+        select
+            portfolio_item_id,
+            stock_id,
+            company_name,
+            ticker,
+            logo_url,
+            recommendation_status,
+            engine_score,
+            news_score,
+            price_momentum_score,
+            price_stability_score,
+            fundamental_quality_score,
+            row_number
+        from ranked
+        where row_number <= 2
+        order by portfolio_item_id asc, row_number asc
+    </select>
+
+    <delete id="deleteWeeklyReportItemsByReportId">
+        delete from portfolio_weekly_report_items
+        where report_id = #{reportId}
+    </delete>
+
+    <delete id="deleteWeeklyReportByUserIdAndWeek">
+        delete from portfolio_weekly_reports
+        where user_id = #{userId}
+          and report_week = #{reportWeek}
+    </delete>
+
+    <insert id="insertWeeklyReport">
+        insert into portfolio_weekly_reports (
+            user_id,
+            report_week,
+            generated_at,
+            headline,
+            summary,
+            changed_item_count,
+            alert_item_count,
+            positive_item_count,
+            negative_item_count
+        ) values (
+            #{userId},
+            #{reportWeek},
+            #{generatedAt},
+            #{headline},
+            #{summary},
+            #{changedItemCount},
+            #{alertItemCount},
+            #{positiveItemCount},
+            #{negativeItemCount}
+        )
+    </insert>
+
+    <select id="findWeeklyReportIdByUserIdAndWeek" resultType="long">
+        select id
+        from portfolio_weekly_reports
+        where user_id = #{userId}
+          and report_week = #{reportWeek}
+        limit 1
+    </select>
+
+    <insert id="insertWeeklyReportItem">
+        insert into portfolio_weekly_report_items (
+            report_id,
+            portfolio_item_id,
+            stock_id,
+            current_status,
+            previous_status,
+            score_delta,
+            headline_label,
+            change_type,
+            summary,
+            display_order
+        ) values (
+            #{reportId},
+            #{portfolioItemId},
+            #{stockId},
+            #{currentStatus},
+            #{previousStatus},
+            #{scoreDelta},
+            #{headlineLabel},
+            #{changeType},
+            #{summary},
+            #{displayOrder}
+        )
+    </insert>
+
+    <insert id="insertAlertEvent">
+        insert into user_alert_events (
+            user_id,
+            portfolio_item_id,
+            stock_id,
+            alert_type,
+            title,
+            body,
+            dedupe_key,
+            sent_at
+        ) values (
+            #{userId},
+            #{portfolioItemId},
+            #{stockId},
+            #{alertType},
+            #{title},
+            #{body},
+            #{dedupeKey},
+            #{sentAt}
+        )
+        on conflict (dedupe_key) do nothing
+    </insert>
+
+    <select id="findAlertsByUserId"
+            resultType="com.maemoji.backend.portfolioinsight.domain.UserAlertEventRecord">
+        select
+            id,
+            portfolio_item_id,
+            stock_id,
+            alert_type,
+            title,
+            body,
+            sent_at,
+            read_at,
+            created_at
+        from user_alert_events
+        where user_id = #{userId}
+        order by
+            case when read_at is null then 0 else 1 end asc,
+            created_at desc
+    </select>
+
+    <select id="findAlertById"
+            resultType="com.maemoji.backend.portfolioinsight.domain.UserAlertEventRecord">
+        select
+            id,
+            portfolio_item_id,
+            stock_id,
+            alert_type,
+            title,
+            body,
+            sent_at,
+            read_at,
+            created_at
+        from user_alert_events
+        where user_id = #{userId}
+          and id = #{alertId}
+        limit 1
+    </select>
+
+    <select id="findAlertByDedupeKey"
+            resultType="com.maemoji.backend.portfolioinsight.domain.UserAlertEventRecord">
+        select
+            id,
+            portfolio_item_id,
+            stock_id,
+            alert_type,
+            title,
+            body,
+            sent_at,
+            read_at,
+            created_at
+        from user_alert_events
+        where user_id = #{userId}
+          and dedupe_key = #{dedupeKey}
+        limit 1
+    </select>
+
+    <update id="markAlertRead">
+        update user_alert_events
+        set read_at = now()
+        where user_id = #{userId}
+          and id = #{alertId}
+          and read_at is null
+    </update>
+
+    <insert id="ensureNotificationPreferenceRow">
+        insert into user_notification_preferences (
+            user_id,
+            timezone,
+            weekly_digest_day,
+            weekly_digest_time
+        ) values (
+            #{userId},
+            #{timezone},
+            #{weeklyDigestDay},
+            #{weeklyDigestTime}
+        )
+        on conflict (user_id) do nothing
+    </insert>
+
+    <select id="findNotificationPreferenceByUserId"
+            resultType="com.maemoji.backend.portfolioinsight.domain.UserNotificationPreferenceRecord">
+        select
+            id,
+            user_id,
+            instant_alert_enabled,
+            weekly_digest_enabled,
+            price_risk_alert_enabled,
+            news_weakened_alert_enabled,
+            status_changed_alert_enabled,
+            quiet_hours_enabled,
+            quiet_hours_start,
+            quiet_hours_end,
+            timezone,
+            weekly_digest_day,
+            weekly_digest_time,
+            created_at,
+            updated_at
+        from user_notification_preferences
+        where user_id = #{userId}
+        limit 1
+    </select>
+
+    <update id="updateNotificationPreference">
+        update user_notification_preferences
+        set instant_alert_enabled = #{instantAlertEnabled},
+            weekly_digest_enabled = #{weeklyDigestEnabled},
+            price_risk_alert_enabled = #{priceRiskAlertEnabled},
+            news_weakened_alert_enabled = #{newsWeakenedAlertEnabled},
+            status_changed_alert_enabled = #{statusChangedAlertEnabled},
+            quiet_hours_enabled = #{quietHoursEnabled},
+            quiet_hours_start = #{quietHoursStart},
+            quiet_hours_end = #{quietHoursEnd},
+            timezone = #{timezone},
+            weekly_digest_day = #{weeklyDigestDay},
+            weekly_digest_time = #{weeklyDigestTime},
+            updated_at = now()
+        where user_id = #{userId}
+    </update>
+
+    <insert id="upsertDeviceToken">
+        insert into user_device_tokens (
+            user_id,
+            device_platform,
+            device_identifier,
+            fcm_token,
+            app_version,
+            push_enabled,
+            is_active,
+            last_seen_at,
+            updated_at
+        ) values (
+            #{userId},
+            #{devicePlatform},
+            #{deviceIdentifier},
+            #{fcmToken},
+            #{appVersion},
+            #{pushEnabled},
+            true,
+            #{lastSeenAt},
+            now()
+        )
+        on conflict (fcm_token) do update
+        set user_id = excluded.user_id,
+            device_platform = excluded.device_platform,
+            device_identifier = excluded.device_identifier,
+            app_version = excluded.app_version,
+            push_enabled = excluded.push_enabled,
+            is_active = true,
+            last_seen_at = excluded.last_seen_at,
+            updated_at = now(),
+            deactivated_at = null
+    </insert>
+
+    <select id="findDeviceTokensByUserId"
+            resultType="com.maemoji.backend.portfolioinsight.domain.UserDeviceTokenRecord">
+        select
+            id,
+            user_id,
+            device_platform,
+            device_identifier,
+            fcm_token,
+            app_version,
+            push_enabled,
+            is_active,
+            last_seen_at,
+            created_at,
+            updated_at,
+            deactivated_at
+        from user_device_tokens
+        where user_id = #{userId}
+        order by is_active desc, updated_at desc, id desc
+    </select>
+
+    <select id="findDeviceTokenByUserIdAndToken"
+            resultType="com.maemoji.backend.portfolioinsight.domain.UserDeviceTokenRecord">
+        select
+            id,
+            user_id,
+            device_platform,
+            device_identifier,
+            fcm_token,
+            app_version,
+            push_enabled,
+            is_active,
+            last_seen_at,
+            created_at,
+            updated_at,
+            deactivated_at
+        from user_device_tokens
+        where user_id = #{userId}
+          and fcm_token = #{fcmToken}
+        limit 1
+    </select>
+
+    <update id="deactivateDeviceToken">
+        update user_device_tokens
+        set is_active = false,
+            push_enabled = false,
+            deactivated_at = #{deactivatedAt},
+            updated_at = now()
+        where user_id = #{userId}
+          and fcm_token = #{fcmToken}
+          and is_active = true
+    </update>
+
+    <insert id="insertPushNotificationDelivery">
+        insert into push_notification_deliveries (
+            alert_event_id,
+            user_id,
+            device_token_id,
+            notification_kind,
+            alert_type,
+            dedupe_key,
+            title,
+            body,
+            payload_json
+        ) values (
+            #{alertEventId},
+            #{userId},
+            #{deviceTokenId},
+            #{notificationKind},
+            #{alertType},
+            #{dedupeKey},
+            #{title},
+            #{body},
+            #{payloadJson}
+        )
+        on conflict (dedupe_key) do nothing
+    </insert>
+
+    <update id="updatePushNotificationDeliverySuccess">
+        update push_notification_deliveries
+        set delivery_status = 'SENT',
+            provider_message_id = #{providerMessageId},
+            sent_at = #{sentAt},
+            delivered_at = #{sentAt}
+        where dedupe_key = #{dedupeKey}
+    </update>
+
+    <update id="updatePushNotificationDeliveryFailure">
+        update push_notification_deliveries
+        set delivery_status = 'FAILED',
+            provider_error_code = #{providerErrorCode},
+            provider_error_message = #{providerErrorMessage},
+            sent_at = #{sentAt}
+        where dedupe_key = #{dedupeKey}
+    </update>
+
+    <insert id="insertWeeklyNotificationJobIfAbsent">
+        insert into weekly_notification_jobs (
+            user_id,
+            report_id,
+            report_week,
+            scheduled_at
+        ) values (
+            #{userId},
+            #{reportId},
+            #{reportWeek},
+            #{scheduledAt}
+        )
+        on conflict (user_id, report_week) do nothing
+    </insert>
+
+    <update id="updateWeeklyNotificationJobResult">
+        update weekly_notification_jobs
+        set job_status = #{jobStatus},
+            target_device_count = #{targetDeviceCount},
+            success_count = #{successCount},
+            failure_count = #{failureCount},
+            started_at = #{startedAt},
+            completed_at = #{completedAt},
+            error_message = #{errorMessage}
+        where user_id = #{userId}
+          and report_week = #{reportWeek}
+    </update>
+</mapper>

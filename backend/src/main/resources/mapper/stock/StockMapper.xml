@@ -89,6 +89,38 @@
         limit 1
     </select>
 
+    <select id="findActiveStockBySymbol" resultType="com.maemoji.backend.stock.domain.Stock">
+        select
+            id,
+            symbol,
+            ticker,
+            exchange,
+            exchange_code,
+            finnhub_symbol,
+            name_ko,
+            name_en,
+            ticker_normalized,
+            name_ko_normalized,
+            name_en_normalized,
+            search_text,
+            logo_url,
+            logo_status,
+            logo_checked_at,
+            market_type,
+            asset_type,
+            currency,
+            country,
+            sector,
+            industry,
+            is_active,
+            created_at,
+            updated_at
+        from stocks
+        where symbol = upper(trim(#{symbol}))
+          and is_active = true
+        limit 1
+    </select>
+
     <select id="findActiveStocksForRefresh" resultType="com.maemoji.backend.stock.domain.Stock">
         select
             id,

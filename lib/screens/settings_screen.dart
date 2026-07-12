@@ -3,13 +3,21 @@ import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
 import '../models/auth_user.dart';
+import '../models/user_alert_event.dart';
 import '../services/auth_service.dart';
+import '../services/portfolio_insight_service.dart';
 import '../services/auth_session_store.dart';
 import '../services/local_dev_preferences_store.dart';
+import '../services/notification_registration_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/risk_profile_labels.dart';
 import '../widgets/app_section_card.dart';
+import '../widgets/recent_alerts_preview_card.dart';
+import '../widgets/unread_badge_icon.dart';
+import 'alerts_screen.dart';
 import 'investment_dna_survey_screen.dart';
+import 'notification_settings_screen.dart';
+import 'stock_detail_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,10 +28,19 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
+  final PortfolioInsightService _portfolioInsightService =
+      const PortfolioInsightService();
   final AuthSessionStore _authSessionStore = AuthSessionStore.instance;
   final LocalDevPreferencesStore _localDevPreferencesStore =
       LocalDevPreferencesStore.instance;
   bool _signingOut = false;
+  late Future<List<UserAlertEvent>> _alertsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _alertsFuture = _portfolioInsightService.fetchAlerts();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +54,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
       children: [
-        Text('설정', style: theme.textTheme.displaySmall),
-        const SizedBox(height: 8),
-        Text('계정과 투자성향을 한곳에서 확인할 수 있어요.', style: theme.textTheme.bodyLarge),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('설정', style: theme.textTheme.displaySmall),
+                  const SizedBox(height: 8),
+                  Text(
+                    '계정과 투자성향을 한곳에서 확인할 수 있어요.',
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FutureBuilder<List<UserAlertEvent>>(
+              future: _alertsFuture,
+              builder: (context, snapshot) {
+                final unreadCount = (snapshot.data ?? const <UserAlertEvent>[])
+                    .where((item) => item.readAt == null)
+                    .length;
+
+                return UnreadBadgeIcon(
+                  count: unreadCount,
+                  onTap: _openAlerts,
+                );
+              },
+            ),
+          ],
+        ),
         const SizedBox(height: 20),
         AppSectionCard(
           child: _AccountSummaryCard(user: user),
@@ -49,6 +95,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: user?.hasRiskProfile == true
               ? _RiskProfileSummaryCard(user: user!, onResurvey: _openResurvey)
               : _EmptyRiskProfileCard(onStart: _openSurvey),
+        ),
+        const SizedBox(height: 16),
+        FutureBuilder<List<UserAlertEvent>>(
+          future: _alertsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox.shrink();
+            }
+
+            if (snapshot.hasError) {
+              return const SizedBox.shrink();
+            }
+
+            return RecentAlertsPreviewCard(
+              title: '최근 알림',
+              alerts: snapshot.data ?? const [],
+              emptyMessage: '아직 확인할 알림이 없어요.',
+              onOpenAll: _openAlerts,
+              onOpenAlert: _openAlertDetail,
+              maxItems: 3,
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        AppSectionCard(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: _openNotificationSettings,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '알림 설정',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: MaeMojiColors.ink,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          '즉시 알림, 주간 리포트, 방해 금지 시간을 조절할 수 있어요.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.45,
+                            color: MaeMojiColors.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: MaeMojiColors.inkMuted,
+                    size: 24,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
         if (isLocalDevelopment) ...[
           const SizedBox(height: 16),
@@ -103,6 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _signingOut = true;
     });
     try {
+      await NotificationRegistrationService.instance.deactivateCurrentToken();
       await _authService.signOut(accessToken: _authSessionStore.accessToken);
       await _authSessionStore.clear();
     } finally {
@@ -134,6 +247,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  Future<void> _openAlerts() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const AlertsScreen()),
+    );
+    if (mounted) {
+      setState(() {
+        _alertsFuture = _portfolioInsightService.fetchAlerts();
+      });
+    }
+  }
+
+  Future<void> _openAlertDetail(UserAlertEvent alert) async {
+    if (alert.readAt == null) {
+      try {
+        await _portfolioInsightService.markAlertAsRead(alert.alertId);
+      } catch (_) {}
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StockDetailScreen(portfolioItemId: alert.portfolioItemId),
+      ),
+    );
+
+    if (mounted) {
+      setState(() {
+        _alertsFuture = _portfolioInsightService.fetchAlerts();
+      });
+    }
+  }
+
+  Future<void> _openNotificationSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const NotificationSettingsScreen(),
+      ),
+    );
+    if (mounted) {
+      setState(() {
+        _alertsFuture = _portfolioInsightService.fetchAlerts();
+      });
     }
   }
 }
