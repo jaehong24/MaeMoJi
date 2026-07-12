@@ -158,6 +158,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     ),
                                   ],
                                 ),
+                                if (alert.supplementalPriceRisk) ...[
+                                  const SizedBox(height: 8),
+                                  const _SupplementalPriceRiskPill(),
+                                ],
                                 const SizedBox(height: 6),
                                 Text(
                                   alert.body,
@@ -291,6 +295,32 @@ class _AlertsScreenState extends State<AlertsScreen> {
       default:
         return StockDetailFocusSection.recommendation;
     }
+  }
+}
+
+class _SupplementalPriceRiskPill extends StatelessWidget {
+  const _SupplementalPriceRiskPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: MaeMojiColors.paperAccent,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: MaeMojiColors.maintain.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Text(
+        '가격 흔들림 동반',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: MaeMojiColors.inkSoft,
+        ),
+      ),
+    );
   }
 }
 

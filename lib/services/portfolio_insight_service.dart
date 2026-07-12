@@ -404,6 +404,8 @@ class PortfolioInsightService {
               headlineLabel: (entry['headlineLabel'] ?? '').toString(),
               changeType: (entry['changeType'] ?? '').toString(),
               summary: (entry['summary'] ?? '').toString(),
+              supplementalPriceRisk:
+                  entry['supplementalPriceRisk'] as bool? ?? false,
             ),
           )
           .toList(),
@@ -418,6 +420,7 @@ class PortfolioInsightService {
       alertType: (item['alertType'] ?? '').toString(),
       title: (item['title'] ?? '').toString(),
       body: (item['body'] ?? '').toString(),
+      supplementalPriceRisk: item['supplementalPriceRisk'] as bool? ?? false,
       sentAt: DateTime.tryParse((item['sentAt'] ?? '').toString()),
       readAt: DateTime.tryParse((item['readAt'] ?? '').toString()),
       createdAt: DateTime.tryParse((item['createdAt'] ?? '').toString()),

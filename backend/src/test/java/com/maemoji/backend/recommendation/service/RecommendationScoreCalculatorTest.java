@@ -287,6 +287,116 @@ class RecommendationScoreCalculatorTest {
     }
 
     @Test
+    void v4BlocksIncreaseForStrongButOverheatedExpensiveNamesWhenPriceRiskBuilds() {
+        final RecommendationScoreCalculator.V4ScoreResult calmComparable = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        64,
+                        20,
+                        84,
+                        12,
+                        64,
+                        22,
+                        84,
+                        14,
+                        46,
+                        12,
+                        80,
+                        12,
+                        68,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        84
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        52,
+                        20,
+                        82,
+                        12,
+                        64,
+                        22,
+                        84,
+                        14,
+                        46,
+                        12,
+                        80,
+                        12,
+                        68,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        84
+                )
+        );
+
+        assertThat(result.increaseEligible()).isFalse();
+        assertThat(result.recommendationStatus()).isNotEqualTo("INCREASE");
+        assertThat(result.finalScore()).isLessThan(calmComparable.finalScore());
+    }
+
+    @Test
+    void v4PunishesWeakGrowthMoreWhenPriceAlsoLosesSupport() {
+        final RecommendationScoreCalculator.V4ScoreResult stableWeakGrower = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        60,
+                        20,
+                        70,
+                        12,
+                        58,
+                        22,
+                        66,
+                        14,
+                        54,
+                        12,
+                        56,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+        final RecommendationScoreCalculator.V4ScoreResult weakGrowthBreakdown = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        48,
+                        20,
+                        68,
+                        12,
+                        58,
+                        22,
+                        66,
+                        14,
+                        50,
+                        12,
+                        54,
+                        12,
+                        60,
+                        8,
+                        0,
+                        0,
+                        "BALANCED",
+                        false,
+                        false,
+                        82
+                )
+        );
+
+        assertThat(stableWeakGrower.finalScore()).isGreaterThan(weakGrowthBreakdown.finalScore());
+    }
+
+    @Test
     void v4DoesNotPushEliteButVeryExpensiveGrowthNameStraightToStopWhenVolatilityIsContained() {
         final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
                 new RecommendationScoreCalculator.V4Input(

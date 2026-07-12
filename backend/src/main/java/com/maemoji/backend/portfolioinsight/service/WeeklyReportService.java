@@ -23,6 +23,7 @@ import java.util.Map;
 public class WeeklyReportService {
 
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
+    private static final String SUPPLEMENTAL_PRICE_RISK_TEXT = "가격 흐름도 함께 흔들려";
 
     private final PortfolioInsightMapper portfolioInsightMapper;
     private final PushNotificationDispatchService pushNotificationDispatchService;
@@ -186,6 +187,12 @@ public class WeeklyReportService {
             );
         }
 
+        final int newsDelta = value(current.getNewsScore()) - value(previous.getNewsScore());
+        final int momentumDelta = value(current.getPriceMomentumScore()) - value(previous.getPriceMomentumScore());
+        final int stabilityDelta = value(current.getPriceStabilityScore()) - value(previous.getPriceStabilityScore());
+        final int fundamentalDelta = value(current.getFundamentalQualityScore()) - value(previous.getFundamentalQualityScore());
+        final boolean supplementalPriceRisk = hasSupplementalPriceRiskSignal(current, momentumDelta, stabilityDelta);
+
         if (!safeEquals(current.getRecommendationStatus(), previousStatus)) {
             final String currentStatus = current.getRecommendationStatus();
             final boolean isDowngraded = "REDUCE".equals(currentStatus) || "STOP".equals(currentStatus);
@@ -196,14 +203,14 @@ public class WeeklyReportService {
                     scoreDelta,
                     isDowngraded ? "의견 하향" : isUpgraded ? "의견 상향" : "의견 조정",
                     isDowngraded ? "STATUS_DOWNGRADED" : isUpgraded ? "STATUS_UPGRADED" : "STATUS_REBALANCED",
-                    buildStatusChangeSummary(current.getCompanyName(), previousStatus, current.getRecommendationStatus())
+                    buildStatusChangeSummary(
+                            current.getCompanyName(),
+                            previousStatus,
+                            current.getRecommendationStatus(),
+                            supplementalPriceRisk
+                    )
             );
         }
-
-        final int newsDelta = value(current.getNewsScore()) - value(previous.getNewsScore());
-        final int momentumDelta = value(current.getPriceMomentumScore()) - value(previous.getPriceMomentumScore());
-        final int stabilityDelta = value(current.getPriceStabilityScore()) - value(previous.getPriceStabilityScore());
-        final int fundamentalDelta = value(current.getFundamentalQualityScore()) - value(previous.getFundamentalQualityScore());
 
         if (newsDelta >= 8) {
             return new ResolvedTrend(
@@ -225,7 +232,7 @@ public class WeeklyReportService {
                     current.getCompanyName() + "은 최근 뉴스 분위기가 약해져 한 번 더 확인하는 편이 좋아요."
             );
         }
-        if (momentumDelta <= -9 || stabilityDelta <= -9) {
+        if (isPriceRiskTrend(current, momentumDelta, stabilityDelta)) {
             return new ResolvedTrend(
                     current,
                     previousStatus,
@@ -272,6 +279,39 @@ public class WeeklyReportService {
         );
     }
 
+    private boolean hasSupplementalPriceRiskSignal(
+            RecommendationTrendRow current,
+            int momentumDelta,
+            int stabilityDelta
+    ) {
+        final int currentMomentum = value(current.getPriceMomentumScore());
+        final int currentStability = value(current.getPriceStabilityScore());
+        return ((momentumDelta <= -6 && currentMomentum <= 50)
+                || (stabilityDelta <= -6 && currentStability <= 52))
+                || ((momentumDelta <= -4 || stabilityDelta <= -4)
+                && currentMomentum <= 46
+                && currentStability <= 48);
+    }
+
+    private boolean isPriceRiskTrend(
+            RecommendationTrendRow current,
+            int momentumDelta,
+            int stabilityDelta
+    ) {
+        if (momentumDelta <= -9 || stabilityDelta <= -9) {
+            return true;
+        }
+        final int currentMomentum = value(current.getPriceMomentumScore());
+        final int currentStability = value(current.getPriceStabilityScore());
+        if ((momentumDelta <= -6 && currentMomentum <= 46)
+                || (stabilityDelta <= -6 && currentStability <= 48)) {
+            return true;
+        }
+        return (momentumDelta <= -4 || stabilityDelta <= -4)
+                && currentMomentum <= 42
+                && currentStability <= 45;
+    }
+
     private WeeklyReportItemResponse toItemResponse(WeeklyReportItemRecord record) {
         return new WeeklyReportItemResponse(
                 record.getPortfolioItemId(),
@@ -284,7 +324,8 @@ public class WeeklyReportService {
                 value(record.getScoreDelta()),
                 record.getHeadlineLabel(),
                 record.getChangeType(),
-                record.getSummary()
+                record.getSummary(),
+                hasSupplementalPriceRiskText(record.getSummary())
         );
     }
 
@@ -310,10 +351,23 @@ public class WeeklyReportService {
         return companyName + " · " + headlineLabel;
     }
 
-    private String buildStatusChangeSummary(String companyName, String previousStatus, String currentStatus) {
-        return companyName + "은 " + toKoreanStatus(previousStatus)
+    private String buildStatusChangeSummary(
+            String companyName,
+            String previousStatus,
+            String currentStatus,
+            boolean supplementalPriceRisk
+    ) {
+        final String base = companyName + "은 " + toKoreanStatus(previousStatus)
                 + "에서 " + toKoreanStatus(currentStatus)
                 + " 쪽으로 의견이 바뀌었어요.";
+        if (!supplementalPriceRisk) {
+            return base;
+        }
+        return base + " " + SUPPLEMENTAL_PRICE_RISK_TEXT + " 조금 더 보수적으로 확인하는 편이 좋아요.";
+    }
+
+    public static boolean hasSupplementalPriceRiskText(String text) {
+        return text != null && text.contains(SUPPLEMENTAL_PRICE_RISK_TEXT);
     }
 
     private String toKoreanStatus(String status) {

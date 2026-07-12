@@ -19,12 +19,14 @@ class RecommendationCard extends StatelessWidget {
     this.showMemo = true,
     this.onOpenDetail,
     this.compact = false,
+    this.supplementalLabel,
   });
 
   final RecommendationItem item;
   final bool showMemo;
   final VoidCallback? onOpenDetail;
   final bool compact;
+  final String? supplementalLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +122,10 @@ class RecommendationCard extends StatelessWidget {
                           _RecommendationStageChip(
                             label: item.analysisStageLabel!,
                           ),
+                        ] else if (supplementalLabel != null &&
+                            supplementalLabel!.isNotEmpty) ...[
+                          const SizedBox(height: 7),
+                          _SupplementalToneChip(label: supplementalLabel!),
                         ],
                       ],
                     ),
@@ -261,6 +267,36 @@ class _StagePalette {
   const _StagePalette(this.color);
 
   final Color color;
+}
+
+class _SupplementalToneChip extends StatelessWidget {
+  const _SupplementalToneChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: MaeMojiColors.paperAccent,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: MaeMojiColors.maintain.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: MaeMojiColors.inkSoft,
+        ),
+      ),
+    );
+  }
 }
 
 class _RecommendationLogo extends StatelessWidget {

@@ -27,6 +27,7 @@ public class UserAlertEventService {
                         record.getAlertType(),
                         record.getTitle(),
                         record.getBody(),
+                        WeeklyReportService.hasSupplementalPriceRiskText(record.getBody()),
                         record.getSentAt(),
                         record.getReadAt(),
                         record.getCreatedAt()
@@ -48,6 +49,7 @@ public class UserAlertEventService {
                         record.getAlertType(),
                         record.getTitle(),
                         record.getBody(),
+                        WeeklyReportService.hasSupplementalPriceRiskText(record.getBody()),
                         record.getSentAt(),
                         record.getReadAt(),
                         record.getCreatedAt()

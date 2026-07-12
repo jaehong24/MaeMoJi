@@ -6,6 +6,7 @@ class UserAlertEvent {
     required this.alertType,
     required this.title,
     required this.body,
+    required this.supplementalPriceRisk,
     required this.sentAt,
     required this.readAt,
     required this.createdAt,
@@ -17,6 +18,7 @@ class UserAlertEvent {
   final String alertType;
   final String title;
   final String body;
+  final bool supplementalPriceRisk;
   final DateTime? sentAt;
   final DateTime? readAt;
   final DateTime? createdAt;

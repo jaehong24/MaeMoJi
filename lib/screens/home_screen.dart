@@ -190,71 +190,88 @@ class _HomeScreenState extends State<HomeScreen> {
                 .where((item) => item.status == RecommendationStatus.stop)
                 .length;
 
-            return Column(
-              children: [
-                Row(
+            return FutureBuilder<List<UserAlertEvent>>(
+              future: _alertsFuture,
+              builder: (context, alertSnapshot) {
+                final alerts = alertSnapshot.data ?? const <UserAlertEvent>[];
+
+                return Column(
                   children: [
-                    Expanded(
-                      child: StatusSummaryChip(
-                        label: RecommendationStatus.increase.label,
-                        count: increaseCount,
-                        color: MaeMojiColors.increase,
-                        compact: true,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatusSummaryChip(
-                        label: RecommendationStatus.maintain.label,
-                        count: maintainCount,
-                        color: MaeMojiColors.maintain,
-                        compact: true,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatusSummaryChip(
-                        label: RecommendationStatus.reduce.label,
-                        count: reduceCount,
-                        color: MaeMojiColors.reduce,
-                        compact: true,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatusSummaryChip(
-                        label: RecommendationStatus.stop.label,
-                        count: stopCount,
-                        color: MaeMojiColors.stop,
-                        compact: true,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                ...recommendations.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: RecommendationCard(
-                      item: item,
-                      compact: true,
-                      onOpenDetail: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => StockDetailScreen(
-                              portfolioItemId: item.portfolioItemId,
-                              initialItem: item,
-                            ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: StatusSummaryChip(
+                            label: RecommendationStatus.increase.label,
+                            count: increaseCount,
+                            color: MaeMojiColors.increase,
+                            compact: true,
                           ),
-                        );
-                        if (mounted) {
-                          _reloadRecommendations();
-                        }
-                      },
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatusSummaryChip(
+                            label: RecommendationStatus.maintain.label,
+                            count: maintainCount,
+                            color: MaeMojiColors.maintain,
+                            compact: true,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatusSummaryChip(
+                            label: RecommendationStatus.reduce.label,
+                            count: reduceCount,
+                            color: MaeMojiColors.reduce,
+                            compact: true,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: StatusSummaryChip(
+                            label: RecommendationStatus.stop.label,
+                            count: stopCount,
+                            color: MaeMojiColors.stop,
+                            compact: true,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ],
+                    const SizedBox(height: 18),
+                    ...recommendations.map((item) {
+                      final latestAlert = alerts.cast<UserAlertEvent?>().firstWhere(
+                        (alert) => alert?.portfolioItemId == item.portfolioItemId,
+                        orElse: () => null,
+                      );
+                      final supplementalLabel =
+                          latestAlert?.supplementalPriceRisk == true
+                          ? '가격 흔들림 동반'
+                          : null;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: RecommendationCard(
+                          item: item,
+                          compact: true,
+                          supplementalLabel: supplementalLabel,
+                          onOpenDetail: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => StockDetailScreen(
+                                  portfolioItemId: item.portfolioItemId,
+                                  initialItem: item,
+                                ),
+                              ),
+                            );
+                            if (mounted) {
+                              _reloadRecommendations();
+                            }
+                          },
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              },
             );
           },
         ),

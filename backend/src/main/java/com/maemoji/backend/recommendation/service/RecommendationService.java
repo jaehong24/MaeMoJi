@@ -2801,6 +2801,9 @@ public class RecommendationService {
             if (return30d >= 8 && return30d < 18 && return7d >= 0.8 && return7d <= 3.2) {
                 score += 1;
             }
+            if (return30d >= 10 && return30d <= 16 && return7d >= 0.5 && return7d <= 2.2) {
+                score += 1;
+            }
             if (return30d >= 6 && return30d <= 14 && return7d >= 0.5 && return7d <= 2.5) {
                 score += 2;
             }
@@ -2816,17 +2819,29 @@ public class RecommendationService {
             if (return30d >= -10 && return30d < -5 && return7d <= -4) {
                 score -= 4;
             }
+            if (return30d >= -8 && return30d <= 1 && return7d <= -4.5) {
+                score -= 5;
+            }
+            if (return30d >= -16 && return30d < -8 && return7d <= -5) {
+                score -= 5;
+            }
             if (return30d >= 12 && return30d < 22 && return7d <= -2.5) {
                 score -= 4;
             }
             if (return30d >= 10 && return30d < 18 && return7d >= 4 && return7d <= 6) {
                 score -= 3;
             }
+            if (return30d >= 12 && return30d < 18 && return7d >= 4.5) {
+                score -= 2;
+            }
             if (return30d >= 8 && return30d < 15 && return7d >= 2.5 && return7d <= 5.5) {
                 score -= 2;
             }
             if (return30d >= 15 && return30d < 25 && return7d >= 3.5) {
                 score -= 3;
+            }
+            if (return30d >= 16 && return30d < 24 && return7d >= 1.5 && return7d <= 3.5) {
+                score -= 2;
             }
             if (return30d >= 18 && return30d < 30 && return7d >= 2 && return7d <= 4.5) {
                 score -= 4;
@@ -2872,6 +2887,12 @@ public class RecommendationService {
         final double downside30 = priceSnapshot.thirtyDayReturn() == null ? 0 : Math.max(0, -priceSnapshot.thirtyDayReturn());
 
         double stress = (abs7 * 0.64) + (abs30 * 0.30) + (downside7 * 0.34) + (downside30 * 0.26);
+        if (downside7 >= 4) {
+            stress += 1.5;
+        }
+        if (downside30 >= 8) {
+            stress += 2;
+        }
         if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 35) {
             stress += 8;
         } else if (priceSnapshot.thirtyDayReturn() != null && priceSnapshot.thirtyDayReturn() >= 22) {
@@ -2902,6 +2923,12 @@ public class RecommendationService {
             stress += 4;
         }
         if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() <= -8
+                && priceSnapshot.changeRate7d() != null
+                && priceSnapshot.changeRate7d() <= -4) {
+            stress += 3;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
                 && priceSnapshot.thirtyDayReturn() >= 2
                 && priceSnapshot.thirtyDayReturn() <= 8
                 && abs7 <= 1.8) {
@@ -2928,6 +2955,13 @@ public class RecommendationService {
                 && priceSnapshot.thirtyDayReturn() >= 25
                 && abs7 <= 3.5) {
             stress += 4;
+        }
+        if (priceSnapshot.thirtyDayReturn() != null
+                && priceSnapshot.thirtyDayReturn() >= 12
+                && priceSnapshot.changeRate7d() != null
+                && priceSnapshot.changeRate7d() >= 4.5
+                && abs7 <= 5) {
+            stress += 2.5;
         }
 
         int score;

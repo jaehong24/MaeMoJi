@@ -11,6 +11,7 @@ public record WeeklyReportItemResponse(
         int scoreDelta,
         String headlineLabel,
         String changeType,
-        String summary
+        String summary,
+        boolean supplementalPriceRisk
 ) {
 }

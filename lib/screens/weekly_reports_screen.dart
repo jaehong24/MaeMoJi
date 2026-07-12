@@ -243,6 +243,10 @@ class _LatestWeeklyReportCard extends StatelessWidget {
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
+                              if (item.supplementalPriceRisk) ...[
+                                const SizedBox(height: 5),
+                                const _SupplementalPriceRiskInlineChip(),
+                              ],
                               const SizedBox(height: 3),
                               Text(
                                 item.summary,
@@ -291,6 +295,32 @@ class _LatestWeeklyReportCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _SupplementalPriceRiskInlineChip extends StatelessWidget {
+  const _SupplementalPriceRiskInlineChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: MaeMojiColors.paperAccent,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: MaeMojiColors.maintain.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Text(
+        '가격 흔들림 동반',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: MaeMojiColors.inkSoft,
+        ),
       ),
     );
   }

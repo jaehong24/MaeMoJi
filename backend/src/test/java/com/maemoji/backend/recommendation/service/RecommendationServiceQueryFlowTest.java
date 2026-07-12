@@ -287,6 +287,42 @@ class RecommendationServiceQueryFlowTest {
     }
 
     @Test
+    void resolvePriceMomentumScoreTreatsLateStageSurgeAsWeakerThanCalmAdvance() throws Exception {
+        final Integer calmAdvance = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceMomentumScore",
+                createPriceSnapshot(220.0, 1.8, 12.5)
+        );
+        final Integer lateStageSurge = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceMomentumScore",
+                createPriceSnapshot(220.0, 5.2, 17.8)
+        );
+
+        assertThat(calmAdvance).isNotNull();
+        assertThat(lateStageSurge).isNotNull();
+        assertThat(calmAdvance).isGreaterThan(lateStageSurge);
+    }
+
+    @Test
+    void resolvePriceStabilityScorePenalizesRollingBreakdownMoreThanShallowWeakness() throws Exception {
+        final Integer shallowWeakness = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceStabilityScore",
+                createPriceSnapshot(220.0, -2.8, -6.5)
+        );
+        final Integer rollingBreakdown = (Integer) ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolvePriceStabilityScore",
+                createPriceSnapshot(220.0, -5.4, -12.5)
+        );
+
+        assertThat(shallowWeakness).isNotNull();
+        assertThat(rollingBreakdown).isNotNull();
+        assertThat(shallowWeakness).isGreaterThan(rollingBreakdown);
+    }
+
+    @Test
     void buildFundamentalEvidenceBodyExplainsProfitabilityAndBalanceSheetSeparately() {
         final String factorRawJson = """
                 {

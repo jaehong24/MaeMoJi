@@ -11,6 +11,7 @@ class WeeklyReportItem {
     required this.headlineLabel,
     required this.changeType,
     required this.summary,
+    required this.supplementalPriceRisk,
   });
 
   final int portfolioItemId;
@@ -24,4 +25,5 @@ class WeeklyReportItem {
   final String headlineLabel;
   final String changeType;
   final String summary;
+  final bool supplementalPriceRisk;
 }

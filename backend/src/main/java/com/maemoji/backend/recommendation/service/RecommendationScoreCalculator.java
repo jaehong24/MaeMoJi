@@ -434,6 +434,18 @@ public class RecommendationScoreCalculator {
                 && momentum <= rule.getOverheatStrongCompanyMomentumMax()) {
             adjustment += rule.getOverheatStrongCompanyPenalty();
         }
+        if (fundamental != null
+                && fundamental >= 78
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 70
+                && valuation != null
+                && valuation <= 54
+                && momentum != null
+                && momentum <= 54
+                && stability != null
+                && stability <= 58) {
+            adjustment -= 4;
+        }
         final Integer normalizedNews = normalizeNewsSentiment(input.newsSentimentScore());
         if (normalizedNews != null
                 && normalizedNews >= rule.getPositiveNewsExpensiveNewsMin()
@@ -453,6 +465,16 @@ public class RecommendationScoreCalculator {
             if (momentum != null && momentum <= rule.getExpensiveGoodMomentumMax()) {
                 adjustment -= 2;
             }
+        }
+        if (qualityOfGrowth != null
+                && qualityOfGrowth <= 58
+                && valuation != null
+                && valuation <= 56
+                && momentum != null
+                && momentum <= 52
+                && stability != null
+                && stability <= 54) {
+            adjustment -= 4;
         }
         if (fundamental != null
                 && fundamental >= 82
