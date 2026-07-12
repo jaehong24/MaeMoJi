@@ -22,6 +22,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   late Future<_NotificationSettingsBundle> _bundleFuture;
   bool _isSaving = false;
   bool _isSyncingDevice = false;
+  bool _isSendingTest = false;
   UserNotificationPreference? _editingPreference;
 
   static const List<String> _weeklyDays = <String>[
@@ -303,6 +304,21 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       onPressed: _isSyncingDevice ? null : _syncDevice,
                       child: Text(_isSyncingDevice ? '연결 확인 중...' : '이 기기 다시 연결'),
                     ),
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      onPressed: _isSendingTest ? null : _sendTestNotification,
+                      child: Text(
+                        _isSendingTest ? '테스트 알림 보내는 중...' : '테스트 알림 바로 보내기',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '버튼을 누르면 현재 로그인한 기기로 바로 테스트 푸시를 보냅니다.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: MaeMojiColors.inkMuted,
+                        height: 1.45,
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     if (devices.isEmpty)
                       Text(
@@ -433,6 +449,46 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       if (mounted) {
         setState(() {
           _isSyncingDevice = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendTestNotification() async {
+    setState(() {
+      _isSendingTest = true;
+    });
+
+    try {
+      await NotificationRegistrationService.instance.syncNow();
+      final message = await _portfolioInsightService.sendTestNotification(
+        title: '매모지 테스트 알림',
+        body: '방금 앱에서 직접 보낸 테스트 알림이에요.',
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _bundleFuture = _loadBundle();
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (exception) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            exception.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingTest = false;
         });
       }
     }

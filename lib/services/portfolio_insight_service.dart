@@ -340,6 +340,41 @@ class PortfolioInsightService {
     }
   }
 
+  Future<String> sendTestNotification({
+    String? title,
+    String? body,
+  }) async {
+    final uri = ApiConfig.buildUri(
+      '/api/notifications/test',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
+    final response = await http
+        .post(
+          uri,
+          headers: ApiAuthHeaders.json(),
+          body: jsonEncode({
+            'title': title,
+            'body': body,
+          }),
+        )
+        .timeout(_requestTimeout);
+    await clearSessionIfUnauthorized(response);
+
+    if (response.statusCode != 200) {
+      throw Exception(_buildErrorMessage('테스트 발송', response));
+    }
+
+    final decoded =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>? ?? const {};
+    final message = (data['message'] ?? '').toString().trim();
+    if (message.isNotEmpty) {
+      return message;
+    }
+    return '테스트 알림을 보냈어요.';
+  }
+
   WeeklyReport _toWeeklyReport(Map<String, dynamic> item) {
     final rawItems = (item['items'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>();
