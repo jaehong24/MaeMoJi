@@ -137,7 +137,7 @@
             fundamental_quality_score,
             row_number
         from ranked
-        where row_number <= 2
+        where row_number &lt;= 2
         order by portfolio_item_id asc, row_number asc
     </select>
 
