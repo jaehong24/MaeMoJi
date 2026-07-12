@@ -187,12 +187,15 @@ public class WeeklyReportService {
         }
 
         if (!safeEquals(current.getRecommendationStatus(), previousStatus)) {
+            final String currentStatus = current.getRecommendationStatus();
+            final boolean isDowngraded = "REDUCE".equals(currentStatus) || "STOP".equals(currentStatus);
+            final boolean isUpgraded = "INCREASE".equals(currentStatus);
             return new ResolvedTrend(
                     current,
                     previousStatus,
                     scoreDelta,
-                    "의견 변경",
-                    "STATUS_CHANGED",
+                    isDowngraded ? "의견 하향" : isUpgraded ? "의견 상향" : "의견 조정",
+                    isDowngraded ? "STATUS_DOWNGRADED" : isUpgraded ? "STATUS_UPGRADED" : "STATUS_REBALANCED",
                     buildStatusChangeSummary(current.getCompanyName(), previousStatus, current.getRecommendationStatus())
             );
         }
@@ -202,7 +205,7 @@ public class WeeklyReportService {
         final int stabilityDelta = value(current.getPriceStabilityScore()) - value(previous.getPriceStabilityScore());
         final int fundamentalDelta = value(current.getFundamentalQualityScore()) - value(previous.getFundamentalQualityScore());
 
-        if (newsDelta >= 6) {
+        if (newsDelta >= 8) {
             return new ResolvedTrend(
                     current,
                     previousStatus,
@@ -212,7 +215,7 @@ public class WeeklyReportService {
                     current.getCompanyName() + "은 최근 뉴스 분위기가 좋아져 다시 볼 이유가 생겼어요."
             );
         }
-        if (newsDelta <= -6) {
+        if (newsDelta <= -8) {
             return new ResolvedTrend(
                     current,
                     previousStatus,
@@ -222,7 +225,7 @@ public class WeeklyReportService {
                     current.getCompanyName() + "은 최근 뉴스 분위기가 약해져 한 번 더 확인하는 편이 좋아요."
             );
         }
-        if (momentumDelta <= -7 || stabilityDelta <= -7) {
+        if (momentumDelta <= -9 || stabilityDelta <= -9) {
             return new ResolvedTrend(
                     current,
                     previousStatus,
@@ -232,7 +235,7 @@ public class WeeklyReportService {
                     current.getCompanyName() + "은 최근 가격 흐름이 흔들려 보수적으로 볼 필요가 있어요."
             );
         }
-        if (momentumDelta >= 7 || stabilityDelta >= 7) {
+        if (momentumDelta >= 9 || stabilityDelta >= 9) {
             return new ResolvedTrend(
                     current,
                     previousStatus,
@@ -347,10 +350,9 @@ public class WeeklyReportService {
         }
 
         boolean isAlert() {
-            return "STATUS_CHANGED".equals(changeType)
+            return "STATUS_DOWNGRADED".equals(changeType)
                     || "NEWS_WEAKENED".equals(changeType)
-                    || "PRICE_RISK".equals(changeType)
-                    || "CAUTIOUS_MAINTAIN".equals(changeType);
+                    || "PRICE_RISK".equals(changeType);
         }
 
         boolean isPositive() {
@@ -362,7 +364,7 @@ public class WeeklyReportService {
         }
 
         boolean shouldCreateAlert() {
-            return isAlert() || Math.abs(scoreDelta) >= 7;
+            return isAlert();
         }
 
         private boolean safeEquals(String left, String right) {

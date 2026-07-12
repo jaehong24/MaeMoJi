@@ -9,6 +9,7 @@ import 'screens/auth_screen.dart';
 import 'screens/brand_launch_screen.dart';
 import 'screens/investment_dna_survey_screen.dart';
 import 'screens/nickname_setup_screen.dart';
+import 'services/app_navigation_service.dart';
 import 'services/auth_service.dart';
 import 'services/auth_session_store.dart';
 import 'services/api_exception.dart';
@@ -60,6 +61,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
     return CurrencyScope(
       controller: _currencyController,
       child: MaterialApp(
+        navigatorKey: AppNavigationService.instance.navigatorKey,
         debugShowCheckedModeBanner: false,
         title: 'MaeMoJi',
         theme: AppTheme.light(),
@@ -105,6 +107,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
               _notificationBootstrapRequested = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 NotificationRegistrationService.instance.initializeIfSupported();
+                AppNavigationService.instance.flushPendingIfAny();
               });
             }
 

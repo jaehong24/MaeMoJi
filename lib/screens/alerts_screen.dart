@@ -258,7 +258,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
     }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => StockDetailScreen(portfolioItemId: alert.portfolioItemId),
+        builder: (_) => StockDetailScreen(
+          portfolioItemId: alert.portfolioItemId,
+          initialFocusSection: _focusSectionForAlert(alert.alertType),
+        ),
       ),
     );
     if (mounted) {
@@ -276,6 +279,18 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   AlertEventPresentation _presentation(UserAlertEvent alert) {
     return alertEventPresentation(alert.alertType);
+  }
+
+  StockDetailFocusSection _focusSectionForAlert(String alertType) {
+    switch (alertType.toUpperCase()) {
+      case 'NEWS_WEAKENED':
+        return StockDetailFocusSection.news;
+      case 'PRICE_RISK':
+      case 'STATUS_DOWNGRADED':
+      case 'STATUS_CHANGED':
+      default:
+        return StockDetailFocusSection.recommendation;
+    }
   }
 }
 

@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import 'notification_navigation_service.dart';
 
 class NotificationDisplayService {
   NotificationDisplayService._();
@@ -38,7 +41,14 @@ class NotificationDisplayService {
       android: androidInitialization,
     );
 
-    await _localNotifications.initialize(settings: initializationSettings);
+    await _localNotifications.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: (response) {
+        NotificationNavigationService.instance.handleLocalNotificationPayload(
+          response.payload,
+        );
+      },
+    );
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
@@ -74,7 +84,7 @@ class NotificationDisplayService {
       title: notification.title,
       body: notification.body,
       notificationDetails: details,
-      payload: message.data.toString(),
+      payload: jsonEncode(message.data),
     );
   }
 }

@@ -39,6 +39,27 @@ AlertEventPresentation alertEventPresentation(String alertType) {
         color: MaeMojiColors.maintain,
         softColor: Color(0xFFEFF5FF),
       );
+    case 'STATUS_DOWNGRADED':
+      return const AlertEventPresentation(
+        label: '의견 하향',
+        icon: Icons.trending_down_rounded,
+        color: MaeMojiColors.stop,
+        softColor: Color(0xFFFFECE8),
+      );
+    case 'STATUS_UPGRADED':
+      return const AlertEventPresentation(
+        label: '의견 상향',
+        icon: Icons.trending_up_rounded,
+        color: MaeMojiColors.increase,
+        softColor: Color(0xFFEBF9F0),
+      );
+    case 'STATUS_REBALANCED':
+      return const AlertEventPresentation(
+        label: '의견 조정',
+        icon: Icons.tune_rounded,
+        color: MaeMojiColors.maintain,
+        softColor: Color(0xFFEFF5FF),
+      );
     case 'PRICE_IMPROVED':
       return const AlertEventPresentation(
         label: '가격 안정',

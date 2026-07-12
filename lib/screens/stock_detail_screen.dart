@@ -25,10 +25,12 @@ class StockDetailScreen extends StatefulWidget {
     super.key,
     required this.portfolioItemId,
     this.initialItem,
+    this.initialFocusSection = StockDetailFocusSection.top,
   });
 
   final int portfolioItemId;
   final RecommendationItem? initialItem;
+  final StockDetailFocusSection initialFocusSection;
 
   @override
   State<StockDetailScreen> createState() => _StockDetailScreenState();
@@ -53,6 +55,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   String? _statusMessage;
   String? _reasonError;
   List<PortfolioReason> _portfolioReasons = const [];
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _recommendationSectionKey = GlobalKey();
+  final GlobalKey _newsSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -71,6 +76,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshLatestRecommendation();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -140,6 +151,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               );
 
               return ListView(
+                controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                 children: [
                   if (_isRefreshingLatest)
@@ -272,6 +284,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     )
                   else
                     AppSectionCard(
+                      key: _recommendationSectionKey,
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,6 +328,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     ),
                   const SizedBox(height: 14),
                   AppSectionCard(
+                    key: _newsSectionKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -450,6 +464,32 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     _refreshLatestRecommendation();
   }
 
+  void _scrollToInitialFocusSection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final targetKey = switch (widget.initialFocusSection) {
+        StockDetailFocusSection.recommendation => _recommendationSectionKey,
+        StockDetailFocusSection.news => _newsSectionKey,
+        StockDetailFocusSection.top => null,
+      };
+
+      final targetContext = targetKey?.currentContext;
+      if (targetContext == null) {
+        return;
+      }
+
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08,
+      );
+    });
+  }
+
   Future<void> _loadPortfolioReasons() async {
     setState(() {
       _isLoadingReasons = true;
@@ -510,6 +550,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             ? '방금 최신 분석 결과를 반영했어요.'
             : '방금 최신 뉴스와 가격까지 확인했어요.';
       });
+      _scrollToInitialFocusSection();
     } catch (_) {
       if (!mounted) {
         return;
@@ -533,6 +574,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     setState(() {
       _currentItem = item;
     });
+    _scrollToInitialFocusSection();
     _loadQuote(item.stockId);
   }
 
@@ -708,6 +750,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         current.recommendedAmountUsd != next.recommendedAmountUsd ||
         current.relatedNews.length != next.relatedNews.length;
   }
+}
+
+enum StockDetailFocusSection {
+  top,
+  recommendation,
+  news,
 }
 
 class _ReasonTag extends StatelessWidget {

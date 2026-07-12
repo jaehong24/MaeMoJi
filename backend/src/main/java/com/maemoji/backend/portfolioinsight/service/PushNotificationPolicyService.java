@@ -19,7 +19,8 @@ public class PushNotificationPolicyService {
         }
 
         return switch (safeUpper(alertEvent.getAlertType())) {
-            case "STATUS_CHANGED" -> Boolean.TRUE.equals(preference.getStatusChangedAlertEnabled());
+            case "STATUS_CHANGED", "STATUS_DOWNGRADED" ->
+                    Boolean.TRUE.equals(preference.getStatusChangedAlertEnabled());
             case "NEWS_WEAKENED" -> Boolean.TRUE.equals(preference.getNewsWeakenedAlertEnabled());
             case "PRICE_RISK" -> Boolean.TRUE.equals(preference.getPriceRiskAlertEnabled());
             default -> false;
@@ -36,6 +37,7 @@ public class PushNotificationPolicyService {
             return "WEEKLY_DIGEST";
         }
         if ("STATUS_CHANGED".equals(alertType)
+                || "STATUS_DOWNGRADED".equals(alertType)
                 || "NEWS_WEAKENED".equals(alertType)
                 || "PRICE_RISK".equals(alertType)) {
             return "IMMEDIATE";
