@@ -369,10 +369,11 @@ class PortfolioInsightService {
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     final data = decoded['data'] as Map<String, dynamic>? ?? const {};
     final message = (data['message'] ?? '').toString().trim();
-    if (message.isNotEmpty) {
-      return message;
-    }
-    return '테스트 알림을 보냈어요.';
+    final targetDeviceCount = (data['targetDeviceCount'] as num?)?.toInt() ?? 0;
+    final successCount = (data['successCount'] as num?)?.toInt() ?? 0;
+    final failureCount = (data['failureCount'] as num?)?.toInt() ?? 0;
+    final baseMessage = message.isNotEmpty ? message : '테스트 알림을 보냈어요.';
+    return '$baseMessage (대상 $targetDeviceCount대 · 성공 $successCount · 실패 $failureCount)';
   }
 
   WeeklyReport _toWeeklyReport(Map<String, dynamic> item) {

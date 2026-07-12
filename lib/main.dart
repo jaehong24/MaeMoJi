@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'app.dart';
 import 'services/auth_session_store.dart';
 import 'services/local_dev_preferences_store.dart';
+import 'services/notification_display_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ Future<void> main() async {
           defaultTargetPlatform == TargetPlatform.iOS)) {
     try {
       await Firebase.initializeApp();
+      await NotificationDisplayService.instance.initializeIfSupported();
     } catch (_) {
       // 모바일 Firebase 초기화 실패는 앱 전체를 막지 않고, 알림 연결만 건너뜁니다.
     }
