@@ -72,9 +72,11 @@ class NotificationNavigationService {
   }
 
   void _showWebForegroundNotification(RemoteMessage message) {
-    showWebForegroundNotification(
-      title: message.notification?.title ?? '매모지 알림',
-      body: message.notification?.body ?? '새로운 알림이 도착했어요.',
+    unawaited(
+      showWebForegroundNotification(
+        title: message.notification?.title ?? '매모지 알림',
+        body: message.notification?.body ?? '새로운 알림이 도착했어요.',
+      ),
     );
   }
 
