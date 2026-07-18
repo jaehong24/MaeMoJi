@@ -279,10 +279,10 @@ class _SupplementalToneChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: MaeMojiColors.paperAccent,
+        color: MaeMojiColors.maintain.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: MaeMojiColors.maintain.withValues(alpha: 0.16),
+          color: MaeMojiColors.maintain.withValues(alpha: 0.12),
         ),
       ),
       child: Text(

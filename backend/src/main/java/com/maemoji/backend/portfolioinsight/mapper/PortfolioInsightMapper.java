@@ -24,6 +24,8 @@ public interface PortfolioInsightMapper {
             @Param("portfolioItemId") Long portfolioItemId
     );
 
+    Long findLatestActivePortfolioItemIdByUserId(@Param("userId") Long userId);
+
     void deletePortfolioReasons(@Param("portfolioItemId") Long portfolioItemId);
 
     void insertPortfolioReason(
@@ -103,6 +105,12 @@ public interface PortfolioInsightMapper {
     UserAlertEventRecord findAlertByDedupeKey(
             @Param("userId") Long userId,
             @Param("dedupeKey") String dedupeKey
+    );
+
+    OffsetDateTime findLatestSuccessfulPushSentAt(
+            @Param("userId") Long userId,
+            @Param("portfolioItemId") Long portfolioItemId,
+            @Param("alertType") String alertType
     );
 
     int markAlertRead(

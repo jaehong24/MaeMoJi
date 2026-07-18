@@ -25,7 +25,9 @@ public class LogoProxyController {
     private static final int MAX_LOGO_BYTES = 2 * 1024 * 1024;
     private static final Set<String> ALLOWED_HOSTS = Set.of(
             "static2.finnhub.io",
-            "finnhub.io"
+            "finnhub.io",
+            "financialmodelingprep.com",
+            "www.financialmodelingprep.com"
     );
 
     private final HttpClient httpClient = HttpClient.newBuilder()

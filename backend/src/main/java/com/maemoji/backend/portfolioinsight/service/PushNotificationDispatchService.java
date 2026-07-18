@@ -4,6 +4,8 @@ import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import com.google.firebase.messaging.WebpushConfig;
+import com.google.firebase.messaging.WebpushNotification;
 import com.maemoji.backend.portfolioinsight.dto.TestPushNotificationRequest;
 import com.maemoji.backend.portfolioinsight.dto.TestPushNotificationResponse;
 import com.maemoji.backend.portfolioinsight.domain.UserAlertEventRecord;
@@ -16,7 +18,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Locale;
 
 @Service
 public class PushNotificationDispatchService {
@@ -38,12 +42,35 @@ public class PushNotificationDispatchService {
     public PushDispatchPlan planImmediateDispatch(Long userId, UserAlertEventRecord alertEvent) {
         final UserNotificationPreferenceRecord preference =
                 portfolioInsightMapper.findNotificationPreferenceByUserId(userId);
+        final OffsetDateTime now = OffsetDateTime.now(
+                ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE)
+        );
 
         if (!pushNotificationPolicyService.isImmediatePushEligible(alertEvent, preference)) {
             return PushDispatchPlan.inAppOnly(
                     userId,
                     pushNotificationPolicyService.resolveNotificationKind(alertEvent),
                     "현재 정책상 푸시 발송 대상이 아닙니다."
+            );
+        }
+        if (pushNotificationPolicyService.isSuppressedByQuietHours(preference, now)) {
+            return PushDispatchPlan.inAppOnly(
+                    userId,
+                    pushNotificationPolicyService.resolveNotificationKind(alertEvent),
+                    "사용자 조용한 시간 설정으로 즉시 푸시를 보류합니다."
+            );
+        }
+        final OffsetDateTime lastSuccessfulSentAt =
+                portfolioInsightMapper.findLatestSuccessfulPushSentAt(
+                        userId,
+                        alertEvent.getPortfolioItemId(),
+                        safeText(alertEvent.getAlertType())
+                );
+        if (pushNotificationPolicyService.isWithinCooldown(alertEvent, lastSuccessfulSentAt, now)) {
+            return PushDispatchPlan.inAppOnly(
+                    userId,
+                    pushNotificationPolicyService.resolveNotificationKind(alertEvent),
+                    "같은 성격의 알림이 최근에 발송되어 이번 푸시는 생략합니다."
             );
         }
 
@@ -62,7 +89,8 @@ public class PushNotificationDispatchService {
                         "alertId", String.valueOf(alertEvent.getId()),
                         "portfolioItemId", String.valueOf(alertEvent.getPortfolioItemId()),
                         "stockId", String.valueOf(alertEvent.getStockId()),
-                        "alertType", safeText(alertEvent.getAlertType())
+                        "alertType", safeText(alertEvent.getAlertType()),
+                        "focusSection", resolveFocusSection(alertEvent)
                 ),
                 activeDevices
         );
@@ -150,12 +178,23 @@ public class PushNotificationDispatchService {
             return new TestPushNotificationResponse(false, 0, 0, 0, "활성화된 디바이스 토큰이 없습니다.");
         }
 
-        final String title = normalize(request == null ? null : request.title(), "매모지 테스트 알림");
-        final String body = normalize(request == null ? null : request.body(), "현재 기기에 테스트 푸시를 보냈어요.");
-        final Map<String, String> data = Map.of(
-                "type", "TEST_PUSH",
-                "target", "SELF"
+        final String alertType = normalizeAlertType(request == null ? null : request.alertType());
+        final String title = normalize(
+                request == null ? null : request.title(),
+                defaultTestTitle(alertType)
         );
+        final String body = normalize(
+                request == null ? null : request.body(),
+                defaultTestBody(alertType)
+        );
+        final Long portfolioItemId = portfolioInsightMapper.findLatestActivePortfolioItemIdByUserId(userId);
+        final Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "ALERT_EVENT");
+        data.put("alertType", alertType);
+        data.put("focusSection", resolveFocusSection(alertType));
+        if (portfolioItemId != null && portfolioItemId > 0) {
+            data.put("portfolioItemId", String.valueOf(portfolioItemId));
+        }
 
         final List<Message> messages = activeDevices.stream()
                 .map(device -> buildMessage(device.getFcmToken(), title, body, data))
@@ -191,6 +230,12 @@ public class PushNotificationDispatchService {
             String body,
             Map<String, String> data
     ) {
+        final WebpushNotification webNotification = WebpushNotification.builder()
+                .setTitle(title)
+                .setBody(body)
+                .setIcon("/icons/Icon-192.png")
+                .build();
+
         return Message.builder()
                 .setToken(token)
                 .setNotification(Notification.builder()
@@ -204,6 +249,10 @@ public class PushNotificationDispatchService {
                                 .setChannelId("maemoji_alerts")
                                 .build())
                         .build())
+                .setWebpushConfig(WebpushConfig.builder()
+                        .putAllData(data)
+                        .setNotification(webNotification)
+                        .build())
                 .build();
     }
 
@@ -216,6 +265,48 @@ public class PushNotificationDispatchService {
             return fallback;
         }
         return value.trim();
+    }
+
+    private String resolveFocusSection(UserAlertEventRecord alertEvent) {
+        final String alertType = safeText(alertEvent == null ? null : alertEvent.getAlertType()).trim().toUpperCase();
+        return resolveFocusSection(alertType);
+    }
+
+    private String resolveFocusSection(String alertType) {
+        final String normalized = safeText(alertType).trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "NEWS_WEAKENED" -> "NEWS";
+            case "PRICE_RISK", "STATUS_CHANGED", "STATUS_DOWNGRADED" -> "RECOMMENDATION";
+            default -> "TOP";
+        };
+    }
+
+    private String normalizeAlertType(String rawAlertType) {
+        final String normalized = safeText(rawAlertType).trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "PRICE_RISK", "NEWS_WEAKENED", "STATUS_DOWNGRADED", "STATUS_CHANGED" -> normalized;
+            default -> "STATUS_CHANGED";
+        };
+    }
+
+    private String defaultTestTitle(String alertType) {
+        return switch (alertType) {
+            case "PRICE_RISK" -> "가격 흔들림 테스트";
+            case "NEWS_WEAKENED" -> "뉴스 악화 테스트";
+            case "STATUS_DOWNGRADED" -> "의견 하향 테스트";
+            case "STATUS_CHANGED" -> "의견 변경 테스트";
+            default -> "매모지 테스트 알림";
+        };
+    }
+
+    private String defaultTestBody(String alertType) {
+        return switch (alertType) {
+            case "PRICE_RISK" -> "가격 흐름이 흔들리는 상황을 테스트로 보냈어요.";
+            case "NEWS_WEAKENED" -> "관련 뉴스 분위기가 약해지는 상황을 테스트로 보냈어요.";
+            case "STATUS_DOWNGRADED" -> "추천 의견이 하향되는 상황을 테스트로 보냈어요.";
+            case "STATUS_CHANGED" -> "추천 의견 변화 알림 동작을 테스트로 보냈어요.";
+            default -> "현재 기기에 테스트 푸시를 보냈어요.";
+        };
     }
 
     public record PushDispatchPlan(

@@ -33,13 +33,17 @@ public class StockLogoCacheService {
     }
 
     public String resolveDisplayLogoUrl(Stock stock) {
+        if (stock == null) {
+            return null;
+        }
         if (hasText(stock.getLogoUrl())) {
             return stock.getLogoUrl();
         }
-        if (!shouldCheck(stock)) {
+        final String symbol = resolveSymbol(stock);
+        if (!hasText(symbol)) {
             return null;
         }
-        return stockLogoProvider.logoUrl(resolveSymbol(stock));
+        return stockLogoProvider.logoUrl(symbol);
     }
 
     @Async("stockLogoExecutor")

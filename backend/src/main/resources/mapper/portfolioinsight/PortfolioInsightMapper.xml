@@ -13,6 +13,15 @@
         limit 1
     </select>
 
+    <select id="findLatestActivePortfolioItemIdByUserId" resultType="long">
+        select id
+        from portfolio_items
+        where user_id = #{userId}
+          and is_active = true
+        order by updated_at desc, created_at desc, id desc
+        limit 1
+    </select>
+
     <delete id="deletePortfolioReasons">
         delete from portfolio_item_reasons
         where portfolio_item_id = #{portfolioItemId}
@@ -286,6 +295,16 @@
         where user_id = #{userId}
           and dedupe_key = #{dedupeKey}
         limit 1
+    </select>
+
+    <select id="findLatestSuccessfulPushSentAt" resultType="java.time.OffsetDateTime">
+        select max(pnd.sent_at)
+        from push_notification_deliveries pnd
+        join user_alert_events uae on uae.id = pnd.alert_event_id
+        where pnd.user_id = #{userId}
+          and uae.portfolio_item_id = #{portfolioItemId}
+          and pnd.alert_type = #{alertType}
+          and pnd.delivery_status = 'SENT'
     </select>
 
     <update id="markAlertRead">

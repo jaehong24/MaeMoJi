@@ -14,6 +14,7 @@ import 'services/auth_service.dart';
 import 'services/auth_session_store.dart';
 import 'services/api_exception.dart';
 import 'services/local_dev_preferences_store.dart';
+import 'services/notification_navigation_service.dart';
 import 'services/notification_registration_service.dart';
 import 'theme/app_theme.dart';
 
@@ -106,8 +107,10 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
             if (!_notificationBootstrapRequested) {
               _notificationBootstrapRequested = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                NotificationRegistrationService.instance.initializeIfSupported();
                 AppNavigationService.instance.flushPendingIfAny();
+                NotificationNavigationService.instance.flushPendingIfAny();
+                NotificationRegistrationService.instance
+                    .initializeIfSupported();
               });
             }
 

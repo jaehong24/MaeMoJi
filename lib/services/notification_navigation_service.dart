@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import 'app_navigation_service.dart';
+import 'portfolio_insight_service.dart';
+import 'web_notification_payload_helper.dart';
 
 class NotificationNavigationService {
   NotificationNavigationService._();
@@ -13,14 +15,26 @@ class NotificationNavigationService {
       NotificationNavigationService._();
 
   StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
+  final PortfolioInsightService _portfolioInsightService =
+      const PortfolioInsightService();
   bool _initialized = false;
+  int? _pendingAlertReadId;
 
   Future<void> initializeIfSupported() async {
-    if (_initialized || kIsWeb) {
+    if (_initialized) {
       return;
     }
 
     _initialized = true;
+
+    final webPayload = consumeWebNotificationPayload();
+    if (webPayload != null && webPayload.trim().isNotEmpty) {
+      handleLocalNotificationPayload(webPayload);
+    }
+
+    if (kIsWeb) {
+      return;
+    }
 
     _messageOpenedSubscription ??= FirebaseMessaging.onMessageOpenedApp.listen(
       _handleRemoteMessage,
@@ -60,10 +74,38 @@ class NotificationNavigationService {
       return;
     }
 
+    final alertId = int.tryParse((data['alertId'] ?? '').toString());
     final alertType = (data['alertType'] ?? data['type'] ?? '').toString();
+    final focusSection = (data['focusSection'] ?? '').toString();
+    if (alertId != null && alertId > 0) {
+      if (AppNavigationService.instance.navigatorKey.currentState == null) {
+        _pendingAlertReadId = alertId;
+      } else {
+        unawaited(_markAlertAsRead(alertId));
+      }
+    }
     AppNavigationService.instance.openPortfolioItemFromAlert(
       portfolioItemId: portfolioItemId,
       alertType: alertType,
+      alertId: alertId,
+      focusSection: focusSection,
     );
+  }
+
+  void flushPendingIfAny() {
+    final alertId = _pendingAlertReadId;
+    if (alertId == null || alertId <= 0) {
+      return;
+    }
+    _pendingAlertReadId = null;
+    unawaited(_markAlertAsRead(alertId));
+  }
+
+  Future<void> _markAlertAsRead(int alertId) async {
+    try {
+      await _portfolioInsightService.markAlertAsRead(alertId);
+    } catch (_) {
+      // 알림 진입 시 읽음 처리가 늦어져도 상세 이동 자체는 막지 않습니다.
+    }
   }
 }

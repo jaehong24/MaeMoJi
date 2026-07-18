@@ -48,7 +48,9 @@ class PortfolioInsightService {
         .toList();
   }
 
-  Future<List<PortfolioReason>> fetchPortfolioReasons(int portfolioItemId) async {
+  Future<List<PortfolioReason>> fetchPortfolioReasons(
+    int portfolioItemId,
+  ) async {
     final uri = ApiConfig.buildUri(
       '/api/portfolio-items/$portfolioItemId/reasons',
       isWeb: kIsWeb,
@@ -152,7 +154,9 @@ class PortfolioInsightService {
         .map(
           (item) => WeeklyReportListItem(
             reportId: (item['reportId'] as num?)?.toInt() ?? 0,
-            reportWeek: DateTime.tryParse((item['reportWeek'] ?? '').toString()),
+            reportWeek: DateTime.tryParse(
+              (item['reportWeek'] ?? '').toString(),
+            ),
             generatedAt: DateTime.tryParse(
               (item['generatedAt'] ?? '').toString(),
             ),
@@ -341,6 +345,7 @@ class PortfolioInsightService {
   }
 
   Future<String> sendTestNotification({
+    String? alertType,
     String? title,
     String? body,
   }) async {
@@ -354,6 +359,7 @@ class PortfolioInsightService {
           uri,
           headers: ApiAuthHeaders.json(),
           body: jsonEncode({
+            'alertType': alertType,
             'title': title,
             'body': body,
           }),

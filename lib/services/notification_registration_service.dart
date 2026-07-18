@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import '../config/firebase_web_config.dart';
 import '../models/user_device_info.dart';
 import 'portfolio_insight_service.dart';
 
@@ -54,7 +55,9 @@ class NotificationRegistrationService {
         return null;
       }
 
-      final token = await FirebaseMessaging.instance.getToken();
+      final token = kIsWeb
+          ? await _getWebToken()
+          : await FirebaseMessaging.instance.getToken();
       if (token == null || token.trim().isEmpty) {
         return null;
       }
@@ -73,7 +76,9 @@ class NotificationRegistrationService {
     }
 
     try {
-      final token = await FirebaseMessaging.instance.getToken();
+      final token = kIsWeb
+          ? await _getWebToken()
+          : await FirebaseMessaging.instance.getToken();
       if (token == null || token.trim().isEmpty) {
         return;
       }
@@ -95,7 +100,8 @@ class NotificationRegistrationService {
 
   bool get _isSupportedPlatform {
     if (kIsWeb) {
-      return false;
+      return FirebaseWebConfig.hasRequiredOptions &&
+          FirebaseWebConfig.hasVapidKey;
     }
 
     return defaultTargetPlatform == TargetPlatform.android ||
@@ -111,5 +117,14 @@ class NotificationRegistrationService {
       default:
         return 'WEB';
     }
+  }
+
+  Future<String?> _getWebToken() {
+    if (!FirebaseWebConfig.hasVapidKey) {
+      return Future<String?>.value(null);
+    }
+    return FirebaseMessaging.instance.getToken(
+      vapidKey: FirebaseWebConfig.vapidKey,
+    );
   }
 }

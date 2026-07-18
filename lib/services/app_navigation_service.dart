@@ -14,12 +14,16 @@ class AppNavigationService {
   void openPortfolioItemFromAlert({
     required int portfolioItemId,
     required String alertType,
+    int? alertId,
+    String? focusSection,
   }) {
     final navigator = navigatorKey.currentState;
     if (navigator == null) {
       _pendingAlertNavigation = _PendingAlertNavigation(
         portfolioItemId: portfolioItemId,
         alertType: alertType,
+        alertId: alertId,
+        focusSection: focusSection,
       );
       return;
     }
@@ -28,7 +32,7 @@ class AppNavigationService {
       MaterialPageRoute<void>(
         builder: (_) => StockDetailScreen(
           portfolioItemId: portfolioItemId,
-          initialFocusSection: _focusSectionForAlertType(alertType),
+          initialFocusSection: _resolveFocusSection(alertType, focusSection),
         ),
       ),
     );
@@ -43,7 +47,26 @@ class AppNavigationService {
     openPortfolioItemFromAlert(
       portfolioItemId: pending.portfolioItemId,
       alertType: pending.alertType,
+      alertId: pending.alertId,
+      focusSection: pending.focusSection,
     );
+  }
+
+  StockDetailFocusSection _resolveFocusSection(
+    String alertType,
+    String? focusSection,
+  ) {
+    final normalizedFocus = (focusSection ?? '').trim().toUpperCase();
+    switch (normalizedFocus) {
+      case 'NEWS':
+        return StockDetailFocusSection.news;
+      case 'RECOMMENDATION':
+        return StockDetailFocusSection.recommendation;
+      case 'TOP':
+        return StockDetailFocusSection.top;
+    }
+
+    return _focusSectionForAlertType(alertType);
   }
 
   StockDetailFocusSection _focusSectionForAlertType(String alertType) {
@@ -63,8 +86,12 @@ class _PendingAlertNavigation {
   const _PendingAlertNavigation({
     required this.portfolioItemId,
     required this.alertType,
+    required this.alertId,
+    required this.focusSection,
   });
 
   final int portfolioItemId;
   final String alertType;
+  final int? alertId;
+  final String? focusSection;
 }

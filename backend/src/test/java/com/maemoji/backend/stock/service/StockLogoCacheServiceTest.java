@@ -60,10 +60,13 @@ class StockLogoCacheServiceTest {
         final Stock stock = stock("NOLOGO");
         stock.setLogoStatus("MISSING");
         stock.setLogoCheckedAt(OffsetDateTime.now().minusDays(1));
+        when(stockLogoProvider.logoUrl("NOLOGO"))
+                .thenReturn("https://financialmodelingprep.com/image-stock/NOLOGO.png");
 
         service.cacheMissingLogos(List.of(stock));
 
-        assertThat(service.resolveDisplayLogoUrl(stock)).isNull();
+        assertThat(service.resolveDisplayLogoUrl(stock))
+                .isEqualTo("https://financialmodelingprep.com/image-stock/NOLOGO.png");
         verify(stockLogoProvider, never()).checkLogo("NOLOGO");
     }
 

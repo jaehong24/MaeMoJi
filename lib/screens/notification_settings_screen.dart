@@ -15,14 +15,15 @@ class NotificationSettingsScreen extends StatefulWidget {
       _NotificationSettingsScreenState();
 }
 
-class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
+class _NotificationSettingsScreenState
+    extends State<NotificationSettingsScreen> {
   final PortfolioInsightService _portfolioInsightService =
       const PortfolioInsightService();
 
   late Future<_NotificationSettingsBundle> _bundleFuture;
   bool _isSaving = false;
   bool _isSyncingDevice = false;
-  bool _isSendingTest = false;
+  String? _sendingTestType;
   UserNotificationPreference? _editingPreference;
 
   static const List<String> _weeklyDays = <String>[
@@ -82,10 +83,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       style: theme.textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      '잠시 후 다시 시도해 주세요.',
-                      style: theme.textTheme.bodyMedium,
-                    ),
+                    Text('잠시 후 다시 시도해 주세요.', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 14),
                     FilledButton.tonal(
                       onPressed: _reload,
@@ -153,9 +151,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       value: preference.priceRiskAlertEnabled,
                       onChanged: preference.instantAlertEnabled
                           ? (value) => _updatePreference(
-                              preference.copyWith(
-                                priceRiskAlertEnabled: value,
-                              ),
+                              preference.copyWith(priceRiskAlertEnabled: value),
                             )
                           : null,
                     ),
@@ -302,18 +298,55 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     const SizedBox(height: 14),
                     FilledButton.tonal(
                       onPressed: _isSyncingDevice ? null : _syncDevice,
-                      child: Text(_isSyncingDevice ? '연결 확인 중...' : '이 기기 다시 연결'),
+                      child: Text(
+                        _isSyncingDevice ? '연결 확인 중...' : '이 기기 다시 연결',
+                      ),
                     ),
                     const SizedBox(height: 10),
-                    OutlinedButton(
-                      onPressed: _isSendingTest ? null : _sendTestNotification,
-                      child: Text(
-                        _isSendingTest ? '테스트 알림 보내는 중...' : '테스트 알림 바로 보내기',
+                    Text(
+                      '테스트 알림',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: MaeMojiColors.ink,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _TestNotificationButton(
+                          label: '의견 변경',
+                          busy: _sendingTestType == 'STATUS_CHANGED',
+                          onPressed: _sendingTestType == null
+                              ? () => _sendTypedTestNotification(
+                                  alertType: 'STATUS_CHANGED',
+                                )
+                              : null,
+                        ),
+                        _TestNotificationButton(
+                          label: '뉴스 악화',
+                          busy: _sendingTestType == 'NEWS_WEAKENED',
+                          onPressed: _sendingTestType == null
+                              ? () => _sendTypedTestNotification(
+                                  alertType: 'NEWS_WEAKENED',
+                                )
+                              : null,
+                        ),
+                        _TestNotificationButton(
+                          label: '가격 흔들림',
+                          busy: _sendingTestType == 'PRICE_RISK',
+                          onPressed: _sendingTestType == null
+                              ? () => _sendTypedTestNotification(
+                                  alertType: 'PRICE_RISK',
+                                )
+                              : null,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '버튼을 누르면 현재 로그인한 기기로 바로 테스트 푸시를 보냅니다.',
+                      '현재 로그인한 기기로 테스트 푸시를 보내고, 최근 포트폴리오 종목 상세로 이동하는 흐름까지 확인할 수 있어요.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: MaeMojiColors.inkMuted,
                         height: 1.45,
@@ -389,9 +422,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     });
 
     try {
-      final saved = await _portfolioInsightService.updateNotificationPreferences(
-        preference,
-      );
+      final saved = await _portfolioInsightService
+          .updateNotificationPreferences(preference);
       if (!mounted) {
         return;
       }
@@ -408,9 +440,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            exception.toString().replaceFirst('Exception: ', ''),
-          ),
+          content: Text(exception.toString().replaceFirst('Exception: ', '')),
         ),
       );
     } finally {
@@ -435,16 +465,16 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       setState(() {
         _bundleFuture = _loadBundle();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이 기기의 푸시 연결을 다시 확인했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이 기기의 푸시 연결을 다시 확인했어요.')));
     } catch (_) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('디바이스 연결 확인에 실패했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('디바이스 연결 확인에 실패했어요.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -454,16 +484,15 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     }
   }
 
-  Future<void> _sendTestNotification() async {
+  Future<void> _sendTypedTestNotification({required String alertType}) async {
     setState(() {
-      _isSendingTest = true;
+      _sendingTestType = alertType;
     });
 
     try {
       await NotificationRegistrationService.instance.syncNow();
       final message = await _portfolioInsightService.sendTestNotification(
-        title: '매모지 테스트 알림',
-        body: '방금 앱에서 직접 보낸 테스트 알림이에요.',
+        alertType: alertType,
       );
       if (!mounted) {
         return;
@@ -480,15 +509,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            exception.toString().replaceFirst('Exception: ', ''),
-          ),
+          content: Text(exception.toString().replaceFirst('Exception: ', '')),
         ),
       );
     } finally {
       if (mounted) {
         setState(() {
-          _isSendingTest = false;
+          _sendingTestType = null;
         });
       }
     }
@@ -600,7 +627,9 @@ class _SelectionField<T> extends StatelessWidget {
           onChanged: enabled ? onChanged : null,
           decoration: InputDecoration(
             filled: true,
-            fillColor: enabled ? MaeMojiColors.paperSoft : MaeMojiColors.paperAccent,
+            fillColor: enabled
+                ? MaeMojiColors.paperSoft
+                : MaeMojiColors.paperAccent,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: const BorderSide(color: MaeMojiColors.stroke),
@@ -683,10 +712,7 @@ class _DeviceRow extends StatelessWidget {
 }
 
 class _DeviceStatusPill extends StatelessWidget {
-  const _DeviceStatusPill({
-    required this.label,
-    required this.color,
-  });
+  const _DeviceStatusPill({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -704,6 +730,37 @@ class _DeviceStatusPill extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: color,
           fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _TestNotificationButton extends StatelessWidget {
+  const _TestNotificationButton({
+    required this.label,
+    required this.busy,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        side: const BorderSide(color: MaeMojiColors.stroke),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: Text(
+        busy ? '$label 보내는 중...' : label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: MaeMojiColors.ink,
         ),
       ),
     );
