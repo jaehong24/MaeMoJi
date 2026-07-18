@@ -3,7 +3,7 @@ class FirebaseWebConfig {
 
   static const String apiKey = String.fromEnvironment(
     'FIREBASE_WEB_API_KEY',
-    defaultValue: 'AIzaSyAtrk75LhZ2gHppRo-lnrmrwOAFL9gYc2A',
+    defaultValue: 'AIzaSyCwkMfwEiFQ73_kPP8iAs4-4CWnwgQcsSc',
   );
 
   static const String authDomain = String.fromEnvironment(
@@ -33,7 +33,7 @@ class FirebaseWebConfig {
 
   static const String measurementId = String.fromEnvironment(
     'FIREBASE_WEB_MEASUREMENT_ID',
-    defaultValue: '',
+    defaultValue: 'G-W3GMYX8DS7',
   );
 
   static const String vapidKey = String.fromEnvironment(

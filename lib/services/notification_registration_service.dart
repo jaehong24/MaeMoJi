@@ -34,7 +34,7 @@ class NotificationRegistrationService {
     await syncNow();
   }
 
-  Future<UserDeviceInfo?> syncNow() async {
+  Future<UserDeviceInfo?> syncNow({bool reportFailure = false}) async {
     if (!_isSupportedPlatform || _syncInProgress) {
       return null;
     }
@@ -52,6 +52,9 @@ class NotificationRegistrationService {
           permission.authorizationStatus == AuthorizationStatus.authorized ||
           permission.authorizationStatus == AuthorizationStatus.provisional;
       if (!isAuthorized) {
+        if (reportFailure) {
+          throw Exception('브라우저 알림 권한이 꺼져 있어요. 주소창의 알림 권한을 허용해 주세요.');
+        }
         return null;
       }
 
@@ -59,11 +62,22 @@ class NotificationRegistrationService {
           ? await _getWebToken()
           : await FirebaseMessaging.instance.getToken();
       if (token == null || token.trim().isEmpty) {
+        if (reportFailure) {
+          throw Exception('웹 알림 토큰을 만들지 못했어요. 페이지를 새로고침한 뒤 다시 연결해 주세요.');
+        }
         return null;
       }
 
       return await _registerToken(token);
-    } catch (_) {
+    } catch (exception) {
+      if (reportFailure) {
+        final message = exception.toString().replaceFirst('Exception: ', '');
+        throw Exception(
+          message.trim().isEmpty
+              ? '웹 알림 연결에 실패했어요. 브라우저 권한과 네트워크를 확인해 주세요.'
+              : message,
+        );
+      }
       return null;
     } finally {
       _syncInProgress = false;

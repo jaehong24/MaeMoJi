@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'app_navigation_service.dart';
 import 'portfolio_insight_service.dart';
 import 'web_notification_payload_helper.dart';
+import 'web_foreground_notification.dart';
 
 class NotificationNavigationService {
   NotificationNavigationService._();
@@ -15,6 +16,7 @@ class NotificationNavigationService {
       NotificationNavigationService._();
 
   StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
   final PortfolioInsightService _portfolioInsightService =
       const PortfolioInsightService();
   bool _initialized = false;
@@ -33,6 +35,9 @@ class NotificationNavigationService {
     }
 
     if (kIsWeb) {
+      _foregroundMessageSubscription ??= FirebaseMessaging.onMessage.listen(
+        _showWebForegroundNotification,
+      );
       return;
     }
 
@@ -64,6 +69,13 @@ class NotificationNavigationService {
 
   void _handleRemoteMessage(RemoteMessage message) {
     _navigateFromData(message.data);
+  }
+
+  void _showWebForegroundNotification(RemoteMessage message) {
+    showWebForegroundNotification(
+      title: message.notification?.title ?? '매모지 알림',
+      body: message.notification?.body ?? '새로운 알림이 도착했어요.',
+    );
   }
 
   void _navigateFromData(Map<String, dynamic> data) {

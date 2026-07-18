@@ -458,7 +458,12 @@ class _NotificationSettingsScreenState
     });
 
     try {
-      await NotificationRegistrationService.instance.syncNow();
+      final device = await NotificationRegistrationService.instance.syncNow(
+        reportFailure: true,
+      );
+      if (device == null) {
+        throw Exception('푸시 알림 기기를 등록하지 못했어요.');
+      }
       if (!mounted) {
         return;
       }
@@ -468,13 +473,15 @@ class _NotificationSettingsScreenState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('이 기기의 푸시 연결을 다시 확인했어요.')));
-    } catch (_) {
+    } catch (exception) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('디바이스 연결 확인에 실패했어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(exception.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -490,7 +497,12 @@ class _NotificationSettingsScreenState
     });
 
     try {
-      await NotificationRegistrationService.instance.syncNow();
+      final device = await NotificationRegistrationService.instance.syncNow(
+        reportFailure: true,
+      );
+      if (device == null) {
+        throw Exception('푸시 알림 기기를 등록하지 못했어요.');
+      }
       final message = await _portfolioInsightService.sendTestNotification(
         alertType: alertType,
       );

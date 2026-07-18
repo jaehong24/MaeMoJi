@@ -27,6 +27,11 @@ if (hasRequiredConfig) {
   const messaging = firebase.messaging();
 
   messaging.onBackgroundMessage((payload) => {
+    // notification payload는 브라우저가 자동 표시하므로 중복 알림을 만들지 않습니다.
+    if (payload.notification) {
+      return;
+    }
+
     const notification = payload.notification || {};
     const data = payload.data || {};
     const title = notification.title || "매모지 알림";
