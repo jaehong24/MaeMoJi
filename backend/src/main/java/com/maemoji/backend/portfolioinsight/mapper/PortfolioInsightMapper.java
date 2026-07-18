@@ -49,11 +49,6 @@ public interface PortfolioInsightMapper {
 
     void deleteWeeklyReportItemsByReportId(@Param("reportId") Long reportId);
 
-    void deleteWeeklyReportByUserIdAndWeek(
-            @Param("userId") Long userId,
-            @Param("reportWeek") LocalDate reportWeek
-    );
-
     void insertWeeklyReport(
             @Param("userId") Long userId,
             @Param("reportWeek") LocalDate reportWeek,

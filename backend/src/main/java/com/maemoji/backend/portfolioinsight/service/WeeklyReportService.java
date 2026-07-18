@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +48,12 @@ public class WeeklyReportService {
         final List<ResolvedTrend> trends = resolveTrends(trendRows);
 
         final List<ResolvedTrend> sortedTrends = trends.stream()
-                .sorted((left, right) -> Integer.compare(
-                        Math.abs(right.scoreDelta()),
-                        Math.abs(left.scoreDelta())
-                ))
+                .sorted(Comparator
+                        .comparingInt(this::displayPriority)
+                        .thenComparing((left, right) -> Integer.compare(
+                                Math.abs(right.scoreDelta()),
+                                Math.abs(left.scoreDelta())
+                        )))
                 .toList();
 
         final int changedItemCount = (int) sortedTrends.stream().filter(ResolvedTrend::isChanged).count();
@@ -61,7 +64,6 @@ public class WeeklyReportService {
         final String headline = buildHeadline(changedItemCount, alertItemCount);
         final String summary = buildSummary(changedItemCount, positiveItemCount, negativeItemCount);
 
-        portfolioInsightMapper.deleteWeeklyReportByUserIdAndWeek(userId, reportWeek);
         portfolioInsightMapper.insertWeeklyReport(
                 userId,
                 reportWeek,
@@ -75,6 +77,7 @@ public class WeeklyReportService {
         );
 
         final Long reportId = portfolioInsightMapper.findWeeklyReportIdByUserIdAndWeek(userId, reportWeek);
+        portfolioInsightMapper.deleteWeeklyReportItemsByReportId(reportId);
         for (int index = 0; index < sortedTrends.size(); index++) {
             final ResolvedTrend trend = sortedTrends.get(index);
             portfolioInsightMapper.insertWeeklyReportItem(
@@ -89,26 +92,6 @@ public class WeeklyReportService {
                     trend.summary(),
                     index
             );
-            if (trend.shouldCreateAlert()) {
-                final String dedupeKey =
-                        userId + ":" + reportWeek + ":" + trend.current().getPortfolioItemId() + ":" + trend.changeType();
-                final int inserted = portfolioInsightMapper.insertAlertEvent(
-                        userId,
-                        trend.current().getPortfolioItemId(),
-                        trend.current().getStockId(),
-                        trend.changeType(),
-                        buildAlertTitle(trend.current().getCompanyName(), trend.headlineLabel()),
-                        trend.summary(),
-                        dedupeKey,
-                        generatedAt
-                );
-                final var alertEvent = inserted > 0
-                        ? portfolioInsightMapper.findAlertByDedupeKey(userId, dedupeKey)
-                        : null;
-                if (alertEvent != null) {
-                    pushNotificationDispatchService.dispatchImmediate(userId, alertEvent);
-                }
-            }
         }
         final WeeklyReportResponse response = getLatestReport(userId);
         weeklyDigestNotificationService.dispatchWeeklyDigest(userId, response);
@@ -394,12 +377,33 @@ public class WeeklyReportService {
         return "이번 주 포트폴리오는 큰 방향 변화 없이 유지되고 있어요";
     }
 
+    private int displayPriority(ResolvedTrend trend) {
+        return switch (trend.changeType()) {
+            case "STATUS_DOWNGRADED" -> 0;
+            case "PRICE_RISK" -> 1;
+            case "NEWS_WEAKENED" -> 2;
+            case "STATUS_REBALANCED", "STATUS_UPGRADED" -> 3;
+            case "NEWS_IMPROVED", "PRICE_IMPROVED", "FUNDAMENTAL_IMPROVED" -> 4;
+            case "NEW_ENTRY" -> 5;
+            default -> 6;
+        };
+    }
+
     private String buildSummary(int changedItemCount, int positiveItemCount, int negativeItemCount) {
         if (changedItemCount == 0) {
             return "점수와 추천 상태가 크게 흔들린 종목은 없었어요.";
         }
-        return "좋아진 종목 " + positiveItemCount + "개, 주의가 필요한 종목 " + negativeItemCount
-                + "개를 중심으로 이번 주 변화를 정리했어요.";
+        if (positiveItemCount > 0 && negativeItemCount > 0) {
+            return "좋아진 종목 " + positiveItemCount + "개와 주의가 필요한 종목 " + negativeItemCount
+                    + "개를 중심으로 이번 주 변화를 정리했어요.";
+        }
+        if (negativeItemCount > 0) {
+            return "주의해서 다시 볼 종목 " + negativeItemCount + "개의 이번 주 변화를 정리했어요.";
+        }
+        if (positiveItemCount > 0) {
+            return "흐름이 좋아진 종목 " + positiveItemCount + "개의 이번 주 변화를 정리했어요.";
+        }
+        return "추천 의견이 달라진 종목 " + changedItemCount + "개의 이번 주 변화를 정리했어요.";
     }
 
     private String buildAlertTitle(String companyName, String headlineLabel) {

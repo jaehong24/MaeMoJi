@@ -109,28 +109,68 @@
 
     <select id="findRecommendationTrendRowsByUserId"
             resultType="com.maemoji.backend.portfolioinsight.domain.RecommendationTrendRow">
-        with ranked as (
+        with active_items as (
             select
-                r.portfolio_item_id,
+                pi.id as portfolio_item_id,
                 pi.stock_id,
                 coalesce(s.name_ko, s.name_en) as company_name,
                 s.ticker,
-                s.logo_url,
-                r.recommendation_status,
-                r.engine_score,
-                r.news_score,
-                r.price_momentum_score,
-                r.price_stability_score,
-                r.fundamental_quality_score,
-                row_number() over (
-                    partition by r.portfolio_item_id
-                    order by r.recommendation_date desc, r.created_at desc
-                ) as row_number
-            from recommendations r
-            join portfolio_items pi on pi.id = r.portfolio_item_id
+                s.logo_url
+            from portfolio_items pi
             join stocks s on s.id = pi.stock_id
-            where r.user_id = #{userId}
+            where pi.user_id = #{userId}
               and pi.is_active = true
+        ), trend_rows as (
+            select
+                ai.portfolio_item_id,
+                ai.stock_id,
+                ai.company_name,
+                ai.ticker,
+                ai.logo_url,
+                latest.recommendation_status,
+                latest.engine_score,
+                latest.news_score,
+                latest.price_momentum_score,
+                latest.price_stability_score,
+                latest.fundamental_quality_score,
+                1 as row_number
+            from active_items ai
+            join lateral (
+                select r.*
+                from recommendations r
+                where r.portfolio_item_id = ai.portfolio_item_id
+                order by r.recommendation_date desc, r.created_at desc
+                limit 1
+            ) latest on true
+
+            union all
+
+            select
+                ai.portfolio_item_id,
+                ai.stock_id,
+                ai.company_name,
+                ai.ticker,
+                ai.logo_url,
+                baseline.recommendation_status,
+                baseline.engine_score,
+                baseline.news_score,
+                baseline.price_momentum_score,
+                baseline.price_stability_score,
+                baseline.fundamental_quality_score,
+                2 as row_number
+            from active_items ai
+            join lateral (
+                select r.*
+                from recommendations r
+                where r.portfolio_item_id = ai.portfolio_item_id
+                  and r.recommendation_date &lt;= (
+                      select max(latest_date.recommendation_date) - 6
+                      from recommendations latest_date
+                      where latest_date.portfolio_item_id = ai.portfolio_item_id
+                  )
+                order by r.recommendation_date desc, r.created_at desc
+                limit 1
+            ) baseline on true
         )
         select
             portfolio_item_id,
@@ -145,20 +185,13 @@
             price_stability_score,
             fundamental_quality_score,
             row_number
-        from ranked
-        where row_number &lt;= 2
+        from trend_rows
         order by portfolio_item_id asc, row_number asc
     </select>
 
     <delete id="deleteWeeklyReportItemsByReportId">
         delete from portfolio_weekly_report_items
         where report_id = #{reportId}
-    </delete>
-
-    <delete id="deleteWeeklyReportByUserIdAndWeek">
-        delete from portfolio_weekly_reports
-        where user_id = #{userId}
-          and report_week = #{reportWeek}
     </delete>
 
     <insert id="insertWeeklyReport">
@@ -183,6 +216,15 @@
             #{positiveItemCount},
             #{negativeItemCount}
         )
+        on conflict (user_id, report_week) do update
+        set generated_at = excluded.generated_at,
+            headline = excluded.headline,
+            summary = excluded.summary,
+            changed_item_count = excluded.changed_item_count,
+            alert_item_count = excluded.alert_item_count,
+            positive_item_count = excluded.positive_item_count,
+            negative_item_count = excluded.negative_item_count,
+            updated_at = now()
     </insert>
 
     <select id="findWeeklyReportIdByUserIdAndWeek" resultType="long">
