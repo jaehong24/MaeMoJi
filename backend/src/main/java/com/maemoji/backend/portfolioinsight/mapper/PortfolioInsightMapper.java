@@ -84,7 +84,7 @@ public interface PortfolioInsightMapper {
             @Param("displayOrder") int displayOrder
     );
 
-    void insertAlertEvent(
+    int insertAlertEvent(
             @Param("userId") Long userId,
             @Param("portfolioItemId") Long portfolioItemId,
             @Param("stockId") Long stockId,

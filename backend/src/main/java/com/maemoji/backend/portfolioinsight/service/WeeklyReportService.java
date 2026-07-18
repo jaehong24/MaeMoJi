@@ -92,7 +92,7 @@ public class WeeklyReportService {
             if (trend.shouldCreateAlert()) {
                 final String dedupeKey =
                         userId + ":" + reportWeek + ":" + trend.current().getPortfolioItemId() + ":" + trend.changeType();
-                portfolioInsightMapper.insertAlertEvent(
+                final int inserted = portfolioInsightMapper.insertAlertEvent(
                         userId,
                         trend.current().getPortfolioItemId(),
                         trend.current().getStockId(),
@@ -102,7 +102,9 @@ public class WeeklyReportService {
                         dedupeKey,
                         generatedAt
                 );
-                final var alertEvent = portfolioInsightMapper.findAlertByDedupeKey(userId, dedupeKey);
+                final var alertEvent = inserted > 0
+                        ? portfolioInsightMapper.findAlertByDedupeKey(userId, dedupeKey)
+                        : null;
                 if (alertEvent != null) {
                     pushNotificationDispatchService.dispatchImmediate(userId, alertEvent);
                 }
@@ -111,6 +113,59 @@ public class WeeklyReportService {
         final WeeklyReportResponse response = getLatestReport(userId);
         weeklyDigestNotificationService.dispatchWeeklyDigest(userId, response);
         return response;
+    }
+
+    /**
+     * 일일 추천 생성 직후 최신 추천과 직전 추천을 비교해 즉시 확인할 변화만 알림으로 만듭니다.
+     * 같은 날짜·종목·유형은 dedupe key로 한 번만 저장하고, 새 이벤트에만 푸시를 발송합니다.
+     */
+    public ImmediateAlertProcessingResult processImmediateAlerts(Long userId, LocalDate analysisDate) {
+        final OffsetDateTime detectedAt = OffsetDateTime.now(HOME_ZONE);
+        final List<ResolvedTrend> importantTrends = resolveTrends(
+                portfolioInsightMapper.findRecommendationTrendRowsByUserId(userId)
+        ).stream().filter(this::isImmediateAlertTrend).toList();
+
+        int createdCount = 0;
+        int pushSuccessCount = 0;
+        int pushFailureCount = 0;
+
+        for (ResolvedTrend trend : importantTrends) {
+            final String alertType = toImmediateAlertType(trend.changeType());
+            final String dedupeKey = "daily:" + userId + ":" + analysisDate + ":"
+                    + trend.current().getPortfolioItemId() + ":" + alertType;
+            final int inserted = portfolioInsightMapper.insertAlertEvent(
+                    userId,
+                    trend.current().getPortfolioItemId(),
+                    trend.current().getStockId(),
+                    alertType,
+                    buildAlertTitle(trend.current().getCompanyName(), trend.headlineLabel()),
+                    trend.summary(),
+                    dedupeKey,
+                    detectedAt
+            );
+            if (inserted == 0) {
+                continue;
+            }
+
+            createdCount++;
+            final var alertEvent = portfolioInsightMapper.findAlertByDedupeKey(userId, dedupeKey);
+            if (alertEvent == null) {
+                pushFailureCount++;
+                continue;
+            }
+
+            final PushNotificationDispatchService.PushDispatchResult dispatchResult =
+                    pushNotificationDispatchService.dispatchImmediate(userId, alertEvent);
+            pushSuccessCount += dispatchResult.successCount();
+            pushFailureCount += dispatchResult.failureCount();
+        }
+
+        return new ImmediateAlertProcessingResult(
+                importantTrends.size(),
+                createdCount,
+                pushSuccessCount,
+                pushFailureCount
+        );
     }
 
     public WeeklyReportResponse getLatestReport(Long userId) {
@@ -351,6 +406,22 @@ public class WeeklyReportService {
         return companyName + " · " + headlineLabel;
     }
 
+    private boolean isImmediateAlertTrend(ResolvedTrend trend) {
+        return trend.changeType().startsWith("STATUS_")
+                || "NEWS_WEAKENED".equals(trend.changeType())
+                || "PRICE_RISK".equals(trend.changeType());
+    }
+
+    private String toImmediateAlertType(String changeType) {
+        return switch (changeType) {
+            case "STATUS_DOWNGRADED" -> "STATUS_DOWNGRADED";
+            case "STATUS_UPGRADED", "STATUS_REBALANCED" -> "STATUS_CHANGED";
+            case "NEWS_WEAKENED" -> "NEWS_WEAKENED";
+            case "PRICE_RISK" -> "PRICE_RISK";
+            default -> throw new IllegalArgumentException("즉시 알림 대상이 아닌 변화입니다: " + changeType);
+        };
+    }
+
     private String buildStatusChangeSummary(
             String companyName,
             String previousStatus,
@@ -424,5 +495,13 @@ public class WeeklyReportService {
         private boolean safeEquals(String left, String right) {
             return left == null ? right == null : left.equals(right);
         }
+    }
+
+    public record ImmediateAlertProcessingResult(
+            int detectedCount,
+            int createdCount,
+            int pushSuccessCount,
+            int pushFailureCount
+    ) {
     }
 }

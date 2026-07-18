@@ -2,6 +2,7 @@ package com.maemoji.backend.batch.service;
 
 import com.maemoji.backend.batch.dto.DailyBatchResult;
 import com.maemoji.backend.recommendation.service.RecommendationService;
+import com.maemoji.backend.portfolioinsight.service.WeeklyReportService;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
 import com.maemoji.backend.stock.dto.StockAssetTypeNormalizeResult;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
@@ -28,12 +29,14 @@ class DailyIntegratedBatchServiceTest {
             mock(StockAssetTypeMaintenanceService.class);
     private final RecommendationService recommendationService =
             mock(RecommendationService.class);
+    private final WeeklyReportService weeklyReportService = mock(WeeklyReportService.class);
     private final UserMapper userMapper = mock(UserMapper.class);
     private final DailyIntegratedBatchService service =
             new DailyIntegratedBatchService(
                     priceService,
                     assetTypeMaintenanceService,
                     recommendationService,
+                    weeklyReportService,
                     userMapper
             );
 
@@ -51,6 +54,10 @@ class DailyIntegratedBatchServiceTest {
         );
         when(recommendationService.generateLatestRecommendations(eq(1L), anyMap())).thenReturn(List.of());
         when(recommendationService.generateLatestRecommendations(eq(2L), anyMap())).thenReturn(List.of());
+        when(weeklyReportService.processImmediateAlerts(eq(1L), org.mockito.ArgumentMatchers.any(LocalDate.class)))
+                .thenReturn(new WeeklyReportService.ImmediateAlertProcessingResult(0, 0, 0, 0));
+        when(weeklyReportService.processImmediateAlerts(eq(2L), org.mockito.ArgumentMatchers.any(LocalDate.class)))
+                .thenReturn(new WeeklyReportService.ImmediateAlertProcessingResult(0, 0, 0, 0));
 
         final DailyBatchResult result = service.run(500);
 
@@ -62,6 +69,8 @@ class DailyIntegratedBatchServiceTest {
         verify(recommendationService).warmUpSharedNewsAnalysis();
         verify(recommendationService).generateLatestRecommendations(eq(1L), anyMap());
         verify(recommendationService).generateLatestRecommendations(eq(2L), anyMap());
+        verify(weeklyReportService).processImmediateAlerts(eq(1L), org.mockito.ArgumentMatchers.any(LocalDate.class));
+        verify(weeklyReportService).processImmediateAlerts(eq(2L), org.mockito.ArgumentMatchers.any(LocalDate.class));
     }
 
     @Test
@@ -77,6 +86,8 @@ class DailyIntegratedBatchServiceTest {
                 new RecommendationService.SharedNewsAnalysisWarmupResult(Map.of(), 0, 0, 0, 0)
         );
         when(recommendationService.generateLatestRecommendations(eq(1L), anyMap())).thenReturn(List.of());
+        when(weeklyReportService.processImmediateAlerts(eq(1L), org.mockito.ArgumentMatchers.any(LocalDate.class)))
+                .thenReturn(new WeeklyReportService.ImmediateAlertProcessingResult(0, 0, 0, 0));
         when(recommendationService.generateLatestRecommendations(eq(2L), anyMap()))
                 .thenThrow(new IllegalStateException("boom"));
 

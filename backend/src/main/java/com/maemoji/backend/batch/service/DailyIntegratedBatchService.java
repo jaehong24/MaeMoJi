@@ -3,6 +3,7 @@ package com.maemoji.backend.batch.service;
 import com.maemoji.backend.batch.dto.DailyBatchResult;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.service.RecommendationService;
+import com.maemoji.backend.portfolioinsight.service.WeeklyReportService;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
 import com.maemoji.backend.stock.dto.StockAssetTypeNormalizeResult;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
@@ -26,6 +27,7 @@ public class DailyIntegratedBatchService {
     private final StockPriceSnapshotBatchService priceSnapshotBatchService;
     private final StockAssetTypeMaintenanceService stockAssetTypeMaintenanceService;
     private final RecommendationService recommendationService;
+    private final WeeklyReportService weeklyReportService;
     private final UserMapper userMapper;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -33,11 +35,13 @@ public class DailyIntegratedBatchService {
             StockPriceSnapshotBatchService priceSnapshotBatchService,
             StockAssetTypeMaintenanceService stockAssetTypeMaintenanceService,
             RecommendationService recommendationService,
+            WeeklyReportService weeklyReportService,
             UserMapper userMapper
     ) {
         this.priceSnapshotBatchService = priceSnapshotBatchService;
         this.stockAssetTypeMaintenanceService = stockAssetTypeMaintenanceService;
         this.recommendationService = recommendationService;
+        this.weeklyReportService = weeklyReportService;
         this.userMapper = userMapper;
     }
 
@@ -75,6 +79,10 @@ public class DailyIntegratedBatchService {
                     recommendationService.warmUpSharedNewsAnalysis();
             int recommendationCount = 0;
             int failedUserCount = 0;
+            int createdAlertCount = 0;
+            int pushSuccessCount = 0;
+            int pushFailureCount = 0;
+            int failedAlertUserCount = 0;
 
             log.info(
                     "공용 뉴스 선분석을 완료했습니다. stocks={}, cacheReused={}, refreshed={}, unavailable={}",
@@ -92,25 +100,45 @@ public class DailyIntegratedBatchService {
                                     sharedNewsWarmup.newsByStockId()
                             );
                     recommendationCount += recommendations.size();
+                    try {
+                        final WeeklyReportService.ImmediateAlertProcessingResult alertResult =
+                                weeklyReportService.processImmediateAlerts(
+                                        userId,
+                                        startedAt.toLocalDate()
+                                );
+                        createdAlertCount += alertResult.createdCount();
+                        pushSuccessCount += alertResult.pushSuccessCount();
+                        pushFailureCount += alertResult.pushFailureCount();
+                    } catch (Exception exception) {
+                        failedAlertUserCount++;
+                        log.warn("사용자 일일 변화 알림 처리에 실패했습니다. userId={}", userId, exception);
+                    }
                 } catch (Exception exception) {
                     failedUserCount++;
                     log.warn("사용자 추천 배치에 실패했습니다. userId={}", userId, exception);
                 }
             }
 
-            final String status = priceResult.failedCount() > 0 || failedUserCount > 0
+            final String status = priceResult.failedCount() > 0
+                    || failedUserCount > 0
+                    || failedAlertUserCount > 0
+                    || pushFailureCount > 0
                     ? "PARTIAL_SUCCESS"
                     : "SUCCESS";
             final OffsetDateTime finishedAt = OffsetDateTime.now(BATCH_ZONE);
 
             log.info(
-                    "일일 통합 배치를 완료했습니다. status={}, prices={}/{}, users={}, recommendations={}, failedUsers={}, finishedAt={}",
+                    "일일 통합 배치를 완료했습니다. status={}, prices={}/{}, users={}, recommendations={}, alerts={}, pushSuccess={}, pushFailure={}, failedUsers={}, failedAlertUsers={}, finishedAt={}",
                     status,
                     priceResult.savedCount(),
                     priceResult.requestedCount(),
                     activeUserIds.size(),
                     recommendationCount,
+                    createdAlertCount,
+                    pushSuccessCount,
+                    pushFailureCount,
                     failedUserCount,
+                    failedAlertUserCount,
                     finishedAt
             );
             return new DailyBatchResult(

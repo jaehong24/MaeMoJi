@@ -429,8 +429,14 @@ public class NewsSentimentService {
     }
 
     private int tradingDayGap(LocalDate olderDate, LocalDate newerDate) {
-        if (olderDate == null || newerDate == null || olderDate.isAfter(newerDate)) {
+        if (olderDate == null || newerDate == null) {
             return Integer.MAX_VALUE;
+        }
+        if (olderDate.isAfter(newerDate)) {
+            // 주말에 발행된 오늘 뉴스는 직전 거래일보다 늦지만 여전히 최신 기사입니다.
+            return olderDate.isAfter(LocalDate.now(DAILY_NEWS_ZONE))
+                    ? Integer.MAX_VALUE
+                    : 0;
         }
 
         int gap = 0;
