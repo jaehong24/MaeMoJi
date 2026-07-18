@@ -104,6 +104,8 @@ public class WeeklyReportService {
     public boolean generateCurrentWeekReportIfAbsent(Long userId) {
         final LocalDate currentWeek = LocalDate.now(HOME_ZONE).with(DayOfWeek.MONDAY);
         if (portfolioInsightMapper.findWeeklyReportIdByUserIdAndWeek(userId, currentWeek) != null) {
+            // 실패했거나 당시 대상 기기가 없었던 주간 알림은 기존 리포트로 안전하게 재시도합니다.
+            weeklyDigestNotificationService.dispatchWeeklyDigest(userId, getLatestReport(userId));
             return false;
         }
         generateLatestReport(userId);

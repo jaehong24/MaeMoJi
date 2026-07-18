@@ -214,14 +214,25 @@ class WeeklyReportServiceTest {
 
     @Test
     void 이번주리포트가이미있으면다시생성하지않는다() {
+        final WeeklyReportRecord report = new WeeklyReportRecord();
+        report.setId(100L);
+        report.setReportWeek(LocalDate.now().with(java.time.DayOfWeek.MONDAY));
+        report.setHeadline("이번 주 리포트");
+        report.setSummary("변화를 정리했어요.");
+        report.setChangedItemCount(0);
+        report.setAlertItemCount(0);
+        report.setPositiveItemCount(0);
+        report.setNegativeItemCount(0);
         when(portfolioInsightMapper.findWeeklyReportIdByUserIdAndWeek(eq(10L), any()))
                 .thenReturn(100L);
+        when(portfolioInsightMapper.findLatestWeeklyReportByUserId(10L)).thenReturn(report);
+        when(portfolioInsightMapper.findWeeklyReportItemsByReportId(100L)).thenReturn(List.of());
 
         final boolean generated = weeklyReportService.generateCurrentWeekReportIfAbsent(10L);
 
         assertThat(generated).isFalse();
         verify(portfolioInsightMapper, never()).findRecommendationTrendRowsByUserId(10L);
-        verify(weeklyDigestNotificationService, never()).dispatchWeeklyDigest(any(), any());
+        verify(weeklyDigestNotificationService).dispatchWeeklyDigest(eq(10L), any());
     }
 
     private RecommendationTrendRow row(

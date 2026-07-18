@@ -1,6 +1,7 @@
 package com.maemoji.backend.portfolioinsight.service;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -116,20 +117,16 @@ public class FirebaseMessagingGateway {
 
         if (inlineJson != null) {
             try (InputStream inputStream = new ByteArrayInputStream(inlineJson.getBytes(StandardCharsets.UTF_8))) {
-                return FirebaseOptions.builder()
-                        .setCredentials(GoogleCredentials.fromStream(inputStream))
-                        .setProjectId(projectId)
-                        .build();
+                final GoogleCredentials credentials = GoogleCredentials.fromStream(inputStream);
+                return buildOptions(credentials, projectId);
             }
         }
 
         if (base64Json != null) {
             final byte[] decoded = Base64.getDecoder().decode(base64Json);
             try (InputStream inputStream = new ByteArrayInputStream(decoded)) {
-                return FirebaseOptions.builder()
-                        .setCredentials(GoogleCredentials.fromStream(inputStream))
-                        .setProjectId(projectId)
-                        .build();
+                final GoogleCredentials credentials = GoogleCredentials.fromStream(inputStream);
+                return buildOptions(credentials, projectId);
             }
         }
 
@@ -144,6 +141,19 @@ public class FirebaseMessagingGateway {
         }
 
         return null;
+    }
+
+    private FirebaseOptions buildOptions(GoogleCredentials credentials, String explicitProjectId) {
+        final FirebaseOptions.Builder builder = FirebaseOptions.builder().setCredentials(credentials);
+        final String resolvedProjectId = explicitProjectId != null
+                ? explicitProjectId
+                : credentials instanceof ServiceAccountCredentials serviceAccount
+                        ? normalize(serviceAccount.getProjectId())
+                        : null;
+        if (resolvedProjectId != null) {
+            builder.setProjectId(resolvedProjectId);
+        }
+        return builder.build();
     }
 
     private String normalize(String value) {

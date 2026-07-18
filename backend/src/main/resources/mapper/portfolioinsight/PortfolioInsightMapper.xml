@@ -553,7 +553,17 @@
             #{reportWeek},
             #{scheduledAt}
         )
-        on conflict (user_id, report_week) do nothing
+        on conflict (user_id, report_week) do update
+        set report_id = excluded.report_id,
+            job_status = 'PENDING',
+            target_device_count = 0,
+            success_count = 0,
+            failure_count = 0,
+            scheduled_at = excluded.scheduled_at,
+            started_at = null,
+            completed_at = null,
+            error_message = null
+        where weekly_notification_jobs.job_status in ('FAILED', 'SKIPPED')
     </insert>
 
     <update id="updateWeeklyNotificationJobResult">
