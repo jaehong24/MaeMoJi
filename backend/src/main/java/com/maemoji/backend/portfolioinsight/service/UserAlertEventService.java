@@ -1,6 +1,7 @@
 package com.maemoji.backend.portfolioinsight.service;
 
 import com.maemoji.backend.portfolioinsight.dto.UserAlertEventResponse;
+import com.maemoji.backend.portfolioinsight.domain.UserAlertEventRecord;
 import com.maemoji.backend.portfolioinsight.mapper.PortfolioInsightMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,40 +21,38 @@ public class UserAlertEventService {
 
     public List<UserAlertEventResponse> getAlerts(Long userId) {
         return portfolioInsightMapper.findAlertsByUserId(userId).stream()
-                .map(record -> new UserAlertEventResponse(
-                        record.getId(),
-                        record.getPortfolioItemId(),
-                        record.getStockId(),
-                        record.getAlertType(),
-                        record.getTitle(),
-                        record.getBody(),
-                        WeeklyReportService.hasSupplementalPriceRiskText(record.getBody()),
-                        record.getSentAt(),
-                        record.getReadAt(),
-                        record.getCreatedAt()
-                ))
+                .map(this::toResponse)
                 .toList();
     }
 
     @Transactional
     public UserAlertEventResponse markAsRead(Long userId, Long alertId) {
-        final int updated = portfolioInsightMapper.markAlertRead(userId, alertId);
-        if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다.");
-        }
-        return portfolioInsightMapper.findAlertById(userId, alertId)
-                .map(record -> new UserAlertEventResponse(
-                        record.getId(),
-                        record.getPortfolioItemId(),
-                        record.getStockId(),
-                        record.getAlertType(),
-                        record.getTitle(),
-                        record.getBody(),
-                        WeeklyReportService.hasSupplementalPriceRiskText(record.getBody()),
-                        record.getSentAt(),
-                        record.getReadAt(),
-                        record.getCreatedAt()
-                ))
+        final UserAlertEventRecord existing = portfolioInsightMapper.findAlertById(userId, alertId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."));
+
+        // 모바일 알림 진입과 목록 버튼이 연달아 호출돼도 같은 성공 결과를 반환합니다.
+        if (existing.getReadAt() != null) {
+            return toResponse(existing);
+        }
+
+        portfolioInsightMapper.markAlertRead(userId, alertId);
+        return portfolioInsightMapper.findAlertById(userId, alertId)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."));
+    }
+
+    private UserAlertEventResponse toResponse(UserAlertEventRecord record) {
+        return new UserAlertEventResponse(
+                record.getId(),
+                record.getPortfolioItemId(),
+                record.getStockId(),
+                record.getAlertType(),
+                record.getTitle(),
+                record.getBody(),
+                WeeklyReportService.hasSupplementalPriceRiskText(record.getBody()),
+                record.getSentAt(),
+                record.getReadAt(),
+                record.getCreatedAt()
+        );
     }
 }
