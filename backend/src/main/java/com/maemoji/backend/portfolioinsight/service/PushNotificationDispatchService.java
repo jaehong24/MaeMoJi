@@ -21,9 +21,17 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 public class PushNotificationDispatchService {
+
+    private static final Set<String> PERMANENT_TOKEN_ERROR_CODES = Set.of(
+            "UNREGISTERED",
+            "SENDER_ID_MISMATCH",
+            "registration-token-not-registered",
+            "mismatched-credential"
+    );
 
     private final PortfolioInsightMapper portfolioInsightMapper;
     private final PushNotificationPolicyService pushNotificationPolicyService;
@@ -104,6 +112,7 @@ public class PushNotificationDispatchService {
 
         final List<Message> messages = new ArrayList<>();
         final List<String> dedupeKeys = new ArrayList<>();
+        final List<UserDeviceTokenRecord> targetDevices = new ArrayList<>();
         final String payloadJson = String.valueOf(plan.data());
 
         for (UserDeviceTokenRecord device : plan.targetDevices()) {
@@ -124,6 +133,7 @@ public class PushNotificationDispatchService {
             }
 
             dedupeKeys.add(dedupeKey);
+            targetDevices.add(device);
             messages.add(buildMessage(device.getFcmToken(), plan.title(), plan.body(), plan.data()));
         }
 
@@ -133,23 +143,24 @@ public class PushNotificationDispatchService {
 
         final OffsetDateTime now = OffsetDateTime.now(ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE));
         try {
-            final List<String> messageIds = firebaseMessagingGateway.sendEach(messages);
+            final List<FirebaseMessagingGateway.SendResult> results = firebaseMessagingGateway.sendEach(messages);
             int successCount = 0;
             int failureCount = 0;
 
-            for (int index = 0; index < messageIds.size(); index++) {
-                final String messageId = messageIds.get(index);
+            for (int index = 0; index < results.size(); index++) {
+                final FirebaseMessagingGateway.SendResult result = results.get(index);
                 final String dedupeKey = dedupeKeys.get(index);
-                if (messageId != null && !messageId.isBlank()) {
-                    portfolioInsightMapper.updatePushNotificationDeliverySuccess(dedupeKey, messageId, now);
+                if (result.successful()) {
+                    portfolioInsightMapper.updatePushNotificationDeliverySuccess(dedupeKey, result.messageId(), now);
                     successCount++;
                 } else {
                     portfolioInsightMapper.updatePushNotificationDeliveryFailure(
                             dedupeKey,
-                            "UNKNOWN",
-                            "메시지 ID를 받지 못했습니다.",
+                            safeErrorCode(result.errorCode()),
+                            result.errorMessage(),
                             now
                     );
+                    deactivateInvalidToken(userId, targetDevices.get(index), result, now);
                     failureCount++;
                 }
             }
@@ -201,9 +212,19 @@ public class PushNotificationDispatchService {
                 .toList();
 
         try {
-            final List<String> messageIds = firebaseMessagingGateway.sendEach(messages);
-            final int successCount = (int) messageIds.stream().filter(id -> id != null && !id.isBlank()).count();
-            final int failureCount = messageIds.size() - successCount;
+            final List<FirebaseMessagingGateway.SendResult> results = firebaseMessagingGateway.sendEach(messages);
+            int successCount = 0;
+            int failureCount = 0;
+            final OffsetDateTime now = OffsetDateTime.now(ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE));
+            for (int index = 0; index < results.size(); index++) {
+                final FirebaseMessagingGateway.SendResult result = results.get(index);
+                if (result.successful()) {
+                    successCount++;
+                } else {
+                    deactivateInvalidToken(userId, activeDevices.get(index), result, now);
+                    failureCount++;
+                }
+            }
             return new TestPushNotificationResponse(
                     successCount > 0,
                     activeDevices.size(),
@@ -258,6 +279,29 @@ public class PushNotificationDispatchService {
 
     private String safeText(String value) {
         return value == null ? "" : value;
+    }
+
+    private String safeErrorCode(String errorCode) {
+        return errorCode == null || errorCode.isBlank() ? "UNKNOWN" : errorCode;
+    }
+
+    private void deactivateInvalidToken(
+            Long userId,
+            UserDeviceTokenRecord device,
+            FirebaseMessagingGateway.SendResult result,
+            OffsetDateTime now
+    ) {
+        if (device == null || result == null || !isPermanentTokenError(result.errorCode())) {
+            return;
+        }
+        portfolioInsightMapper.deactivateDeviceToken(userId, device.getFcmToken(), now);
+    }
+
+    private boolean isPermanentTokenError(String errorCode) {
+        if (errorCode == null || errorCode.isBlank()) {
+            return false;
+        }
+        return PERMANENT_TOKEN_ERROR_CODES.contains(errorCode.trim());
     }
 
     private String normalize(String value, String fallback) {

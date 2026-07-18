@@ -4,7 +4,9 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.SendResponse;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
@@ -32,7 +34,7 @@ public class FirebaseMessagingGateway {
         return initializationError;
     }
 
-    public List<String> sendEach(List<Message> messages) throws Exception {
+    public List<SendResult> sendEach(List<Message> messages) throws Exception {
         final FirebaseMessaging messaging = getMessaging()
                 .orElseThrow(() -> new IllegalStateException(
                         initializationError == null
@@ -42,8 +44,40 @@ public class FirebaseMessagingGateway {
 
         final var response = messaging.sendEach(messages, false);
         return response.getResponses().stream()
-                .map(result -> result.isSuccessful() ? result.getMessageId() : null)
+                .map(this::toSendResult)
                 .toList();
+    }
+
+    private SendResult toSendResult(SendResponse response) {
+        if (response.isSuccessful()) {
+            return SendResult.success(response.getMessageId());
+        }
+
+        final FirebaseMessagingException exception = response.getException();
+        final String errorCode = exception == null
+                ? "UNKNOWN"
+                : exception.getMessagingErrorCode() == null
+                        ? String.valueOf(exception.getErrorCode())
+                        : exception.getMessagingErrorCode().name();
+        final String errorMessage = exception == null
+                ? "Firebase에서 실패 사유를 반환하지 않았습니다."
+                : exception.getMessage();
+        return SendResult.failure(errorCode, errorMessage);
+    }
+
+    public record SendResult(
+            boolean successful,
+            String messageId,
+            String errorCode,
+            String errorMessage
+    ) {
+        public static SendResult success(String messageId) {
+            return new SendResult(true, messageId, null, null);
+        }
+
+        public static SendResult failure(String errorCode, String errorMessage) {
+            return new SendResult(false, null, errorCode, errorMessage);
+        }
     }
 
     private void initializeIfPossible() {

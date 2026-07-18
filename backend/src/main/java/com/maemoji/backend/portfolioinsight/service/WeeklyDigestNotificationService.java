@@ -113,9 +113,21 @@ public class WeeklyDigestNotificationService {
         }
 
         try {
-            final List<String> messageIds = firebaseMessagingGateway.sendEach(messages);
-            final int successCount = (int) messageIds.stream().filter(id -> id != null && !id.isBlank()).count();
-            final int failureCount = messageIds.size() - successCount;
+            final List<FirebaseMessagingGateway.SendResult> results = firebaseMessagingGateway.sendEach(messages);
+            int successCount = 0;
+            int failureCount = 0;
+            for (int index = 0; index < results.size(); index++) {
+                final FirebaseMessagingGateway.SendResult result = results.get(index);
+                if (result.successful()) {
+                    successCount++;
+                } else {
+                    failureCount++;
+                    if (isPermanentTokenError(result.errorCode())) {
+                        final UserDeviceTokenRecord device = plan.targetDevices().get(index);
+                        portfolioInsightMapper.deactivateDeviceToken(userId, device.getFcmToken(), now);
+                    }
+                }
+            }
 
             portfolioInsightMapper.updateWeeklyNotificationJobResult(
                     userId,
@@ -171,5 +183,12 @@ public class WeeklyDigestNotificationService {
             int failureCount,
             String message
     ) {
+    }
+
+    private boolean isPermanentTokenError(String errorCode) {
+        return "UNREGISTERED".equals(errorCode)
+                || "SENDER_ID_MISMATCH".equals(errorCode)
+                || "registration-token-not-registered".equals(errorCode)
+                || "mismatched-credential".equals(errorCode);
     }
 }
