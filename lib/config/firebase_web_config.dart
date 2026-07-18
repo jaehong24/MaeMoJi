@@ -3,7 +3,7 @@ class FirebaseWebConfig {
 
   static const String apiKey = String.fromEnvironment(
     'FIREBASE_WEB_API_KEY',
-    defaultValue: 'AIzaSyCwkMfwEiFQ73_kPP8iAs4-4CWnwgQcsSc',
+    defaultValue: 'AIzaSyCwkMfWiFfQZ3_kPP8iAs4-4CWnwgOcsSc',
   );
 
   static const String authDomain = String.fromEnvironment(

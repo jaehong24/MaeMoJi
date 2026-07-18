@@ -1,5 +1,5 @@
 self.MAE_MOJI_FIREBASE_WEB_CONFIG = {
-  apiKey: "AIzaSyCwkMfwEiFQ73_kPP8iAs4-4CWnwgQcsSc",
+  apiKey: "AIzaSyCwkMfWiFfQZ3_kPP8iAs4-4CWnwgOcsSc",
   authDomain: "maemoji-c4302.firebaseapp.com",
   projectId: "maemoji-c4302",
   storageBucket: "maemoji-c4302.firebasestorage.app",
