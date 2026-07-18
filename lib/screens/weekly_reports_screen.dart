@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/weekly_report.dart';
+import '../models/weekly_report_item.dart';
 import '../models/weekly_report_list_item.dart';
 import '../services/portfolio_insight_service.dart';
 import '../theme/app_theme.dart';
@@ -147,14 +148,27 @@ class _WeeklyReportsScreenState extends State<WeeklyReportsScreen> {
     });
   }
 
-  Future<void> _openItemDetail(int portfolioItemId) async {
+  Future<void> _openItemDetail(WeeklyReportItem item) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => StockDetailScreen(portfolioItemId: portfolioItemId),
+        builder: (_) => StockDetailScreen(
+          portfolioItemId: item.portfolioItemId,
+          initialFocusSection: _focusSectionForChangeType(item.changeType),
+        ),
       ),
     );
     if (mounted) {
       _reload();
+    }
+  }
+
+  StockDetailFocusSection _focusSectionForChangeType(String changeType) {
+    switch (changeType.toUpperCase()) {
+      case 'NEWS_WEAKENED':
+      case 'NEWS_IMPROVED':
+        return StockDetailFocusSection.news;
+      default:
+        return StockDetailFocusSection.recommendation;
     }
   }
 }
@@ -170,7 +184,7 @@ class _LatestWeeklyReportCard extends StatelessWidget {
   final WeeklyReport report;
   final DateFormat weekFormat;
   final DateFormat generatedFormat;
-  final ValueChanged<int> onOpenItem;
+  final ValueChanged<WeeklyReportItem> onOpenItem;
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +238,7 @@ class _LatestWeeklyReportCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(18),
-                  onTap: () => onOpenItem(item.portfolioItemId),
+                  onTap: () => onOpenItem(item),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 4,
@@ -271,7 +285,7 @@ class _LatestWeeklyReportCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
-                            item.headlineLabel,
+                            _weeklyChangeLabel(item),
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: MaeMojiColors.inkSoft,
@@ -297,6 +311,31 @@ class _LatestWeeklyReportCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+String _weeklyChangeLabel(WeeklyReportItem item) {
+  switch (item.changeType.toUpperCase()) {
+    case 'PRICE_RISK':
+      return '가격 위험';
+    case 'NEWS_WEAKENED':
+      return '뉴스 악화';
+    case 'STATUS_DOWNGRADED':
+    case 'STATUS_UPGRADED':
+    case 'STATUS_REBALANCED':
+      return '의견 변경';
+    case 'DATA_PENDING':
+      return '자료 수집 중';
+    case 'NEWS_IMPROVED':
+      return '뉴스 개선';
+    case 'PRICE_IMPROVED':
+      return '가격 안정';
+    case 'FUNDAMENTAL_IMPROVED':
+      return '기업 체력';
+    case 'NEW_ENTRY':
+      return '새로 분석';
+    default:
+      return item.headlineLabel;
   }
 }
 

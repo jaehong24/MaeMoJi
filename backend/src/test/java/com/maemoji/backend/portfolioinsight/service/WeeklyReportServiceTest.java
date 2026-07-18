@@ -2,6 +2,7 @@ package com.maemoji.backend.portfolioinsight.service;
 
 import com.maemoji.backend.portfolioinsight.domain.RecommendationTrendRow;
 import com.maemoji.backend.portfolioinsight.domain.UserAlertEventRecord;
+import com.maemoji.backend.portfolioinsight.domain.WeeklyReportRecord;
 import com.maemoji.backend.portfolioinsight.mapper.PortfolioInsightMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -23,10 +24,12 @@ class WeeklyReportServiceTest {
     private final PortfolioInsightMapper portfolioInsightMapper = mock(PortfolioInsightMapper.class);
     private final PushNotificationDispatchService pushNotificationDispatchService =
             mock(PushNotificationDispatchService.class);
+    private final WeeklyDigestNotificationService weeklyDigestNotificationService =
+            mock(WeeklyDigestNotificationService.class);
     private final WeeklyReportService weeklyReportService = new WeeklyReportService(
             portfolioInsightMapper,
             pushNotificationDispatchService,
-            mock(WeeklyDigestNotificationService.class)
+            weeklyDigestNotificationService
     );
 
     @Test
@@ -148,6 +151,77 @@ class WeeklyReportServiceTest {
 
         assertThat(changeType).isEqualTo("STATUS_REBALANCED");
         assertThat(summary).contains("가격 흐름도 함께 흔들려");
+    }
+
+    @Test
+    void 핵심자료가비어있으면변화를억지로판단하지않는다() throws Exception {
+        final RecommendationTrendRow previous = row(3L, "NEW", 70, 60, 70, 72);
+        final RecommendationTrendRow current = row(3L, "NEW", 45, 40, null, null);
+        current.setFundamentalQualityScore(null);
+        current.setRecommendationStatus("REDUCE");
+
+        final Object trend = ReflectionTestUtils.invokeMethod(
+                weeklyReportService,
+                "buildTrend",
+                current,
+                previous
+        );
+
+        final var changeTypeMethod = trend.getClass().getDeclaredMethod("changeType");
+        changeTypeMethod.setAccessible(true);
+        final var headlineMethod = trend.getClass().getDeclaredMethod("headlineLabel");
+        headlineMethod.setAccessible(true);
+
+        assertThat(changeTypeMethod.invoke(trend)).isEqualTo("DATA_PENDING");
+        assertThat(headlineMethod.invoke(trend)).isEqualTo("자료 수집 중");
+    }
+
+    @Test
+    void 주간리포트생성은즉시알림을중복생성하지않는다() {
+        final RecommendationTrendRow current = row(4L, "AMD", 55, 40, 42, 44);
+        current.setStockId(40L);
+        current.setRowNumber(1);
+        current.setRecommendationStatus("REDUCE");
+        final RecommendationTrendRow previous = row(4L, "AMD", 70, 60, 68, 70);
+        previous.setStockId(40L);
+        previous.setRowNumber(2);
+        previous.setRecommendationStatus("MAINTAIN");
+
+        final WeeklyReportRecord report = new WeeklyReportRecord();
+        report.setId(90L);
+        report.setReportWeek(LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() - 1L));
+        report.setHeadline("이번 주 다시 볼 종목이 1개 있어요");
+        report.setSummary("주의해서 다시 볼 종목 1개의 이번 주 변화를 정리했어요.");
+        report.setChangedItemCount(1);
+        report.setAlertItemCount(1);
+        report.setPositiveItemCount(0);
+        report.setNegativeItemCount(1);
+
+        when(portfolioInsightMapper.findRecommendationTrendRowsByUserId(9L))
+                .thenReturn(List.of(current, previous));
+        when(portfolioInsightMapper.findWeeklyReportIdByUserIdAndWeek(eq(9L), any()))
+                .thenReturn(90L);
+        when(portfolioInsightMapper.findLatestWeeklyReportByUserId(9L)).thenReturn(report);
+        when(portfolioInsightMapper.findWeeklyReportItemsByReportId(90L)).thenReturn(List.of());
+
+        weeklyReportService.generateLatestReport(9L);
+
+        verify(portfolioInsightMapper, never()).insertAlertEvent(
+                any(), any(), any(), anyString(), anyString(), anyString(), anyString(), any()
+        );
+        verify(weeklyDigestNotificationService).dispatchWeeklyDigest(eq(9L), any());
+    }
+
+    @Test
+    void 이번주리포트가이미있으면다시생성하지않는다() {
+        when(portfolioInsightMapper.findWeeklyReportIdByUserIdAndWeek(eq(10L), any()))
+                .thenReturn(100L);
+
+        final boolean generated = weeklyReportService.generateCurrentWeekReportIfAbsent(10L);
+
+        assertThat(generated).isFalse();
+        verify(portfolioInsightMapper, never()).findRecommendationTrendRowsByUserId(10L);
+        verify(weeklyDigestNotificationService, never()).dispatchWeeklyDigest(any(), any());
     }
 
     private RecommendationTrendRow row(

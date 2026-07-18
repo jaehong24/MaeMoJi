@@ -58,6 +58,8 @@ class DailyIntegratedBatchServiceTest {
                 .thenReturn(new WeeklyReportService.ImmediateAlertProcessingResult(0, 0, 0, 0));
         when(weeklyReportService.processImmediateAlerts(eq(2L), org.mockito.ArgumentMatchers.any(LocalDate.class)))
                 .thenReturn(new WeeklyReportService.ImmediateAlertProcessingResult(0, 0, 0, 0));
+        when(weeklyReportService.generateCurrentWeekReportIfAbsent(1L)).thenReturn(true);
+        when(weeklyReportService.generateCurrentWeekReportIfAbsent(2L)).thenReturn(false);
 
         final DailyBatchResult result = service.run(500);
 
@@ -71,6 +73,8 @@ class DailyIntegratedBatchServiceTest {
         verify(recommendationService).generateLatestRecommendations(eq(2L), anyMap());
         verify(weeklyReportService).processImmediateAlerts(eq(1L), org.mockito.ArgumentMatchers.any(LocalDate.class));
         verify(weeklyReportService).processImmediateAlerts(eq(2L), org.mockito.ArgumentMatchers.any(LocalDate.class));
+        verify(weeklyReportService).generateCurrentWeekReportIfAbsent(1L);
+        verify(weeklyReportService).generateCurrentWeekReportIfAbsent(2L);
     }
 
     @Test

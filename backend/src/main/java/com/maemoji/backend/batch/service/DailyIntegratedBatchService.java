@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.time.DayOfWeek;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -86,7 +85,6 @@ public class DailyIntegratedBatchService {
             int failedAlertUserCount = 0;
             int weeklyReportCount = 0;
             int failedWeeklyReportUserCount = 0;
-            final boolean weeklyReportDay = startedAt.getDayOfWeek() == DayOfWeek.MONDAY;
 
             log.info(
                     "공용 뉴스 선분석을 완료했습니다. stocks={}, cacheReused={}, refreshed={}, unavailable={}",
@@ -117,14 +115,13 @@ public class DailyIntegratedBatchService {
                         failedAlertUserCount++;
                         log.warn("사용자 일일 변화 알림 처리에 실패했습니다. userId={}", userId, exception);
                     }
-                    if (weeklyReportDay) {
-                        try {
-                            weeklyReportService.generateLatestReport(userId);
+                    try {
+                        if (weeklyReportService.generateCurrentWeekReportIfAbsent(userId)) {
                             weeklyReportCount++;
-                        } catch (Exception exception) {
-                            failedWeeklyReportUserCount++;
-                            log.warn("사용자 주간 리포트 생성에 실패했습니다. userId={}", userId, exception);
                         }
+                    } catch (Exception exception) {
+                        failedWeeklyReportUserCount++;
+                        log.warn("사용자 주간 리포트 생성에 실패했습니다. userId={}", userId, exception);
                     }
                 } catch (Exception exception) {
                     failedUserCount++;

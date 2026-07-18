@@ -99,6 +99,18 @@ public class WeeklyReportService {
     }
 
     /**
+     * 배포 지연이나 일시 장애로 월요일 실행을 놓쳐도 다음 일일 실행에서 이번 주 리포트를 보충합니다.
+     */
+    public boolean generateCurrentWeekReportIfAbsent(Long userId) {
+        final LocalDate currentWeek = LocalDate.now(HOME_ZONE).with(DayOfWeek.MONDAY);
+        if (portfolioInsightMapper.findWeeklyReportIdByUserIdAndWeek(userId, currentWeek) != null) {
+            return false;
+        }
+        generateLatestReport(userId);
+        return true;
+    }
+
+    /**
      * 일일 추천 생성 직후 최신 추천과 직전 추천을 비교해 즉시 확인할 변화만 알림으로 만듭니다.
      * 같은 날짜·종목·유형은 dedupe key로 한 번만 저장하고, 새 이벤트에만 푸시를 발송합니다.
      */
@@ -214,6 +226,18 @@ public class WeeklyReportService {
         final int scoreDelta = currentScore - previousScore;
         final String previousStatus = previous == null ? null : previous.getRecommendationStatus();
 
+        // 핵심 가격·재무 축이 비어 있을 때는 점수 변화를 의미 있는 투자 신호로 해석하지 않습니다.
+        if (isAnalysisDataInsufficient(current)) {
+            return new ResolvedTrend(
+                    current,
+                    previousStatus,
+                    scoreDelta,
+                    "자료 수집 중",
+                    "DATA_PENDING",
+                    current.getCompanyName() + "은 분석 자료를 더 모으고 있어요. 자료가 충분해지면 변화를 다시 판단할게요."
+            );
+        }
+
         if (previous == null) {
             return new ResolvedTrend(
                     current,
@@ -317,6 +341,13 @@ public class WeeklyReportService {
         );
     }
 
+    private boolean isAnalysisDataInsufficient(RecommendationTrendRow current) {
+        final boolean priceDataMissing = current.getPriceMomentumScore() == null
+                || current.getPriceStabilityScore() == null;
+        final boolean fundamentalDataMissing = current.getFundamentalQualityScore() == null;
+        return priceDataMissing || fundamentalDataMissing;
+    }
+
     private boolean hasSupplementalPriceRiskSignal(
             RecommendationTrendRow current,
             int momentumDelta,
@@ -385,7 +416,8 @@ public class WeeklyReportService {
             case "STATUS_REBALANCED", "STATUS_UPGRADED" -> 3;
             case "NEWS_IMPROVED", "PRICE_IMPROVED", "FUNDAMENTAL_IMPROVED" -> 4;
             case "NEW_ENTRY" -> 5;
-            default -> 6;
+            case "DATA_PENDING" -> 6;
+            default -> 7;
         };
     }
 
