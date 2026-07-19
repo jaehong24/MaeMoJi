@@ -59,10 +59,7 @@ class _WeeklyReportsScreenState extends State<WeeklyReportsScreen> {
                       style: theme.textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      '잠시 후 다시 시도해 주세요.',
-                      style: theme.textTheme.bodyMedium,
-                    ),
+                    Text('잠시 후 다시 시도해 주세요.', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 14),
                     FilledButton.tonal(
                       onPressed: _reload,
@@ -168,7 +165,7 @@ class _WeeklyReportsScreenState extends State<WeeklyReportsScreen> {
       case 'NEWS_IMPROVED':
         return StockDetailFocusSection.news;
       default:
-        return StockDetailFocusSection.recommendation;
+        return StockDetailFocusSection.history;
     }
   }
 }
@@ -447,10 +444,7 @@ class _WeeklyHistoryCard extends StatelessWidget {
 }
 
 class _MiniInfoChip extends StatelessWidget {
-  const _MiniInfoChip({
-    required this.label,
-    required this.value,
-  });
+  const _MiniInfoChip({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -491,10 +485,7 @@ class _MiniInfoChip extends StatelessWidget {
 }
 
 class _WeeklyReportsBundle {
-  const _WeeklyReportsBundle({
-    required this.latest,
-    required this.history,
-  });
+  const _WeeklyReportsBundle({required this.latest, required this.history});
 
   final WeeklyReport? latest;
   final List<WeeklyReportListItem> history;

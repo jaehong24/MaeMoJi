@@ -5,8 +5,10 @@ import com.maemoji.backend.common.auth.AuthenticatedUserResolver;
 import com.maemoji.backend.recommendation.dto.HomeRecommendationResponse;
 import com.maemoji.backend.recommendation.dto.NewsEngineStatusResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
+import com.maemoji.backend.recommendation.dto.RecommendationHistoryItemResponse;
 import com.maemoji.backend.recommendation.service.NewsSentimentService;
 import com.maemoji.backend.recommendation.service.RecommendationService;
+import com.maemoji.backend.recommendation.service.RecommendationHistoryService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,17 +23,29 @@ import java.util.List;
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
+    private final RecommendationHistoryService recommendationHistoryService;
     private final NewsSentimentService newsSentimentService;
     private final AuthenticatedUserResolver authenticatedUserResolver;
 
     public RecommendationController(
             RecommendationService recommendationService,
+            RecommendationHistoryService recommendationHistoryService,
             NewsSentimentService newsSentimentService,
             AuthenticatedUserResolver authenticatedUserResolver
     ) {
         this.recommendationService = recommendationService;
+        this.recommendationHistoryService = recommendationHistoryService;
         this.newsSentimentService = newsSentimentService;
         this.authenticatedUserResolver = authenticatedUserResolver;
+    }
+
+    @GetMapping("/{portfolioItemId:\\d+}/history")
+    public ApiResponse<List<RecommendationHistoryItemResponse>> getRecommendationHistory(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+            @PathVariable("portfolioItemId") Long portfolioItemId
+    ) {
+        final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        return ApiResponse.ok(recommendationHistoryService.getHistory(userId, portfolioItemId));
     }
 
     @GetMapping

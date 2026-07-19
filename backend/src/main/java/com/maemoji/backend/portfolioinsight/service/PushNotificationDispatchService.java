@@ -320,7 +320,7 @@ public class PushNotificationDispatchService {
         final String normalized = safeText(alertType).trim().toUpperCase(Locale.ROOT);
         return switch (normalized) {
             case "NEWS_WEAKENED" -> "NEWS";
-            case "PRICE_RISK", "STATUS_CHANGED", "STATUS_DOWNGRADED" -> "RECOMMENDATION";
+            case "PRICE_RISK", "STATUS_CHANGED", "STATUS_DOWNGRADED" -> "HISTORY";
             default -> "TOP";
         };
     }

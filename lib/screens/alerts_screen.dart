@@ -54,15 +54,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '알림을 불러오지 못했어요.',
-                      style: theme.textTheme.titleLarge,
-                    ),
+                    Text('알림을 불러오지 못했어요.', style: theme.textTheme.titleLarge),
                     const SizedBox(height: 8),
-                    Text(
-                      '잠시 후 다시 시도해 주세요.',
-                      style: theme.textTheme.bodyMedium,
-                    ),
+                    Text('잠시 후 다시 시도해 주세요.', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 14),
                     FilledButton.tonal(
                       onPressed: _reload,
@@ -82,10 +76,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '새로운 알림이 아직 없어요.',
-                      style: theme.textTheme.titleLarge,
-                    ),
+                    Text('새로운 알림이 아직 없어요.', style: theme.textTheme.titleLarge),
                     const SizedBox(height: 8),
                     Text(
                       '이번 주 추천 변화가 생기면 이곳에 차곡차곡 보여드릴게요.',
@@ -140,10 +131,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     Expanded(
                                       child: Text(
                                         alert.title,
-                                        style: theme.textTheme.bodyLarge?.copyWith(
-                                          color: MaeMojiColors.ink,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                        style: theme.textTheme.bodyLarge
+                                            ?.copyWith(
+                                              color: MaeMojiColors.ink,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -249,9 +241,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('알림 읽음 처리에 실패했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('알림 읽음 처리에 실패했어요.')));
     }
   }
 
@@ -292,6 +284,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       case 'PRICE_RISK':
       case 'STATUS_DOWNGRADED':
       case 'STATUS_CHANGED':
+        return StockDetailFocusSection.history;
       default:
         return StockDetailFocusSection.recommendation;
     }

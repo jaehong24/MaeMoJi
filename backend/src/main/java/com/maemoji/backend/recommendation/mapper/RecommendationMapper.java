@@ -7,6 +7,7 @@ import com.maemoji.backend.recommendation.domain.RecommendationFactorDetailSaveC
 import com.maemoji.backend.recommendation.domain.NewsAnalysisCacheRecord;
 import com.maemoji.backend.recommendation.domain.NewsAnalysisSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationRecord;
+import com.maemoji.backend.recommendation.domain.RecommendationHistoryRecord;
 import com.maemoji.backend.recommendation.domain.RecommendationSaveCommand;
 import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import org.apache.ibatis.annotations.Mapper;
@@ -51,6 +52,12 @@ public interface RecommendationMapper {
     RecommendationRecord findLatestRecommendationByUserIdAndPortfolioItemId(
             @Param("userId") Long userId,
             @Param("portfolioItemId") Long portfolioItemId
+    );
+
+    List<RecommendationHistoryRecord> findRecommendationHistory(
+            @Param("userId") Long userId,
+            @Param("portfolioItemId") Long portfolioItemId,
+            @Param("limit") int limit
     );
 
     List<RecommendationEvidenceRecord> findRecommendationEvidenceByRecommendationId(

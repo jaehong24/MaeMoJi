@@ -8,6 +8,7 @@ import '../currency/currency_scope.dart';
 import '../models/display_currency.dart';
 import '../models/portfolio_reason.dart';
 import '../models/recommendation_item.dart';
+import '../models/recommendation_history_item.dart';
 import '../models/recommendation_news_item.dart';
 import '../models/stock_quote.dart';
 import '../services/portfolio_insight_service.dart';
@@ -19,6 +20,7 @@ import '../widgets/app_section_card.dart';
 import '../widgets/evidence_section.dart';
 import '../widgets/recommendation_badge.dart';
 import '../widgets/recommendation_reason_chip.dart';
+import '../widgets/recommendation_history_timeline.dart';
 
 class StockDetailScreen extends StatefulWidget {
   const StockDetailScreen({
@@ -46,6 +48,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   final DateFormat _metaTimeFormat = DateFormat('yyyy년 M월 d일 HH:mm');
 
   late Future<RecommendationItem> _detailFuture;
+  late Future<List<RecommendationHistoryItem>> _historyFuture;
   RecommendationItem? _currentItem;
   StockQuote? _quote;
   int? _loadedQuoteStockId;
@@ -57,6 +60,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   List<PortfolioReason> _portfolioReasons = const [];
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _recommendationSectionKey = GlobalKey();
+  final GlobalKey _historySectionKey = GlobalKey();
   final GlobalKey _newsSectionKey = GlobalKey();
 
   @override
@@ -64,6 +68,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     super.initState();
     _currentItem = widget.initialItem;
     _detailFuture = _recommendationService.fetchRecommendationDetail(
+      widget.portfolioItemId,
+    );
+    _historyFuture = _recommendationService.fetchRecommendationHistory(
       widget.portfolioItemId,
     );
     _detailFuture.then(_applyFetchedItem).catchError((_) {});
@@ -251,7 +258,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       Expanded(
                         child: _MiniMetricCard(
                           label: isEtfPending ? '분석 상태' : '최종 점수',
-                          value: isEtfPending ? '준비 중' : '${resolvedItem.score}점',
+                          value: isEtfPending
+                              ? '준비 중'
+                              : '${resolvedItem.score}점',
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -327,6 +336,54 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       ),
                     ),
                   const SizedBox(height: 14),
+                  if (!isEtfPending) ...[
+                    AppSectionCard(
+                      key: _historySectionKey,
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('추천 변화', style: theme.textTheme.titleLarge),
+                          const SizedBox(height: 6),
+                          Text(
+                            '달라진 판단만 모아 보여드려요.',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 16),
+                          FutureBuilder<List<RecommendationHistoryItem>>(
+                            future: _historyFuture,
+                            builder: (context, historySnapshot) {
+                              if (historySnapshot.connectionState ==
+                                      ConnectionState.waiting &&
+                                  !historySnapshot.hasData) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 8),
+                                    child: SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              if (historySnapshot.hasError) {
+                                return Text(
+                                  '추천 변화를 잠시 불러오지 못했어요.',
+                                  style: theme.textTheme.bodyMedium,
+                                );
+                              }
+                              return RecommendationHistoryTimeline(
+                                items: historySnapshot.data ?? const [],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   AppSectionCard(
                     key: _newsSectionKey,
                     child: Column(
@@ -344,13 +401,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                             if (!isEtfPending)
                               if (_buildNewsMetaLabel(resolvedItem)
                                   case final String newsLabel)
-                              Text(
-                                newsLabel,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: 11,
-                                  color: MaeMojiColors.inkMuted,
+                                Text(
+                                  newsLabel,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontSize: 11,
+                                    color: MaeMojiColors.inkMuted,
+                                  ),
                                 ),
-                              ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -358,12 +415,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           isEtfPending
                               ? 'ETF 전용 뉴스와 구성 자산 분석도 준비 중입니다.'
                               : resolvedItem.relatedNews.isEmpty
-                                    ? (resolvedItem.relatedNewsStatusMessage ??
-                                          '오늘 관련 뉴스가 아직 없습니다.')
-                                    : '최근 기사 핵심만 보여드려요.',
+                              ? (resolvedItem.relatedNewsStatusMessage ??
+                                    '오늘 관련 뉴스가 아직 없습니다.')
+                              : '최근 기사 핵심만 보여드려요.',
                           style: theme.textTheme.bodyMedium,
                         ),
-                        if (!isEtfPending && resolvedItem.relatedNews.isNotEmpty) ...[
+                        if (!isEtfPending &&
+                            resolvedItem.relatedNews.isNotEmpty) ...[
                           const SizedBox(height: 16),
                           ...resolvedItem.relatedNews.asMap().entries.map((
                             entry,
@@ -416,7 +474,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                             spacing: 8,
                             runSpacing: 8,
                             children: _portfolioReasons
-                                .map((reason) => _ReasonTag(label: reason.label))
+                                .map(
+                                  (reason) => _ReasonTag(label: reason.label),
+                                )
                                 .toList(),
                           ),
                       ],
@@ -458,6 +518,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       _detailFuture = _recommendationService.fetchRecommendationDetail(
         widget.portfolioItemId,
       );
+      _historyFuture = _recommendationService.fetchRecommendationHistory(
+        widget.portfolioItemId,
+      );
     });
     _detailFuture.then(_applyFetchedItem).catchError((_) {});
     _loadPortfolioReasons();
@@ -472,6 +535,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
       final targetKey = switch (widget.initialFocusSection) {
         StockDetailFocusSection.recommendation => _recommendationSectionKey,
+        StockDetailFocusSection.history => _historySectionKey,
         StockDetailFocusSection.news => _newsSectionKey,
         StockDetailFocusSection.top => null,
       };
@@ -546,6 +610,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       );
       setState(() {
         _currentItem = mergedItem;
+        _historyFuture = _recommendationService.fetchRecommendationHistory(
+          widget.portfolioItemId,
+        );
         _statusMessage = hasVisibleChange
             ? '방금 최신 분석 결과를 반영했어요.'
             : '방금 최신 뉴스와 가격까지 확인했어요.';
@@ -752,11 +819,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 }
 
-enum StockDetailFocusSection {
-  top,
-  recommendation,
-  news,
-}
+enum StockDetailFocusSection { top, recommendation, history, news }
 
 class _ReasonTag extends StatelessWidget {
   const _ReasonTag({required this.label});

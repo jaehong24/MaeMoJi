@@ -7,6 +7,7 @@ import '../config/api_config.dart';
 import '../models/evidence_item.dart';
 import '../models/home_recommendation_summary.dart';
 import '../models/recommendation_item.dart';
+import '../models/recommendation_history_item.dart';
 import '../models/recommendation_news_item.dart';
 import '../models/recommendation_status.dart';
 import 'api_auth_headers.dart';
@@ -99,6 +100,46 @@ class RecommendationService {
     return decodedItems.first;
   }
 
+  Future<List<RecommendationHistoryItem>> fetchRecommendationHistory(
+    int portfolioItemId,
+  ) async {
+    final uri = ApiConfig.buildUri(
+      '/api/recommendations/$portfolioItemId/history',
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
+    final response = await http
+        .get(uri, headers: ApiAuthHeaders.auth())
+        .timeout(_readTimeout);
+    await clearSessionIfUnauthorized(response);
+
+    if (response.statusCode != 200) {
+      throw Exception('추천 변화 조회에 실패했습니다. (${response.statusCode})');
+    }
+
+    final decoded =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    final items = (decoded['data'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
+    return items.map((item) {
+      return RecommendationHistoryItem(
+        recommendationId: (item['recommendationId'] as num?)?.toInt() ?? 0,
+        recommendationDate: DateTime.tryParse(
+          (item['recommendationDate'] ?? '').toString(),
+        ),
+        generatedAt: DateTime.tryParse((item['generatedAt'] ?? '').toString()),
+        status: _parseStatus((item['status'] ?? '').toString()),
+        previousStatus: _nullableStatus(item['previousStatus']),
+        score: (item['score'] as num?)?.toInt() ?? 0,
+        previousScore: (item['previousScore'] as num?)?.toInt(),
+        scoreDelta: (item['scoreDelta'] as num?)?.toInt() ?? 0,
+        changeType: (item['changeType'] ?? '').toString(),
+        headline: (item['headline'] ?? '').toString(),
+        summary: (item['summary'] ?? '').toString(),
+      );
+    }).toList();
+  }
+
   Future<RecommendationItem> refreshRecommendationDetail(
     int portfolioItemId,
   ) async {
@@ -189,8 +230,8 @@ class RecommendationService {
               sentimentScore: (news['sentimentScore'] as num?)?.toInt() ?? 0,
               relevanceScore: (news['relevanceScore'] as num?)?.toInt() ?? 0,
               impactLevel: (news['impactLevel'] ?? 'LOW').toString(),
-              hardNegativeCategory:
-                  (news['hardNegativeCategory'] ?? 'NONE').toString(),
+              hardNegativeCategory: (news['hardNegativeCategory'] ?? 'NONE')
+                  .toString(),
               hardNegativeCategoryLabel:
                   (news['hardNegativeCategoryLabel'] ?? '').toString(),
               reason: (news['reason'] ?? '').toString(),
@@ -237,16 +278,16 @@ class RecommendationService {
           item['relatedNewsStatusMessage'],
         ),
         formulaVersion: (calculation['formulaVersion'] ?? '').toString(),
-        priceMomentumScore:
-            (calculation['priceMomentumScore'] as num?)?.toInt(),
-        priceStabilityScore:
-            (calculation['priceStabilityScore'] as num?)?.toInt(),
+        priceMomentumScore: (calculation['priceMomentumScore'] as num?)
+            ?.toInt(),
+        priceStabilityScore: (calculation['priceStabilityScore'] as num?)
+            ?.toInt(),
         fundamentalQualityScore:
             (calculation['fundamentalQualityScore'] as num?)?.toInt(),
         newsScore: (calculation['newsScore'] as num?)?.toInt(),
         userFitScore: (calculation['userFitScore'] as num?)?.toInt(),
-        crossFactorAdjustment:
-            (calculation['crossFactorAdjustment'] as num?)?.toInt(),
+        crossFactorAdjustment: (calculation['crossFactorAdjustment'] as num?)
+            ?.toInt(),
         userAdjustment: (calculation['userAdjustment'] as num?)?.toInt(),
         riskProfileApplied: _nullableText(calculation['riskProfileApplied']),
         confidenceBreakdownJson: _nullableText(
@@ -296,5 +337,10 @@ class RecommendationService {
       default:
         return RecommendationStatus.maintain;
     }
+  }
+
+  RecommendationStatus? _nullableStatus(dynamic raw) {
+    final value = (raw ?? '').toString().trim();
+    return value.isEmpty ? null : _parseStatus(value);
   }
 }

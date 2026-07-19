@@ -80,6 +80,8 @@ class AppNavigationService {
         return StockDetailFocusSection.news;
       case 'RECOMMENDATION':
         return StockDetailFocusSection.recommendation;
+      case 'HISTORY':
+        return StockDetailFocusSection.history;
       case 'TOP':
         return StockDetailFocusSection.top;
     }
@@ -94,6 +96,7 @@ class AppNavigationService {
       case 'PRICE_RISK':
       case 'STATUS_DOWNGRADED':
       case 'STATUS_CHANGED':
+        return StockDetailFocusSection.history;
       default:
         return StockDetailFocusSection.recommendation;
     }

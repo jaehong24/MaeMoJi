@@ -442,6 +442,38 @@
         order by display_order asc, id asc
     </select>
 
+    <select id="findRecommendationHistory"
+            resultType="com.maemoji.backend.recommendation.domain.RecommendationHistoryRecord">
+        select
+            r.id as recommendation_id,
+            r.recommendation_date,
+            r.created_at as generated_at,
+            r.recommendation_status,
+            r.engine_score,
+            r.final_note,
+            core_factor.factor_code as core_factor_code,
+            core_factor.factor_summary as core_factor_summary
+        from recommendations r
+        join portfolio_items pi on pi.id = r.portfolio_item_id
+        left join lateral (
+            select
+                details.factor_code,
+                details.factor_summary
+            from recommendation_factor_details details
+            where details.recommendation_id = r.id
+            order by
+                abs(coalesce(details.factor_score, 50) - 50)
+                    * greatest(coalesce(details.factor_weight, 1), 1) desc,
+                details.id desc
+            limit 1
+        ) core_factor on true
+        where r.user_id = #{userId}
+          and r.portfolio_item_id = #{portfolioItemId}
+          and pi.is_active = true
+        order by r.recommendation_date desc, r.created_at desc
+        limit #{limit}
+    </select>
+
     <select id="findRecommendationFactorDetailsByRecommendationId"
             resultType="com.maemoji.backend.recommendation.domain.RecommendationFactorDetailRecord">
         select
