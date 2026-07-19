@@ -76,11 +76,18 @@ class NotificationNavigationService {
       showWebForegroundNotification(
         title: message.notification?.title ?? '매모지 알림',
         body: message.notification?.body ?? '새로운 알림이 도착했어요.',
+        payload: jsonEncode(message.data),
       ),
     );
   }
 
   void _navigateFromData(Map<String, dynamic> data) {
+    final notificationType = (data['type'] ?? '').toString().toUpperCase();
+    if (notificationType == 'WEEKLY_REPORT') {
+      AppNavigationService.instance.openWeeklyReports();
+      return;
+    }
+
     final portfolioItemId = int.tryParse(
       (data['portfolioItemId'] ?? '').toString(),
     );

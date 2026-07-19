@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../screens/stock_detail_screen.dart';
+import '../screens/weekly_reports_screen.dart';
 
 class AppNavigationService {
   AppNavigationService._();
@@ -10,6 +11,18 @@ class AppNavigationService {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   _PendingAlertNavigation? _pendingAlertNavigation;
+  bool _pendingWeeklyReportNavigation = false;
+
+  void openWeeklyReports() {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) {
+      _pendingWeeklyReportNavigation = true;
+      return;
+    }
+    navigator.push(
+      MaterialPageRoute<void>(builder: (_) => const WeeklyReportsScreen()),
+    );
+  }
 
   void openPortfolioItemFromAlert({
     required int portfolioItemId,
@@ -39,6 +52,11 @@ class AppNavigationService {
   }
 
   void flushPendingIfAny() {
+    if (_pendingWeeklyReportNavigation) {
+      _pendingWeeklyReportNavigation = false;
+      openWeeklyReports();
+      return;
+    }
     final pending = _pendingAlertNavigation;
     if (pending == null) {
       return;

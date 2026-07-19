@@ -189,6 +189,8 @@ class _LatestWeeklyReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final highlightedItems = report.items.take(5).toList();
+    final remainingItemCount = report.items.length - highlightedItems.length;
 
     return AppSectionCard(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
@@ -233,7 +235,15 @@ class _LatestWeeklyReportCard extends StatelessWidget {
           ),
           if (report.items.isNotEmpty) ...[
             const SizedBox(height: 14),
-            ...report.items.take(5).map(
+            Text(
+              '중요 변화',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: MaeMojiColors.inkMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...highlightedItems.map(
               (item) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: InkWell(
@@ -298,6 +308,16 @@ class _LatestWeeklyReportCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (remainingItemCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '그 밖의 변화 $remainingItemCount개도 이번 주 요약에 함께 반영했어요.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: MaeMojiColors.inkMuted,
+                  ),
+                ),
+              ),
           ],
           if (report.generatedAt != null) ...[
             const SizedBox(height: 4),

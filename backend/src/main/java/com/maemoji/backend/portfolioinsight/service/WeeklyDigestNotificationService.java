@@ -79,6 +79,21 @@ public class WeeklyDigestNotificationService {
             return new WeeklyDigestDispatchResult(false, 0, 0, 0, "이번 주 주간 알림은 이미 처리되었습니다.");
         }
 
+        if (!hasMeaningfulChange(report)) {
+            portfolioInsightMapper.updateWeeklyNotificationJobResult(
+                    userId,
+                    report.reportWeek(),
+                    "NO_CHANGE",
+                    0,
+                    0,
+                    0,
+                    now,
+                    now,
+                    "사용자에게 알릴 만한 변화가 없어 발송하지 않았습니다."
+            );
+            return new WeeklyDigestDispatchResult(false, 0, 0, 0, "중요한 변화가 없어 알림을 보내지 않았습니다.");
+        }
+
         if (!plan.dispatchable()) {
             portfolioInsightMapper.updateWeeklyNotificationJobResult(
                     userId,
@@ -190,5 +205,9 @@ public class WeeklyDigestNotificationService {
                 || "SENDER_ID_MISMATCH".equals(errorCode)
                 || "registration-token-not-registered".equals(errorCode)
                 || "mismatched-credential".equals(errorCode);
+    }
+
+    private boolean hasMeaningfulChange(WeeklyReportResponse report) {
+        return report != null && (report.changedItemCount() > 0 || report.alertItemCount() > 0);
     }
 }
