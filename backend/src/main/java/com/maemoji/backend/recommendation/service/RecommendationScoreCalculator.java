@@ -204,8 +204,8 @@ public class RecommendationScoreCalculator {
         String status = totalWeight == 0
                 ? "MAINTAIN"
                 : resolveV4Status(adjustedScore, input.effectiveRiskProfile());
-        final boolean increaseEligible = isIncreaseEligible(input, appliedFactors);
-        if ("INCREASE".equals(status) && !increaseEligible) {
+        final IncreaseEligibility increaseEligibility = resolveIncreaseEligibility(input, appliedFactors);
+        if ("INCREASE".equals(status) && !increaseEligibility.eligible()) {
             status = "MAINTAIN";
         }
 
@@ -218,7 +218,9 @@ public class RecommendationScoreCalculator {
                 input.userAdjustment(),
                 input.effectiveRiskProfile(),
                 status,
-                increaseEligible,
+                increaseEligibility.eligible(),
+                increaseEligibility.reason(),
+                increaseEligibility.strongFactorCount(),
                 clamp(input.confidence(), 0, 100),
                 appliedFactors
         );
@@ -302,25 +304,27 @@ public class RecommendationScoreCalculator {
         return clamp(newsSentimentScore, 0, 100);
     }
 
-    private boolean isIncreaseEligible(V4Input input, List<FactorResult> appliedFactors) {
+    private IncreaseEligibility resolveIncreaseEligibility(V4Input input, List<FactorResult> appliedFactors) {
         final RecommendationTuningProperties.RiskProfileRule rule =
                 tuningProperties.ruleFor(input.effectiveRiskProfile());
         final RecommendationTuningProperties.IncreaseGuard guard =
                 tuningProperties.getIncreaseGuard();
         if (input.hardStopRisk()
-                || input.hardNegativeNews()
-                || input.confidence() < rule.getMinConfidenceForIncrease()) {
-            return false;
+                || input.hardNegativeNews()) {
+            return new IncreaseEligibility(false, "HARD_RISK_BLOCK", 0);
+        }
+        if (input.confidence() < rule.getMinConfidenceForIncrease()) {
+            return new IncreaseEligibility(false, "LOW_CONFIDENCE", 0);
         }
         if (input.priceMomentumScore() == null || input.priceStabilityScore() == null) {
-            return false;
+            return new IncreaseEligibility(false, "PRICE_DATA_INCOMPLETE", 0);
         }
         if (input.fundamentalQualityScore() == null && input.qualityOfGrowthScore() == null) {
-            return false;
+            return new IncreaseEligibility(false, "FUNDAMENTAL_DATA_THIN", 0);
         }
         if (input.valuationScore() != null
                 && input.valuationScore() <= guard.getAbsoluteValuationBlockMax()) {
-            return false;
+            return new IncreaseEligibility(false, "ABSOLUTE_VALUATION_BLOCK", 0);
         }
         if (input.valuationScore() != null
                 && input.valuationScore() <= guard.getExpensiveQualityValuationMax()
@@ -330,13 +334,16 @@ public class RecommendationScoreCalculator {
                 && input.qualityOfGrowthScore() >= guard.getExpensiveQualityGrowthMin()
                 && input.priceMomentumScore() != null
                 && input.priceMomentumScore() <= guard.getExpensiveQualityMomentumMax()) {
-            return false;
+            return new IncreaseEligibility(false, "EXPENSIVE_QUALITY_BLOCK", 0);
         }
 
         final long strongFactorCount = appliedFactors.stream()
                 .filter(factor -> factor.score() >= rule.getStrongFactorScoreThreshold())
                 .count();
-        return strongFactorCount >= rule.getMinStrongFactorCount();
+        if (strongFactorCount < rule.getMinStrongFactorCount()) {
+            return new IncreaseEligibility(false, "STRONG_FACTOR_SHORTAGE", strongFactorCount);
+        }
+        return new IncreaseEligibility(true, "ELIGIBLE", strongFactorCount);
     }
 
     private int resolveConflictAdjustment(V4Input input) {
@@ -412,6 +419,35 @@ public class RecommendationScoreCalculator {
                 && stability <= 58) {
             adjustment += 3;
         }
+        if (fundamental != null
+                && fundamental >= 82
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 80
+                && valuation != null
+                && valuation >= 65
+                && valuation <= 74
+                && momentum != null
+                && momentum >= 36
+                && momentum <= 62
+                && stability != null
+                && stability >= 42
+                && stability <= 58) {
+            adjustment += 2;
+        }
+        if (fundamental != null
+                && fundamental >= 70
+                && qualityOfGrowth != null
+                && qualityOfGrowth >= 62
+                && valuation != null
+                && valuation >= 66
+                && momentum != null
+                && momentum >= 68
+                && momentum <= 76
+                && stability != null
+                && stability >= 72
+                && stability <= 88) {
+            adjustment += 1;
+        }
         if (valuation != null
                 && valuation >= rule.getWeakGrowthValuationMin()
                 && qualityOfGrowth != null
@@ -454,6 +490,17 @@ public class RecommendationScoreCalculator {
             adjustment += rule.getPositiveNewsExpensivePenalty();
             if ((momentum != null && momentum <= rule.getExpensiveGoodMomentumMax())
                     || (stability != null && stability <= rule.getExpensiveGoodStabilityMax())) {
+                    adjustment -= 2;
+            }
+        }
+        if (normalizedNews != null
+                && normalizedNews >= rule.getPositiveNewsWeakGrowthNewsMin()
+                && qualityOfGrowth != null
+                && qualityOfGrowth <= rule.getPositiveNewsWeakGrowthQualityMax()
+                && valuation != null
+                && valuation <= rule.getPositiveNewsWeakGrowthValuationMax()) {
+            adjustment += rule.getPositiveNewsWeakGrowthPenalty();
+            if (momentum != null && momentum <= 58) {
                 adjustment -= 2;
             }
         }
@@ -475,6 +522,17 @@ public class RecommendationScoreCalculator {
                 && stability != null
                 && stability <= 54) {
             adjustment -= 4;
+        }
+        if (fundamental != null
+                && fundamental >= rule.getOverheatedExpensiveFundamentalMin()
+                && valuation != null
+                && valuation <= rule.getOverheatedExpensiveValuationMax()
+                && ((momentum != null && momentum >= 68)
+                || (stability != null && stability >= 80))) {
+            adjustment += rule.getOverheatedExpensivePenalty();
+            if (momentum != null && momentum >= 74) {
+                adjustment -= 2;
+            }
         }
         if (fundamental != null
                 && fundamental >= 82
@@ -748,8 +806,17 @@ public class RecommendationScoreCalculator {
             String effectiveRiskProfile,
             String recommendationStatus,
             boolean increaseEligible,
+            String increaseEligibilityReason,
+            long strongFactorCount,
             int confidence,
             List<FactorResult> factors
+    ) {
+    }
+
+    private record IncreaseEligibility(
+            boolean eligible,
+            String reason,
+            long strongFactorCount
     ) {
     }
 }

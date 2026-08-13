@@ -23,6 +23,12 @@ RecommendationHeadline resolveRecommendationHeadline(RecommendationItem item) {
       semanticKey: 'data_gap',
     );
   }
+  if (_containsAny(note, const ['증액 직전 유지'])) {
+    return const RecommendationHeadline(
+      label: '증액 직전',
+      semanticKey: 'near_increase',
+    );
+  }
   if (_containsAny(note, const ['변동성 감액', '하방 리스크', '흔들림'])) {
     return const RecommendationHeadline(
       label: '변동성',
@@ -79,6 +85,11 @@ String buildCompactRecommendationSummary(RecommendationItem item) {
   final headline = resolveRecommendationHeadline(item);
 
   switch (headline.semanticKey) {
+    case 'near_increase':
+      if (_containsAny(item.note, const ['흔들림', '안정화 확인'])) {
+        return '기본 체력은 강하지만 최근 흔들림을 한 번 더 확인하는 구간이에요.';
+      }
+      return '핵심 팩터는 충분하지만 마지막 가격 여유를 더 확인하는 구간이에요.';
     case 'price_reflected':
       return '좋은 흐름이 이미 가격에 반영돼 있어 지금은 유지 쪽이 자연스러워요.';
     case 'price_burden':

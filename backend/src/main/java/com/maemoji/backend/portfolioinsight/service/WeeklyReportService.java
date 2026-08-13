@@ -236,7 +236,7 @@ public class WeeklyReportService {
                     scoreDelta,
                     "자료 수집 중",
                     "DATA_PENDING",
-                    current.getCompanyName() + "은 분석 자료를 더 모으고 있어요. 자료가 충분해지면 변화를 다시 판단할게요."
+                    current.getCompanyName() + "은 아직 분석 자료를 모으는 중이에요."
             );
         }
 
@@ -247,7 +247,7 @@ public class WeeklyReportService {
                     scoreDelta,
                     "새로 분석",
                     "NEW_ENTRY",
-                    current.getCompanyName() + "은 이번 주 처음 리포트에 포함되었어요."
+                    current.getCompanyName() + "은 이번 주 처음 리포트에 들어왔어요."
             );
         }
 
@@ -261,6 +261,7 @@ public class WeeklyReportService {
             final String currentStatus = current.getRecommendationStatus();
             final boolean isDowngraded = "REDUCE".equals(currentStatus) || "STOP".equals(currentStatus);
             final boolean isUpgraded = "INCREASE".equals(currentStatus);
+            final String shiftReason = resolveStatusShiftReason(current, previous, scoreDelta, momentumDelta, stabilityDelta);
             return new ResolvedTrend(
                     current,
                     previousStatus,
@@ -271,7 +272,8 @@ public class WeeklyReportService {
                             current.getCompanyName(),
                             previousStatus,
                             current.getRecommendationStatus(),
-                            supplementalPriceRisk
+                            supplementalPriceRisk,
+                            shiftReason
                     )
             );
         }
@@ -283,7 +285,7 @@ public class WeeklyReportService {
                     scoreDelta,
                     "뉴스 개선",
                     "NEWS_IMPROVED",
-                    current.getCompanyName() + "은 최근 뉴스 분위기가 좋아져 다시 볼 이유가 생겼어요."
+                    current.getCompanyName() + "은 최근 뉴스 흐름이 좋아졌어요."
             );
         }
         if (newsDelta <= -8) {
@@ -293,7 +295,7 @@ public class WeeklyReportService {
                     scoreDelta,
                     "뉴스 악화",
                     "NEWS_WEAKENED",
-                    current.getCompanyName() + "은 최근 뉴스 분위기가 약해져 한 번 더 확인하는 편이 좋아요."
+                    current.getCompanyName() + "은 최근 뉴스 흐름이 약해져 다시 확인이 필요해요."
             );
         }
         if (isPriceRiskTrend(current, momentumDelta, stabilityDelta)) {
@@ -303,7 +305,7 @@ public class WeeklyReportService {
                     scoreDelta,
                     "가격 흔들림",
                     "PRICE_RISK",
-                    current.getCompanyName() + "은 최근 가격 흐름이 흔들려 보수적으로 볼 필요가 있어요."
+                    current.getCompanyName() + "은 최근 가격 흐름이 흔들려 더 보수적으로 볼 만해요."
             );
         }
         if (momentumDelta >= 9 || stabilityDelta >= 9) {
@@ -313,7 +315,10 @@ public class WeeklyReportService {
                     scoreDelta,
                     "가격 안정",
                     "PRICE_IMPROVED",
-                    current.getCompanyName() + "은 최근 가격 흐름이 한층 안정적으로 반영됐어요."
+                    appendReason(
+                            current.getCompanyName() + "은 최근 가격 흐름이 더 안정됐어요.",
+                            resolveImprovementReason(current, momentumDelta, stabilityDelta, fundamentalDelta)
+                    )
             );
         }
         if (fundamentalDelta >= 6) {
@@ -323,15 +328,18 @@ public class WeeklyReportService {
                     scoreDelta,
                     "기업 체력 반영",
                     "FUNDAMENTAL_IMPROVED",
-                    current.getCompanyName() + "은 기업 체력 판단이 좋아져 장기 관점이 조금 더 단단해졌어요."
+                    appendReason(
+                            current.getCompanyName() + "은 기업 체력 판단이 좋아졌어요.",
+                            resolveImprovementReason(current, momentumDelta, stabilityDelta, fundamentalDelta)
+                    )
             );
         }
 
         final String maintainHeadline = scoreDelta >= 0 ? "다시 확인" : "보수적 유지";
         final String maintainChangeType = scoreDelta >= 0 ? "STABLE_REVIEW" : "CAUTIOUS_MAINTAIN";
         final String maintainSummary = scoreDelta >= 0
-                ? current.getCompanyName() + "은 큰 방향 변화는 없지만 이번 주 한 번 더 점검해볼 만해요."
-                : current.getCompanyName() + "은 큰 변화는 없지만 조금 더 보수적으로 보는 흐름이에요.";
+                ? current.getCompanyName() + "은 큰 방향 변화는 없지만 이번 주 다시 볼 만해요."
+                : current.getCompanyName() + "은 큰 변화는 없지만 조금 더 보수적으로 보고 있어요.";
 
         return new ResolvedTrend(
                 current,
@@ -339,8 +347,117 @@ public class WeeklyReportService {
                 scoreDelta,
                 maintainHeadline,
                 maintainChangeType,
-                maintainSummary
+                appendReason(
+                        maintainSummary,
+                        resolveMaintainReason(current, previous, scoreDelta, momentumDelta, stabilityDelta, fundamentalDelta)
+                )
         );
+    }
+
+    private String resolveStatusShiftReason(
+            RecommendationTrendRow current,
+            RecommendationTrendRow previous,
+            int scoreDelta,
+            int momentumDelta,
+            int stabilityDelta
+    ) {
+        final String currentStatus = safeText(current.getRecommendationStatus()).toUpperCase();
+        final String previousStatus = safeText(previous.getRecommendationStatus()).toUpperCase();
+
+        if ("REDUCE".equals(currentStatus) && "STOP".equals(previousStatus)) {
+            return resolveEasingReason(current, scoreDelta, momentumDelta, stabilityDelta);
+        }
+        if ("STOP".equals(currentStatus) && "REDUCE".equals(previousStatus)) {
+            return resolveWorseningReason(current, scoreDelta, momentumDelta, stabilityDelta);
+        }
+        if ("MAINTAIN".equals(currentStatus) && ("REDUCE".equals(previousStatus) || "STOP".equals(previousStatus))) {
+            return resolveEasingReason(current, scoreDelta, momentumDelta, stabilityDelta);
+        }
+        if (("REDUCE".equals(currentStatus) || "STOP".equals(currentStatus)) && "MAINTAIN".equals(previousStatus)) {
+            return resolveWorseningReason(current, scoreDelta, momentumDelta, stabilityDelta);
+        }
+        return null;
+    }
+
+    private String resolveMaintainReason(
+            RecommendationTrendRow current,
+            RecommendationTrendRow previous,
+            int scoreDelta,
+            int momentumDelta,
+            int stabilityDelta,
+            int fundamentalDelta
+    ) {
+        if (previous == null) {
+            return null;
+        }
+        if (scoreDelta >= 5 || momentumDelta >= 6 || stabilityDelta >= 6 || fundamentalDelta >= 6) {
+            return resolveEasingReason(current, scoreDelta, momentumDelta, stabilityDelta);
+        }
+        if (scoreDelta <= -5 || momentumDelta <= -6 || stabilityDelta <= -6) {
+            return resolveWorseningReason(current, scoreDelta, momentumDelta, stabilityDelta);
+        }
+        return null;
+    }
+
+    private String resolveImprovementReason(
+            RecommendationTrendRow current,
+            int momentumDelta,
+            int stabilityDelta,
+            int fundamentalDelta
+    ) {
+        if (fundamentalDelta >= 6 && value(current.getFundamentalQualityScore()) >= 72) {
+            return "기업 체력 완화";
+        }
+        if (stabilityDelta >= 9 && value(current.getPriceStabilityScore()) >= 55) {
+            return "변동성 완화";
+        }
+        if (momentumDelta >= 9 && value(current.getPriceMomentumScore()) >= 45) {
+            return "성장 둔화 완화";
+        }
+        return null;
+    }
+
+    private String resolveEasingReason(
+            RecommendationTrendRow current,
+            int scoreDelta,
+            int momentumDelta,
+            int stabilityDelta
+    ) {
+        if (stabilityDelta >= 6 && value(current.getPriceStabilityScore()) >= 48) {
+            return "변동성 완화";
+        }
+        if (momentumDelta >= 6 && value(current.getPriceMomentumScore()) >= 42) {
+            return "성장 둔화 완화";
+        }
+        if (scoreDelta >= 5) {
+            return "가격 부담 완화";
+        }
+        return null;
+    }
+
+    private String resolveWorseningReason(
+            RecommendationTrendRow current,
+            int scoreDelta,
+            int momentumDelta,
+            int stabilityDelta
+    ) {
+        if (stabilityDelta <= -6 || value(current.getPriceStabilityScore()) <= 45) {
+            return "변동성 악화";
+        }
+        if (momentumDelta <= -6 || value(current.getPriceMomentumScore()) <= 36) {
+            return "성장 둔화 악화";
+        }
+        if (scoreDelta <= -5) {
+            return "가격 부담 악화";
+        }
+        return null;
+    }
+
+    private String appendReason(String base, String reasonLabel) {
+        if (reasonLabel == null || reasonLabel.isBlank()) {
+            return base;
+        }
+        return base + " 이번엔 " + reasonLabel + " 영향이 컸어요.";
     }
 
     private boolean isAnalysisDataInsufficient(RecommendationTrendRow current) {
@@ -464,15 +581,21 @@ public class WeeklyReportService {
             String companyName,
             String previousStatus,
             String currentStatus,
-            boolean supplementalPriceRisk
+            boolean supplementalPriceRisk,
+            String shiftReason
     ) {
         final String base = companyName + "은 " + toKoreanStatus(previousStatus)
                 + "에서 " + toKoreanStatus(currentStatus)
-                + " 쪽으로 의견이 바뀌었어요.";
+                + "로 바뀌었어요.";
+        final String withReason = appendReason(base, shiftReason);
         if (!supplementalPriceRisk) {
-            return base;
+            return withReason;
         }
-        return base + " " + SUPPLEMENTAL_PRICE_RISK_TEXT + " 조금 더 보수적으로 확인하는 편이 좋아요.";
+        return withReason + " " + SUPPLEMENTAL_PRICE_RISK_TEXT + " 더 보수적으로 볼 만해요.";
+    }
+
+    private String safeText(String value) {
+        return value == null ? "" : value;
     }
 
     public static boolean hasSupplementalPriceRiskText(String text) {

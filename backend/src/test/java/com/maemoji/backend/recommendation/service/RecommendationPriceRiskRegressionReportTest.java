@@ -40,7 +40,8 @@ import static org.mockito.Mockito.mock;
 class RecommendationPriceRiskRegressionReportTest {
 
     private static final List<String> TARGET_SYMBOLS = List.of(
-            "AMD", "CRM", "NOW", "SNOW", "NET", "SHOP", "TSLA"
+            "AMD", "CRM", "NOW", "SNOW", "NET", "SHOP", "TSLA",
+            "MSFT", "META", "NVDA", "AMZN", "COST"
     );
 
     private final RecommendationTuningProperties tuningProperties =
@@ -131,7 +132,8 @@ class RecommendationPriceRiskRegressionReportTest {
                         changeType,
                         supplementalPriceRisk,
                         "PRICE_RISK".equals(changeType),
-                        currentEvaluation.reason()
+                        currentEvaluation.reason(),
+                        buildBoundaryRelaxationNote(currentEvaluation, previousEvaluation)
                 ));
             }
         }
@@ -336,22 +338,127 @@ class RecommendationPriceRiskRegressionReportTest {
             Integer valuationScore,
             Integer qualityOfGrowthScore
     ) {
-        if (priceMomentumScore != null && priceMomentumScore <= 42 && priceStabilityScore != null && priceStabilityScore <= 45) {
-            return "흐름과 안정성이 모두 약해 가격 흔들림 경계가 강함";
-        }
         if ("INCREASE".equals(result.recommendationStatus())) {
-            return "핵심 팩터가 고르게 강해 증액 쪽";
+            return "핵심 팩터가 고르게 강한 증액 우세";
         }
         if ("REDUCE".equals(result.recommendationStatus()) || "STOP".equals(result.recommendationStatus())) {
-            return "가격 부담 또는 변동성 확대가 감액 쪽으로 반영";
+            if (valuationScore != null && valuationScore <= 45) {
+                return "기업 체력은 받쳐주지만 가격 부담이 큰 가격 부담 감액";
+            }
+            if (priceMomentumScore != null
+                    && priceMomentumScore <= 42
+                    && priceStabilityScore != null
+                    && priceStabilityScore <= 45) {
+                return "흐름과 안정성이 모두 약한 변동성 감액";
+            }
+            if (qualityOfGrowthScore != null && qualityOfGrowthScore <= 58) {
+                return "가격은 무난해도 성장 질이 약한 성장 둔화 감액";
+            }
+            return "가격 부담 또는 변동성 확대가 반영된 감액";
         }
-        if (valuationScore != null && valuationScore <= 55) {
-            return "체력은 있지만 가격 부담으로 유지";
+        if (valuationScore != null && valuationScore <= 58) {
+            return "기대가 가격에 먼저 반영된 가격 반영 유지";
         }
-        if (qualityOfGrowthScore != null && qualityOfGrowthScore <= 58) {
-            return "성장 질 확인이 더 필요한 유지";
+        if (priceMomentumScore != null
+                && priceMomentumScore >= 70
+                && priceStabilityScore != null
+                && priceStabilityScore >= 74) {
+            return "핵심 팩터는 충분하지만 마지막 가격 여유를 더 확인하는 증액 직전 유지";
         }
-        return "가격 흐름과 체력 균형을 다시 보는 유지";
+        if (priceMomentumScore != null
+                && priceMomentumScore >= 36
+                && priceMomentumScore <= 60
+                && priceStabilityScore != null
+                && priceStabilityScore <= 55) {
+            return "기업 체력은 강하지만 최근 가격 흔들림이 남은 증액 직전 유지";
+        }
+        if (qualityOfGrowthScore != null && qualityOfGrowthScore <= 60) {
+            return "방어력은 괜찮지만 성장 탄력이 약한 성장 확인 유지";
+        }
+        if (priceMomentumScore != null
+                && priceMomentumScore <= 46
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 58
+                && priceStabilityScore != null
+                && priceStabilityScore >= 58) {
+            return "감액 직전이지만 방어력은 남아 있는 감액 직전 유지";
+        }
+        return "여러 팩터가 비교적 잘 버티지만 한 단계 더 확인이 필요한 성장 확인 유지";
+    }
+
+    private String buildBoundaryRelaxationNote(Evaluation current, Evaluation previous) {
+        if (previous == null) {
+            return "-";
+        }
+
+        final String currentStatus = blankDash(current.status());
+        final String previousStatus = blankDash(previous.status());
+        final boolean wasStop = "STOP".equals(previousStatus);
+        final boolean isStop = "STOP".equals(currentStatus);
+        final boolean isReduce = "REDUCE".equals(currentStatus);
+        final boolean wasReduce = "REDUCE".equals(previousStatus);
+
+        final int momentumDelta = safeDelta(current.priceMomentumScore(), previous.priceMomentumScore());
+        final int stabilityDelta = safeDelta(current.priceStabilityScore(), previous.priceStabilityScore());
+
+        if (isReduce && wasStop) {
+            if (stabilityDelta >= 8) {
+                return "변동성 완화: 하방 리스크가 전일 대비 줄어 중단에서 감액으로 완화";
+            }
+            if (momentumDelta >= 8) {
+                return "성장 둔화 완화: 가격 흐름 약세가 전일 대비 완화돼 중단에서 감액으로 완화";
+            }
+            return "가격 부담 완화: 중단 요인이 일부 누그러져 감액 구간으로 완화";
+        }
+
+        if (isStop && wasReduce) {
+            if (current.priceStabilityScore() != null && current.priceStabilityScore() <= 45 && stabilityDelta <= -6) {
+                return "변동성 악화: 하방 리스크가 다시 커져 감액에서 중단으로 강화";
+            }
+            if (current.priceMomentumScore() != null && current.priceMomentumScore() <= 30 && momentumDelta <= -6) {
+                return "성장 둔화 악화: 가격 흐름 약세가 심해져 감액에서 중단으로 강화";
+            }
+            return "가격 부담 악화: 가격 부담 대비 확신이 더 약해져 감액에서 중단으로 강화";
+        }
+
+        if (isStop && wasStop) {
+            if (current.priceStabilityScore() != null && current.priceStabilityScore() <= 45) {
+                return "변동성 지속: 하방 리스크가 계속 높아 중단 유지";
+            }
+            if (current.priceMomentumScore() != null && current.priceMomentumScore() <= 30) {
+                return "성장 둔화 지속: 흐름 약세가 계속 강해 중단 유지";
+            }
+            return "가격 부담 지속: 가격 부담이 계속 커 중단 유지";
+        }
+
+        if (isReduce && wasReduce) {
+            if (current.priceStabilityScore() != null
+                    && current.priceStabilityScore() <= 60
+                    && stabilityDelta >= 6) {
+                return "변동성 완화 중: 흔들림은 줄었지만 아직 감액 구간";
+            }
+            if (current.priceMomentumScore() != null
+                    && current.priceMomentumScore() >= 40
+                    && current.priceMomentumScore() <= 55
+                    && momentumDelta >= 6) {
+                return "성장 둔화 완화 중: 흐름은 나아졌지만 아직 감액 구간";
+            }
+            if (current.priceMomentumScore() != null
+                    && current.priceMomentumScore() >= 38
+                    && current.priceStabilityScore() != null
+                    && current.priceStabilityScore() >= 60) {
+                return "가격 부담 완화 중: 방어력은 나아졌지만 가격 부담이 남아 감액 유지";
+            }
+        }
+
+        return "-";
+    }
+
+    private int safeDelta(Integer current, Integer previous) {
+        if (current == null || previous == null) {
+            return 0;
+        }
+        return current - previous;
     }
 
     private List<SnapshotRow> fetchLatestTwoSnapshots(Connection connection, String symbol) throws Exception {
@@ -515,9 +622,9 @@ class RecommendationPriceRiskRegressionReportTest {
                 .append(System.lineSeparator())
                 .append(System.lineSeparator());
 
-        markdown.append("| 종목 | 현재일 | 이전일 | 현재점수 | 이전점수 | 현재상태 | 이전상태 | 현재흐름 | 이전흐름 | 현재안정성 | 이전안정성 | changeType | 보조 가격리스크 | 알림 후보 | 메모 |")
+        markdown.append("| 종목 | 현재일 | 이전일 | 현재점수 | 이전점수 | 현재상태 | 이전상태 | 현재흐름 | 이전흐름 | 현재안정성 | 이전안정성 | changeType | 보조 가격리스크 | 알림 후보 | 메모 | 완화 이유 |")
                 .append(System.lineSeparator());
-        markdown.append("|---|---|---|---:|---:|---|---|---:|---:|---:|---:|---|---|---|---|")
+        markdown.append("|---|---|---|---:|---:|---|---|---:|---:|---:|---:|---|---|---|---|---|")
                 .append(System.lineSeparator());
 
         for (RegressionRow row : rows) {
@@ -536,7 +643,8 @@ class RecommendationPriceRiskRegressionReportTest {
                     .append(row.changeType()).append(" | ")
                     .append(row.supplementalPriceRisk() ? "예" : "아니오").append(" | ")
                     .append(row.priceRiskAlert() ? "예" : "아니오").append(" | ")
-                    .append(row.note()).append(" |")
+                    .append(row.note()).append(" | ")
+                    .append(row.relaxationNote()).append(" |")
                     .append(System.lineSeparator());
         }
 
@@ -623,7 +731,8 @@ class RecommendationPriceRiskRegressionReportTest {
             String changeType,
             boolean supplementalPriceRisk,
             boolean priceRiskAlert,
-            String note
+            String note,
+            String relaxationNote
     ) {
     }
 }

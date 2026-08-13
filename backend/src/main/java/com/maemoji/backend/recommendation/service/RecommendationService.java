@@ -463,6 +463,7 @@ public class RecommendationService {
                 priceSnapshot,
                 newsSentiment,
                 v4Context,
+                v4ScoreResult,
                 scoreResult,
                 priceContribution,
                 newsContribution
@@ -1856,6 +1857,7 @@ public class RecommendationService {
             PriceSnapshot priceSnapshot,
             NewsSentimentService.NewsSentimentResult newsSentiment,
             V4ScoringContext v4Context,
+            RecommendationScoreCalculator.V4ScoreResult v4ScoreResult,
             RecommendationScoreCalculator.ScoreResult scoreResult,
             int priceContribution,
             int newsContribution
@@ -1937,7 +1939,8 @@ public class RecommendationService {
                         scoreResult.finalScore(),
                         priceSnapshot,
                         newsSentiment,
-                        v4Context
+                        v4Context,
+                        v4ScoreResult
                 ),
                 null,
                 6
@@ -2007,6 +2010,7 @@ public class RecommendationService {
                         scoreResult.finalScore(),
                         priceSnapshot,
                         newsSentiment,
+                        null,
                         null
                 ),
                 null,
@@ -2071,7 +2075,7 @@ public class RecommendationService {
         evidence.add(evidence(
                 "AI_NOTE",
                 "최종 해석",
-                buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment, null),
+                buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment, null, null),
                 null,
                 6
         ));
@@ -2944,24 +2948,24 @@ public class RecommendationService {
                 && priceSnapshot.thirtyDayReturn() >= 12
                 && priceSnapshot.thirtyDayReturn() <= 22
                 && abs7 <= 3.5) {
-            stress += 2;
+            stress += 1.5;
         }
         if (priceSnapshot.thirtyDayReturn() != null
                 && priceSnapshot.thirtyDayReturn() >= 18
                 && abs7 <= 4) {
-            stress += 3;
+            stress += 2.5;
         }
         if (priceSnapshot.thirtyDayReturn() != null
                 && priceSnapshot.thirtyDayReturn() >= 25
                 && abs7 <= 3.5) {
-            stress += 4;
+            stress += 3;
         }
         if (priceSnapshot.thirtyDayReturn() != null
                 && priceSnapshot.thirtyDayReturn() >= 12
                 && priceSnapshot.changeRate7d() != null
                 && priceSnapshot.changeRate7d() >= 4.5
                 && abs7 <= 5) {
-            stress += 2.5;
+            stress += 2;
         }
 
         int score;
@@ -4213,6 +4217,14 @@ public class RecommendationService {
 
         final String sector = blankToEmpty(target.getSector()).toLowerCase(Locale.ROOT);
         final String industry = blankToEmpty(target.getIndustry()).toLowerCase(Locale.ROOT);
+        final boolean financial = isFinancialLike(sector, industry);
+        final boolean assetManager = isAssetManagerLike(sector, industry);
+        final boolean defensive = isDefensiveLike(sector, industry);
+        final boolean semiconductor = isSemiconductorLike(sector, industry);
+        final boolean platformSoftware = isEnterpriseSoftwareLike(sector, industry);
+        final boolean megaPlatform = isMegaPlatformLike(sector, industry);
+        final boolean highBetaGrowth = isHighBetaGrowthLike(sector, industry);
+        final boolean retailOrHousing = isRetailOrHousingLike(sector, industry);
         if (sector.contains("energy") || sector.contains("materials") || sector.contains("industrial")) {
             if (priceMomentumScore != null
                     && priceMomentumScore >= 44
@@ -4230,7 +4242,7 @@ public class RecommendationService {
                 adjustment -= 2;
             }
         }
-        if (sector.contains("financial")) {
+        if (financial) {
             if (valuationScore != null
                     && valuationScore >= 60
                     && priceStabilityScore != null
@@ -4245,14 +4257,50 @@ public class RecommendationService {
                     && profitabilityFactorScore <= 58) {
                 adjustment -= 3;
             }
+            if (priceStabilityScore != null
+                    && priceStabilityScore >= 84
+                    && priceMomentumScore != null
+                    && priceMomentumScore >= 58
+                    && priceMomentumScore <= 76
+                    && valuationScore != null
+                    && valuationScore >= 70
+                    && qualityOfGrowthScore != null
+                    && qualityOfGrowthScore >= 56) {
+                adjustment += 2;
+            }
+            if (priceMomentumScore != null
+                    && priceMomentumScore <= 56
+                    && priceStabilityScore != null
+                    && priceStabilityScore <= 74
+                    && qualityOfGrowthScore != null
+                    && qualityOfGrowthScore <= 56) {
+                adjustment -= 2;
+            }
         }
-        if (sector.contains("healthcare") || sector.contains("consumer defensive") || sector.contains("utilities")) {
+        if (defensive) {
             if (priceStabilityScore != null
                     && priceStabilityScore >= 74
                     && valuationScore != null
                     && valuationScore >= 52
                     && valuationScore <= 72) {
                 adjustment += 1;
+            }
+            if (priceStabilityScore != null
+                    && priceStabilityScore >= 82
+                    && qualityOfGrowthScore != null
+                    && qualityOfGrowthScore >= 54
+                    && qualityOfGrowthScore <= 68
+                    && valuationScore != null
+                    && valuationScore >= 58) {
+                adjustment += 1;
+            }
+            if (priceMomentumScore != null
+                    && priceMomentumScore <= 54
+                    && qualityOfGrowthScore != null
+                    && qualityOfGrowthScore <= 54
+                    && valuationScore != null
+                    && valuationScore <= 60) {
+                adjustment -= 2;
             }
         }
         if ((sector.contains("technology") || sector.contains("communication"))
@@ -4261,22 +4309,54 @@ public class RecommendationService {
                 && qualityOfGrowthScore < 68) {
             adjustment -= 2;
         }
-        if (isSemiconductorLike(sector, industry)
+        if (semiconductor
                 && valuationScore != null
                 && valuationScore <= 55
                 && priceMomentumScore != null
                 && priceMomentumScore <= 52) {
             adjustment -= 3;
         }
-        if (isEnterpriseSoftwareLike(sector, industry)
+        if (semiconductor
+                && valuationScore != null
+                && valuationScore <= 58
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 78
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 74
+                && priceStabilityScore != null
+                && priceStabilityScore <= 60) {
+            adjustment -= 2;
+        }
+        if (semiconductor
+                && valuationScore != null
+                && valuationScore >= 66
+                && valuationScore <= 78
+                && priceMomentumScore != null
+                && priceMomentumScore >= 54
+                && priceStabilityScore != null
+                && priceStabilityScore >= 64
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 76) {
+            adjustment += 1;
+        }
+        if (platformSoftware
                 && priceStabilityScore != null
                 && priceStabilityScore >= 82
                 && valuationScore != null
                 && valuationScore >= 60
-                && valuationScore <= 72) {
-            adjustment += 1;
+                    && valuationScore <= 72) {
+                adjustment += 1;
+            }
+        if (platformSoftware
+                && valuationScore != null
+                && valuationScore <= 60
+                && priceStabilityScore != null
+                && priceStabilityScore >= 76
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 68) {
+            adjustment -= 2;
         }
-        if (isMegaPlatformLike(sector, industry)
+        if (megaPlatform
                 && priceMomentumScore != null
                 && priceMomentumScore >= 38
                 && priceMomentumScore <= 48
@@ -4288,31 +4368,67 @@ public class RecommendationService {
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= 78
                 && valuationScore != null
-                && valuationScore >= 76) {
-            adjustment += 3;
-        }
-        if (isHighBetaGrowthLike(sector, industry)
+                    && valuationScore >= 76) {
+                adjustment += 3;
+            }
+        if (highBetaGrowth
                 && valuationScore != null
                 && valuationScore <= 58
                 && priceStabilityScore != null
                 && priceStabilityScore <= 58
                 && priceMomentumScore != null
-                && priceMomentumScore <= 58) {
-            adjustment -= 3;
+                    && priceMomentumScore <= 58) {
+                adjustment -= 3;
+            }
+        if (highBetaGrowth
+                && valuationScore != null
+                && valuationScore >= 66
+                && priceMomentumScore != null
+                && priceMomentumScore >= 58
+                && priceStabilityScore != null
+                && priceStabilityScore >= 64
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 74
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 74) {
+            adjustment += 1;
         }
-        if (isAssetManagerLike(sector, industry)
+        if (assetManager
                 && priceStabilityScore != null
                 && priceStabilityScore >= 82
                 && qualityOfGrowthScore != null
-                && qualityOfGrowthScore >= 72) {
-            adjustment += 1;
-        }
-        if ((sector.contains("consumer cyclical") || industry.contains("retail") || industry.contains("travel"))
+                    && qualityOfGrowthScore >= 72) {
+                adjustment += 1;
+            }
+        if (retailOrHousing
                 && priceMomentumScore != null
                 && priceMomentumScore <= 42
                 && priceStabilityScore != null
-                && priceStabilityScore <= 55) {
+                    && priceStabilityScore <= 55) {
+                adjustment -= 2;
+            }
+        if (retailOrHousing
+                && valuationScore != null
+                && valuationScore <= 58
+                && priceMomentumScore != null
+                && priceMomentumScore >= 68
+                && priceStabilityScore != null
+                && priceStabilityScore >= 76
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 60) {
             adjustment -= 2;
+        }
+        if (retailOrHousing
+                && valuationScore != null
+                && valuationScore >= 66
+                && priceMomentumScore != null
+                && priceMomentumScore >= 56
+                && priceMomentumScore <= 72
+                && priceStabilityScore != null
+                && priceStabilityScore >= 76
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 60) {
+            adjustment += 1;
         }
         return adjustment;
     }
@@ -5059,12 +5175,35 @@ public class RecommendationService {
             int finalScore,
             PriceSnapshot priceSnapshot,
             NewsSentimentService.NewsSentimentResult newsSentiment,
-            V4ScoringContext v4Context
+            V4ScoringContext v4Context,
+            RecommendationScoreCalculator.V4ScoreResult v4ScoreResult
     ) {
         final String companyName = target.getCompanyName();
 
         if ("STOP".equals(recommendationStatus)) {
-            return companyName + "은 하방 리스크 관리가 우선이라, 지금은 중단 또는 관망이 더 적절합니다.";
+            if (v4Context != null
+                    && (v4Context.priceMomentumScore() == null
+                    || v4Context.priceStabilityScore() == null
+                    || v4Context.fundamentalQualityScore() == null
+                    || v4Context.qualityOfGrowthScore() == null)) {
+                return companyName + "은 핵심 데이터가 아직 충분하지 않아, 지금은 데이터 부족 중단이 더 안전합니다.";
+            }
+            if (v4Context != null
+                    && v4Context.priceStabilityScore() != null
+                    && v4Context.priceStabilityScore() <= 45) {
+                return companyName + "은 최근 흔들림과 하방 리스크가 너무 커, 지금은 변동성 중단이 더 적절합니다.";
+            }
+            if (v4Context != null
+                    && v4Context.valuationScore() != null
+                    && v4Context.valuationScore() <= 52) {
+                return companyName + "은 가격 부담이 큰데 확신을 보완할 근거가 약해, 지금은 가격 부담 중단이 더 적절합니다.";
+            }
+            if (v4Context != null
+                    && v4Context.qualityOfGrowthScore() != null
+                    && v4Context.qualityOfGrowthScore() <= 48) {
+                return companyName + "은 성장 둔화 신호가 강해, 지금은 성장 둔화 중단이 더 적절합니다.";
+            }
+            return companyName + "은 하방 리스크 관리가 우선이라, 지금은 변동성 중단 또는 관망이 더 적절합니다.";
         }
         if (newsSentiment.hardNegativeOverride()) {
             return companyName + "은 강한 악재가 확인돼, 지금은 더 보수적으로 보는 게 우선입니다.";
@@ -5104,6 +5243,18 @@ public class RecommendationService {
                 return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 성장 둔화 감액이 자연스럽습니다.";
             }
             if (v4Context != null
+                    && v4Context.priceMomentumScore() != null
+                    && v4Context.priceMomentumScore() >= 38
+                    && v4Context.priceMomentumScore() <= 58
+                    && v4Context.priceStabilityScore() != null
+                    && v4Context.priceStabilityScore() >= 60
+                    && v4Context.valuationScore() != null
+                    && v4Context.valuationScore() <= 55
+                    && v4Context.qualityOfGrowthScore() != null
+                    && v4Context.qualityOfGrowthScore() >= 55) {
+                return companyName + "은 가격 부담이 큰데 추가 확신이 약해, 지금은 가격 부담 감액이 더 적절합니다.";
+            }
+            if (v4Context != null
                     && reduceFinancial
                     && v4Context.qualityOfGrowthScore() != null
                     && v4Context.qualityOfGrowthScore() <= 50) {
@@ -5123,13 +5274,13 @@ public class RecommendationService {
             if (v4Context != null
                     && v4Context.valuationScore() != null
                     && v4Context.valuationScore() <= 55) {
-                return companyName + "은 가격 부담이 큰데 추가 확신이 약해, 지금은 가격 부담 감액으로 봤습니다.";
+                return companyName + "은 가격 부담이 큰데 추가 확신이 약해, 지금은 가격 부담 감액이 더 적절합니다.";
             }
             return companyName + "은 여러 핵심 팩터가 감액 구간으로 기울어 현재 점수 " + finalScore
                     + "점으로 봤고, 지금은 성장 둔화 감액이 더 적절합니다.";
         }
         if ("MAINTAIN".equals(recommendationStatus) && v4Context != null) {
-            final String maintainComment = buildMaintainAiComment(companyName, v4Context);
+            final String maintainComment = buildMaintainAiComment(companyName, v4Context, v4ScoreResult);
             if (!maintainComment.isBlank()) {
                 return maintainComment;
             }
@@ -5152,7 +5303,7 @@ public class RecommendationService {
             NewsSentimentService.NewsSentimentResult newsSentiment,
             V4ScoringContext v4Context
     ) {
-        return buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment, v4Context);
+        return buildAiComment(target, recommendationStatus, finalScore, priceSnapshot, newsSentiment, v4Context, null);
     }
 
     private String normalizeRecommendationNote(String recommendationStatus, String note) {
@@ -5199,7 +5350,11 @@ public class RecommendationService {
         return false;
     }
 
-    private String buildMaintainAiComment(String companyName, V4ScoringContext v4Context) {
+    private String buildMaintainAiComment(
+            String companyName,
+            V4ScoringContext v4Context,
+            RecommendationScoreCalculator.V4ScoreResult v4ScoreResult
+    ) {
         final Integer momentum = v4Context.priceMomentumScore();
         final Integer stability = v4Context.priceStabilityScore();
         final Integer valuation = v4Context.valuationScore();
@@ -5215,6 +5370,7 @@ public class RecommendationService {
         final boolean retailOrHousing = isRetailOrHousingLike(sector, industry);
         final boolean priceDataIncomplete = momentum == null || stability == null;
         final boolean fundamentalDataThin = fundamental == null || quality == null;
+        final boolean increaseEligible = v4ScoreResult != null && v4ScoreResult.increaseEligible();
 
         if (priceDataIncomplete && fundamentalDataThin) {
             return companyName + "은 가격 흐름과 재무 데이터가 아직 충분하지 않아, 지금은 데이터 부족 유지 구간으로 봤어요.";
@@ -5236,10 +5392,35 @@ public class RecommendationService {
                 || (stability != null && stability <= 65)
                 || (quality != null && quality <= 58);
 
-        if (nearIncrease && valuation != null && valuation <= 58) {
+        if ((increaseEligible || nearIncrease) && valuation != null && valuation <= 58) {
             return companyName + "은 전반 흐름은 괜찮지만 기대가 가격에 먼저 반영돼 있어, 지금은 가격 반영 유지 구간으로 봤어요.";
         }
-        if (nearIncrease
+        if (increaseEligible
+                && momentum != null
+                && momentum >= 70
+                && stability != null
+                && stability >= 74
+                && fundamental != null
+                && fundamental >= 70
+                && quality != null
+                && quality >= 64
+                && valuation != null
+                && valuation >= 66) {
+            return companyName + "은 핵심 팩터는 충분하지만 마지막 가격 여유를 더 확인하는 편이 좋아, 지금은 증액 직전 유지 구간으로 봤어요.";
+        }
+        if (increaseEligible
+                && fundamental != null
+                && fundamental >= 82
+                && quality != null
+                && quality >= 78
+                && momentum != null
+                && momentum >= 36
+                && momentum <= 60
+                && stability != null
+                && stability <= 55) {
+            return companyName + "은 기업 체력은 강하지만 최근 가격 흔들림이 남아 있어, 지금은 안정화 확인이 필요한 증액 직전 유지 구간이에요.";
+        }
+        if (increaseEligible
                 && momentum != null
                 && momentum <= 50
                 && v4Context.priceSnapshot() != null
@@ -5247,13 +5428,13 @@ public class RecommendationService {
                 && v4Context.priceSnapshot().thirtyDayReturn() >= 15) {
             return companyName + "은 최근 상승 속도가 빨라, 지금은 과열 여부를 확인하는 증액 직전 유지 구간이에요.";
         }
-        if (nearIncrease && quality != null && quality <= 66) {
+        if (increaseEligible && quality != null && quality <= 66) {
             return companyName + "은 흐름은 괜찮지만 성장의 질을 한 번 더 확인해야 해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
-        if (nearIncrease && fundamental != null && fundamental <= 64) {
+        if (increaseEligible && fundamental != null && fundamental <= 64) {
             return companyName + "은 가격 흐름은 괜찮지만 확신을 더 주는 근거가 부족해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
-        if (nearIncrease) {
+        if (increaseEligible) {
             return companyName + "은 여러 팩터가 비교적 잘 버티고 있지만, 한 단계 더 확인이 필요한 성장 확인 유지 구간이에요.";
         }
 
@@ -5355,7 +5536,7 @@ public class RecommendationService {
                 && quality >= 70
                 && valuation != null
                 && valuation >= 75) {
-            return companyName + "은 방어력은 충분하지만 기대가 가격에 이미 반영돼 있어, 지금은 방어형 유지 구간으로 보는 게 자연스러워요.";
+            return companyName + "은 방어력은 충분하지만 기대가 가격에 이미 반영돼 있어, 지금은 가격 반영 유지 구간으로 보는 게 자연스러워요.";
         }
         if (defensive
                 && stability != null
@@ -5364,14 +5545,14 @@ public class RecommendationService {
                 && quality >= 64
                 && valuation != null
                 && valuation >= 70) {
-            return companyName + "은 방어력은 강하지만 성장 속도가 완만해, 지금은 안정적으로 지켜보는 방어형 유지 구간이에요.";
+            return companyName + "은 방어력은 강하지만 성장 속도가 완만해, 지금은 성장 확인 유지 구간이에요.";
         }
         if (defensive
                 && stability != null
                 && stability >= 74
                 && quality != null
                 && quality <= 62) {
-            return companyName + "은 경기 방어력은 좋지만 성장 재가속 신호가 약해, 지금은 방어형 유지 구간으로 판단했어요.";
+            return companyName + "은 경기 방어력은 좋지만 성장 재가속 신호가 약해, 지금은 성장 확인 유지 구간으로 판단했어요.";
         }
         if (retailOrHousing
                 && valuation != null
@@ -5393,7 +5574,7 @@ public class RecommendationService {
                 && stability >= 80
                 && quality != null
                 && quality >= 64) {
-            return companyName + "은 기본 체력은 괜찮지만 소비 회복 기대가 가격에 이미 꽤 반영돼 있어, 지금은 추격보다 유지가 자연스러워요.";
+            return companyName + "은 기본 체력은 괜찮지만 소비 회복 기대가 가격에 이미 꽤 반영돼 있어, 지금은 가격 반영 유지가 자연스러워요.";
         }
         if (retailOrHousing
                 && valuation != null
@@ -5402,7 +5583,7 @@ public class RecommendationService {
                 && momentum >= 42
                 && stability != null
                 && stability >= 62) {
-            return companyName + "은 소비 회복 기대는 남아 있지만 지금 가격 여유가 크지 않아, 일단 추격보다 확인이 필요한 유지 구간이에요.";
+            return companyName + "은 소비 회복 기대는 남아 있지만 지금 가격 여유가 크지 않아, 일단 성장 확인 유지 구간이에요.";
         }
         if (retailOrHousing
                 && stability != null
@@ -5411,14 +5592,14 @@ public class RecommendationService {
                 && quality >= 64
                 && valuation != null
                 && valuation <= 58) {
-            return companyName + "은 기본 체력은 괜찮지만 소비 회복 기대가 이미 일부 반영돼 있어, 지금은 추격보다 확인이 필요한 유지 구간이에요.";
+            return companyName + "은 기본 체력은 괜찮지만 소비 회복 기대가 이미 일부 반영돼 있어, 지금은 가격 반영 유지 구간이에요.";
         }
         if (retailOrHousing
                 && quality != null
                 && quality <= 63
                 && stability != null
                 && stability >= 66) {
-            return companyName + "은 기본 체력은 버티지만 소비 회복 속도를 더 확인해야 해, 지금은 확인형 유지 구간으로 봤어요.";
+            return companyName + "은 기본 체력은 버티지만 소비 회복 속도를 더 확인해야 해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
         if (financial
                 && stability != null
@@ -5464,7 +5645,7 @@ public class RecommendationService {
         if ((defensive || financial)
                 && stability != null
                 && stability >= 66) {
-            return companyName + "은 급한 경고 신호는 없지만 방어 성격이 강해, 지금은 방어형 유지 구간으로 보는 게 자연스러워요.";
+            return companyName + "은 급한 경고 신호는 없지만 성장 재가속을 더 확인해야 해, 지금은 성장 확인 유지 구간으로 보는 게 자연스러워요.";
         }
         if (fundamental != null
                 && fundamental >= 60

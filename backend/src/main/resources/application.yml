@@ -79,7 +79,7 @@ maemoji:
           min-strong-factor-count: 3
           strong-factor-score-threshold: 72
         balanced:
-          increase-threshold: 76
+          increase-threshold: 75
           maintain-threshold: 58
           reduce-threshold: 35
           user-adjustment: 0
@@ -87,7 +87,7 @@ maemoji:
           min-strong-factor-count: 3
           strong-factor-score-threshold: 68
         growth-seeker:
-          increase-threshold: 72
+          increase-threshold: 71
           maintain-threshold: 54
           reduce-threshold: 32
           user-adjustment: 2
@@ -108,16 +108,16 @@ maemoji:
         pullback-score: 48
         soft-pullback-score: 62
         neutral-score: 74
-        healthy-uptrend-score: 68
-        warm-uptrend-score: 52
+        healthy-uptrend-score: 70
+        warm-uptrend-score: 56
         overheated-score: 28
         euphoric-score: 10
-        sharp-weekly-surge-penalty: 12
-        weekly-surge-penalty: 8
+        sharp-weekly-surge-penalty: 13
+        weekly-surge-penalty: 9
         sharp-weekly-drop-penalty: 8
         weekly-drop-penalty: 4
         rebound-bonus: 5
-        stable-trend-bonus: 2
+        stable-trend-bonus: 3
         overheat-penalty: 16
       price-stability:
         stress5-score: 85
@@ -137,7 +137,7 @@ maemoji:
         compounder-valuation-min: 73
         compounder-stability-min: 77
         compounder-momentum-min: 60
-        compounder-bonus: 5
+        compounder-bonus: 6
         expensive-elite-fundamental-min: 80
         expensive-elite-growth-min: 80
         expensive-elite-valuation-max: 45
@@ -147,7 +147,7 @@ maemoji:
         expensive-good-valuation-max: 55
         expensive-good-momentum-max: 62
         expensive-good-stability-max: 60
-        expensive-good-penalty: -5
+        expensive-good-penalty: -6
         weak-growth-valuation-min: 78
         weak-growth-quality-max: 55
         weak-growth-penalty: -4
@@ -158,13 +158,20 @@ maemoji:
         overheat-strong-company-fundamental-min: 78
         overheat-strong-company-growth-min: 72
         overheat-strong-company-momentum-max: 42
-        overheat-strong-company-penalty: -5
+        overheat-strong-company-penalty: -6
         positive-news-expensive-news-min: 68
         positive-news-expensive-valuation-max: 50
-        positive-news-expensive-penalty: -4
+        positive-news-expensive-penalty: -5
+        positive-news-weak-growth-news-min: 18
+        positive-news-weak-growth-quality-max: 56
+        positive-news-weak-growth-valuation-max: 58
+        positive-news-weak-growth-penalty: -3
         slowing-growth-expensive-quality-max: 52
         slowing-growth-expensive-valuation-max: 48
-        slowing-growth-expensive-penalty: -6
+        slowing-growth-expensive-penalty: -7
+        overheated-expensive-fundamental-min: 74
+        overheated-expensive-valuation-max: 52
+        overheated-expensive-penalty: -6
       negative-news:
         normalized-news10-penalty: -5
         normalized-news20-penalty: -3

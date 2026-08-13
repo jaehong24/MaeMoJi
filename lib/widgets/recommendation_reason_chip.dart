@@ -63,6 +63,12 @@ class RecommendationReasonChip extends StatelessWidget {
 
   (Color, Color, Color) _headlineTone(String semanticKey) {
     switch (semanticKey) {
+      case 'near_increase':
+        return (
+          const Color(0xFFF0F6EA),
+          const Color(0xFFD6E4C7),
+          const Color(0xFF58723A),
+        );
       case 'price_reflected':
         return (
           const Color(0xFFF6F1E5),
@@ -123,6 +129,8 @@ class RecommendationReasonChip extends StatelessWidget {
 
   String _headlineDescription(String label) {
     switch (label) {
+      case '증액 직전':
+        return '핵심 팩터는 충분하지만 마지막 확인이 필요한 구간이에요.';
       case '가격 반영':
         return '좋은 흐름이 이미 가격에 꽤 반영된 구간이에요.';
       case '가격 부담':

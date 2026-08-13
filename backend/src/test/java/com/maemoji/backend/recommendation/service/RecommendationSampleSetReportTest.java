@@ -239,6 +239,8 @@ class RecommendationSampleSetReportTest {
                         balancedResult.finalScore(),
                         balancedResult.recommendationStatus(),
                         balancedResult.increaseEligible(),
+                        balancedResult.increaseEligibilityReason(),
+                        balancedResult.strongFactorCount(),
                         balancedNegativeNewsResult.finalScore(),
                         balancedNegativeNewsResult.recommendationStatus(),
                         buildBalancedStatusReason(
@@ -507,9 +509,9 @@ class RecommendationSampleSetReportTest {
 
         markdown.append(System.lineSeparator())
                 .append("## 균형형 상태 검증표").append(System.lineSeparator()).append(System.lineSeparator());
-        markdown.append("| 종목 | 종목 점수 | 균형형 최종점수 | 상태 | 악재 뉴스 시 | 악재 뉴스 점수 | 증액 가능 | 판단 메모 |")
+        markdown.append("| 종목 | 종목 점수 | 균형형 최종점수 | 상태 | 악재 뉴스 시 | 악재 뉴스 점수 | 증액 가능 | 차단 이유 | 강한 팩터 수 | 판단 메모 |")
                 .append(System.lineSeparator());
-        markdown.append("|---|---:|---:|---|---|---:|---|---|")
+        markdown.append("|---|---:|---:|---|---|---:|---|---|---:|---|")
                 .append(System.lineSeparator());
 
         for (SampleScoreRow row : sortedRows) {
@@ -521,6 +523,8 @@ class RecommendationSampleSetReportTest {
                     .append(row.balancedNegativeNewsStatus()).append(" | ")
                     .append(row.balancedNegativeNewsFinalScore()).append(" | ")
                     .append(row.balancedIncreaseEligible() ? "예" : "아니오").append(" | ")
+                    .append(formatEligibilityReason(row.balancedIncreaseEligibilityReason())).append(" | ")
+                    .append(row.balancedStrongFactorCount()).append(" | ")
                     .append(row.balancedReason()).append(" |")
                     .append(System.lineSeparator());
         }
@@ -548,6 +552,23 @@ class RecommendationSampleSetReportTest {
             return "-";
         }
         return String.format(Locale.US, "%." + scale + "f", value);
+    }
+
+    private String formatEligibilityReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return "-";
+        }
+        return switch (reason) {
+            case "ELIGIBLE" -> "통과";
+            case "LOW_CONFIDENCE" -> "신뢰도 부족";
+            case "PRICE_DATA_INCOMPLETE" -> "가격 데이터 부족";
+            case "FUNDAMENTAL_DATA_THIN" -> "재무 데이터 부족";
+            case "ABSOLUTE_VALUATION_BLOCK" -> "절대 가격 부담";
+            case "EXPENSIVE_QUALITY_BLOCK" -> "고평가 우량주 차단";
+            case "STRONG_FACTOR_SHORTAGE" -> "강한 팩터 부족";
+            case "HARD_RISK_BLOCK" -> "강한 위험 차단";
+            default -> reason;
+        };
     }
 
     private String formatRange(List<Integer> values) {
@@ -621,6 +642,33 @@ class RecommendationSampleSetReportTest {
         }
         if (result.increaseEligible()
                 && "MAINTAIN".equals(result.recommendationStatus())
+                && priceMomentumScore != null
+                && priceMomentumScore >= 70
+                && priceStabilityScore != null
+                && priceStabilityScore >= 74
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 70
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 64
+                && valuationScore != null
+                && valuationScore >= 66) {
+            return "핵심 팩터는 충분하지만 마지막 가격 여유를 더 확인하는 증액 직전 유지";
+        }
+        if (result.increaseEligible()
+                && "MAINTAIN".equals(result.recommendationStatus())
+                && fundamentalQualityScore != null
+                && fundamentalQualityScore >= 82
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 78
+                && priceMomentumScore != null
+                && priceMomentumScore >= 36
+                && priceMomentumScore <= 60
+                && priceStabilityScore != null
+                && priceStabilityScore <= 55) {
+            return "기업 체력은 강하지만 최근 가격 흔들림이 남은 증액 직전 유지";
+        }
+        if (result.increaseEligible()
+                && "MAINTAIN".equals(result.recommendationStatus())
                 && fundamentalQualityScore != null
                 && fundamentalQualityScore >= conflictRules.getCompounderFundamentalMin()
                 && qualityOfGrowthScore != null
@@ -634,7 +682,30 @@ class RecommendationSampleSetReportTest {
                 && priceMomentumScore >= 48) {
             return "기대가 가격에 먼저 반영된 가격 반영 유지";
         }
-        if (!result.increaseEligible()
+        if ("STOP".equals(result.recommendationStatus())
+                && (priceMomentumScore == null
+                || priceStabilityScore == null
+                || fundamentalQualityScore == null
+                || qualityOfGrowthScore == null)) {
+            return "핵심 데이터가 아직 충분하지 않은 데이터 부족 중단";
+        }
+        if ("STOP".equals(result.recommendationStatus())
+                && priceStabilityScore != null
+                && priceStabilityScore <= 45) {
+            return "최근 흔들림과 하방 리스크가 너무 큰 변동성 중단";
+        }
+        if ("STOP".equals(result.recommendationStatus())
+                && valuationScore != null
+                && valuationScore <= 52) {
+            return "가격 부담이 큰데 확신을 보완할 근거가 약한 가격 부담 중단";
+        }
+        if ("STOP".equals(result.recommendationStatus())
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 48) {
+            return "성장 둔화 신호가 강한 성장 둔화 중단";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && !result.increaseEligible()
                 && valuationScore != null
                 && valuationScore <= increaseGuard.getAbsoluteValuationBlockMax()) {
             return "기업 체력은 받쳐주지만 가격 부담이 큰 가격 부담 감액";
@@ -858,7 +929,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore >= 64
                 && valuationScore != null
                 && valuationScore <= 58) {
-            return "기본 체력은 괜찮지만 소비 회복 기대가 일부 반영돼 확인형 유지";
+            return "기본 체력은 괜찮지만 소비 회복 기대가 일부 반영된 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && retailOrHousing
@@ -866,7 +937,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore <= 63
                 && priceStabilityScore != null
                 && priceStabilityScore >= 66) {
-            return "기본 체력은 버티지만 소비 회복 속도를 더 봐야 해 유지";
+            return "기본 체력은 버티지만 소비 회복 속도를 더 봐야 하는 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && financial
@@ -918,7 +989,7 @@ class RecommendationSampleSetReportTest {
                 && (defensive || financial)
                 && priceStabilityScore != null
                 && priceStabilityScore >= 66) {
-            return "급한 경고 신호는 없지만 방어 성격이 강한 방어형 유지";
+            return "급한 경고 신호는 없지만 성장 재가속을 더 확인해야 하는 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && fundamentalQualityScore != null
@@ -945,6 +1016,18 @@ class RecommendationSampleSetReportTest {
                 && valuationScore != null
                 && valuationScore >= 65) {
             return "가격 부담 대비 상승 탄력과 성장 질이 약한 성장 둔화 감액";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
+                && priceMomentumScore != null
+                && priceMomentumScore >= 38
+                && priceMomentumScore <= 58
+                && priceStabilityScore != null
+                && priceStabilityScore >= 60
+                && valuationScore != null
+                && valuationScore <= 55
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore >= 55) {
+            return "가격 부담이 큰데 추가 확신이 약한 가격 부담 감액";
         }
         if ("REDUCE".equals(result.recommendationStatus())
                 && financial
@@ -992,9 +1075,9 @@ class RecommendationSampleSetReportTest {
                 && fundamentalQualityScore >= conflictRules.getExpensiveEliteFundamentalMin()
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= conflictRules.getExpensiveEliteGrowthMin()) {
-            return "체력은 강하지만 증액 기준에는 아직 못 미침";
+            return "체력은 강하지만 아직 가격과 흐름 확인이 남은 증액 직전 유지";
         }
-        return "핵심 팩터가 엇갈려 유지 구간";
+        return "기본 체력은 버티지만 추가 확신이 더 필요한 성장 확인 유지";
     }
 
     private boolean isFinancialLike(String sector, String industry) {
@@ -1131,6 +1214,8 @@ class RecommendationSampleSetReportTest {
             int balancedFinalScore,
             String balancedStatus,
             boolean balancedIncreaseEligible,
+            String balancedIncreaseEligibilityReason,
+            long balancedStrongFactorCount,
             int balancedNegativeNewsFinalScore,
             String balancedNegativeNewsStatus,
             String balancedReason

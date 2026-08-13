@@ -154,6 +154,48 @@ class WeeklyReportServiceTest {
     }
 
     @Test
+    void buildTrendAddsEasingReasonWhenStatusMovesFromStopToReduce() throws Exception {
+        final RecommendationTrendRow previous = row(5L, "SNOW", 44, 50, 34, 42);
+        previous.setRecommendationStatus("STOP");
+        final RecommendationTrendRow current = row(5L, "SNOW", 51, 50, 46, 52);
+        current.setRecommendationStatus("REDUCE");
+
+        final Object trend = ReflectionTestUtils.invokeMethod(
+                weeklyReportService,
+                "buildTrend",
+                current,
+                previous
+        );
+
+        final var summaryMethod = trend.getClass().getDeclaredMethod("summary");
+        summaryMethod.setAccessible(true);
+        final String summary = (String) summaryMethod.invoke(trend);
+
+        assertThat(summary).contains("완화");
+    }
+
+    @Test
+    void buildTrendAddsWorseningReasonWhenStatusMovesFromReduceToStop() throws Exception {
+        final RecommendationTrendRow previous = row(6L, "TSLA", 51, 50, 44, 52);
+        previous.setRecommendationStatus("REDUCE");
+        final RecommendationTrendRow current = row(6L, "TSLA", 43, 50, 32, 40);
+        current.setRecommendationStatus("STOP");
+
+        final Object trend = ReflectionTestUtils.invokeMethod(
+                weeklyReportService,
+                "buildTrend",
+                current,
+                previous
+        );
+
+        final var summaryMethod = trend.getClass().getDeclaredMethod("summary");
+        summaryMethod.setAccessible(true);
+        final String summary = (String) summaryMethod.invoke(trend);
+
+        assertThat(summary).contains("악화");
+    }
+
+    @Test
     void 핵심자료가비어있으면변화를억지로판단하지않는다() throws Exception {
         final RecommendationTrendRow previous = row(3L, "NEW", 70, 60, 70, 72);
         final RecommendationTrendRow current = row(3L, "NEW", 45, 40, null, null);
