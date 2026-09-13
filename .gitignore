@@ -48,3 +48,7 @@ app.*.map.json
 lib/config/app_secrets.dart
 .env
 backend/.env
+
+# Local import tools and database backups must never be committed.
+/.tmp/
+/db-backups/*.dump

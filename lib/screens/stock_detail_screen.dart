@@ -19,7 +19,6 @@ import '../utils/currency_formatter.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/evidence_section.dart';
 import '../widgets/recommendation_badge.dart';
-import '../widgets/recommendation_reason_chip.dart';
 import '../widgets/recommendation_history_timeline.dart';
 
 class StockDetailScreen extends StatefulWidget {
@@ -318,14 +317,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                 ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          RecommendationReasonChip(item: resolvedItem),
-                          const SizedBox(height: 10),
-                          Text(
-                            '핵심 이유만 짧게 정리했어요.',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           EvidenceSection(
                             items: resolvedItem.evidence,
                             riskProfileLabel: _riskProfileLabel(

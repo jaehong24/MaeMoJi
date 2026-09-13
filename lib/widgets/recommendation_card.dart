@@ -10,7 +10,6 @@ import '../utils/currency_formatter.dart';
 import '../utils/recommendation_headline_resolver.dart';
 import 'app_section_card.dart';
 import 'recommendation_badge.dart';
-import 'recommendation_reason_chip.dart';
 
 class RecommendationCard extends StatelessWidget {
   const RecommendationCard({
@@ -61,17 +60,13 @@ class RecommendationCard extends StatelessWidget {
             };
         final isPending = item.isEtfAnalysisPending || item.isAnalysisPending;
         final badgeLabel = isPending ? '준비 중' : null;
-        final badgeColor = isPending
-            ? MaeMojiColors.reduce
-            : null;
+        final badgeColor = isPending ? MaeMojiColors.reduce : null;
         final noteText = isPending
             ? (item.analysisStageMessage ??
                   (item.isEtfAnalysisPending
                       ? 'ETF 전용 분석은 준비 중입니다.'
                       : '지표 수집과 가격 흐름 확인을 먼저 진행하고 있어요.'))
-            : (compact
-                  ? buildCompactRecommendationSummary(item)
-                  : item.note);
+            : (compact ? buildCompactRecommendationSummary(item) : item.note);
 
         final card = AppSectionCard(
           padding: EdgeInsets.fromLTRB(
@@ -159,16 +154,8 @@ class RecommendationCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (!isPending) ...[
-                SizedBox(height: compact ? 8 : 10),
-                RecommendationReasonChip(
-                  item: item,
-                  compact: true,
-                  showDescription: false,
-                ),
-              ],
               if (showMemo) ...[
-                SizedBox(height: compact ? 10 : 12),
+                SizedBox(height: compact ? 8 : 10),
                 Text(
                   noteText,
                   maxLines: compact ? 1 : 3,
@@ -235,9 +222,7 @@ class _RecommendationStageChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: palette.color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: palette.color.withValues(alpha: 0.18),
-        ),
+        border: Border.all(color: palette.color.withValues(alpha: 0.18)),
       ),
       child: Text(
         label,

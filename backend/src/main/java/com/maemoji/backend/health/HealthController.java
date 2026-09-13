@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/health")
 public class HealthController {
 
     private final ServiceReadiness serviceReadiness;
@@ -19,7 +18,7 @@ public class HealthController {
         this.serviceReadiness = serviceReadiness;
     }
 
-    @GetMapping
+    @GetMapping({"/", "/api/health"})
     public ResponseEntity<ApiResponse<Map<String, String>>> health() {
         if (!serviceReadiness.isReady()) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(

@@ -107,24 +107,24 @@ maemoji:
         deep-pullback-score: 34
         pullback-score: 48
         soft-pullback-score: 62
-        neutral-score: 74
-        healthy-uptrend-score: 70
-        warm-uptrend-score: 56
-        overheated-score: 28
-        euphoric-score: 10
-        sharp-weekly-surge-penalty: 13
-        weekly-surge-penalty: 9
+        neutral-score: 72
+        healthy-uptrend-score: 68
+        warm-uptrend-score: 52
+        overheated-score: 24
+        euphoric-score: 8
+        sharp-weekly-surge-penalty: 14
+        weekly-surge-penalty: 10
         sharp-weekly-drop-penalty: 8
         weekly-drop-penalty: 4
         rebound-bonus: 5
         stable-trend-bonus: 3
-        overheat-penalty: 16
+        overheat-penalty: 18
       price-stability:
-        stress5-score: 85
-        stress10-score: 75
-        stress20-score: 60
-        stress30-score: 40
-        fallback-score: 20
+        stress5-score: 87
+        stress10-score: 74
+        stress20-score: 56
+        stress30-score: 30
+        fallback-score: 16
       increase-guard:
         absolute-valuation-block-max: 45
         expensive-quality-valuation-max: 55
@@ -137,7 +137,7 @@ maemoji:
         compounder-valuation-min: 73
         compounder-stability-min: 77
         compounder-momentum-min: 60
-        compounder-bonus: 6
+        compounder-bonus: 5
         expensive-elite-fundamental-min: 80
         expensive-elite-growth-min: 80
         expensive-elite-valuation-max: 45
@@ -158,7 +158,7 @@ maemoji:
         overheat-strong-company-fundamental-min: 78
         overheat-strong-company-growth-min: 72
         overheat-strong-company-momentum-max: 42
-        overheat-strong-company-penalty: -6
+        overheat-strong-company-penalty: -7
         positive-news-expensive-news-min: 68
         positive-news-expensive-valuation-max: 50
         positive-news-expensive-penalty: -5
@@ -171,7 +171,7 @@ maemoji:
         slowing-growth-expensive-penalty: -7
         overheated-expensive-fundamental-min: 74
         overheated-expensive-valuation-max: 52
-        overheated-expensive-penalty: -6
+        overheated-expensive-penalty: -7
       negative-news:
         normalized-news10-penalty: -5
         normalized-news20-penalty: -3

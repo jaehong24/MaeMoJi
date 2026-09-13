@@ -5243,6 +5243,14 @@ public class RecommendationService {
                 return companyName + "은 가격 흐름 약세와 성장 둔화가 겹쳐, 지금은 성장 둔화 감액이 자연스럽습니다.";
             }
             if (v4Context != null
+                    && reduceHighBetaSoftware
+                    && v4Context.priceStabilityScore() != null
+                    && v4Context.priceStabilityScore() <= 58
+                    && v4Context.qualityOfGrowthScore() != null
+                    && v4Context.qualityOfGrowthScore() <= 50) {
+                return companyName + "은 성장 기대는 남아도 재가속 신호가 약해, 지금은 성장 둔화 감액이 더 적절합니다.";
+            }
+            if (v4Context != null
                     && v4Context.priceMomentumScore() != null
                     && v4Context.priceMomentumScore() >= 38
                     && v4Context.priceMomentumScore() <= 58
@@ -5261,15 +5269,14 @@ public class RecommendationService {
                 return companyName + "은 자본 체력 대비 이익 재가속 신호가 약해, 지금은 성장 둔화 감액이 적절합니다.";
             }
             if (v4Context != null
+                    && v4Context.valuationScore() != null
+                    && v4Context.valuationScore() <= 40) {
+                return companyName + "은 가격 부담이 큰데 확신을 보완할 근거가 부족해, 지금은 가격 부담 감액이 더 적절합니다.";
+            }
+            if (v4Context != null
                     && v4Context.priceStabilityScore() != null
                     && v4Context.priceStabilityScore() <= 60) {
                 return companyName + "은 최근 흔들림과 하방 리스크가 커, 지금은 변동성 감액이 적절합니다.";
-            }
-            if (v4Context != null
-                    && reduceHighBetaSoftware
-                    && v4Context.priceStabilityScore() != null
-                    && v4Context.priceStabilityScore() <= 58) {
-                return companyName + "은 성장 기대는 남아도 변동성이 커서, 지금은 변동성 감액이 더 안전합니다.";
             }
             if (v4Context != null
                     && v4Context.valuationScore() != null
@@ -5439,13 +5446,13 @@ public class RecommendationService {
         }
 
         if (nearReduce && momentum != null && momentum <= 50 && quality != null && quality <= 58) {
-            return companyName + "은 가격 흐름과 성장의 질이 함께 약하지만, 아직은 방어력이 남아 있어 감액 직전 유지로 봤어요.";
+            return companyName + "은 가격 흐름은 흔들리지만 방어력은 버티고 있어, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
         if (nearReduce && stability != null && stability <= 65) {
-            return companyName + "은 하락 위험이 아주 크진 않지만 안정성이 충분히 높지 않아, 지금은 감액 직전 유지 구간이에요.";
+            return companyName + "은 흔들림이 남아 있지만 아직 감액까지는 아니어서, 지금은 성장 확인 유지 구간이에요.";
         }
         if (nearReduce) {
-            return companyName + "은 아직 줄일 단계까지는 아니지만, 지금은 보수적으로 지켜보는 감액 직전 유지 구간이에요.";
+            return companyName + "은 급하게 줄일 단계는 아니지만 추가 확신이 더 필요해, 지금은 성장 확인 유지 구간이에요.";
         }
 
         if (semiconductor
@@ -5520,14 +5527,14 @@ public class RecommendationService {
                 && quality >= 65
                 && valuation != null
                 && valuation <= 60) {
-            return companyName + "은 자본 체력은 안정적이지만, 성장 재가속과 가격 메리트가 증액 기준엔 아직 부족해 금융주 유지로 봤어요.";
+            return companyName + "은 자본 체력은 안정적이지만 성장 재가속과 가격 메리트를 더 확인해야 해, 지금은 성장 확인 유지 구간으로 봤어요.";
         }
         if (financial
                 && valuation != null
                 && valuation <= 60
                 && stability != null
                 && stability >= 68) {
-            return companyName + "은 방어력은 괜찮지만 금리와 경기 민감도를 더 확인해야 해, 지금은 가격 부담을 보는 금융주 유지 구간이에요.";
+            return companyName + "은 방어력은 괜찮지만 금리와 경기 민감도를 더 확인해야 해, 지금은 성장 확인 유지 구간이에요.";
         }
         if (defensive
                 && stability != null

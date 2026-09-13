@@ -47,6 +47,7 @@ class PortfolioSnapshotCoverageReportTest {
                             s.symbol,
                             coalesce(s.name_ko, s.name_en, s.symbol) as company_name,
                             s.asset_type,
+                            coalesce(pi.updated_at, pi.created_at) as portfolio_touched_at,
                             s.created_at::date as stock_created_date,
                             s.ipo_date
                         from portfolio_items pi
@@ -79,6 +80,7 @@ class PortfolioSnapshotCoverageReportTest {
                         ai.symbol,
                         ai.company_name,
                         ai.asset_type,
+                        ai.portfolio_touched_at,
                         ai.stock_created_date,
                         ai.ipo_date,
                         ls.snapshot_date,
@@ -104,6 +106,9 @@ class PortfolioSnapshotCoverageReportTest {
                             resultSet.getString("symbol"),
                             resultSet.getString("company_name"),
                             resultSet.getString("asset_type"),
+                            resultSet.getTimestamp("portfolio_touched_at") == null
+                                    ? null
+                                    : resultSet.getTimestamp("portfolio_touched_at").toLocalDateTime().toString(),
                             resultSet.getDate("stock_created_date") == null
                                     ? null
                                     : resultSet.getDate("stock_created_date").toLocalDate().toString(),
@@ -175,6 +180,9 @@ class PortfolioSnapshotCoverageReportTest {
         final long recentFundamentalRows = rows.stream().filter(row -> "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION".equals(row.coverageStatus())).count();
         final long accumulatingRows = rows.stream().filter(row -> "PRICE_FLOW_ACCUMULATING".equals(row.coverageStatus())).count();
         final long disclosurePendingRows = rows.stream().filter(row -> "FUNDAMENTAL_DISCLOSURE_PENDING".equals(row.coverageStatus())).count();
+        final long growthPendingRows = rows.stream().filter(row -> "REVENUE_GROWTH_PENDING".equals(row.coverageStatus())).count();
+        final long roePendingRows = rows.stream().filter(row -> "ROE_PENDING".equals(row.coverageStatus())).count();
+        final long mixedFundamentalRows = rows.stream().filter(row -> "PARTIAL_FUNDAMENTAL_PENDING".equals(row.coverageStatus())).count();
         final long retryRequiredRows = rows.stream().filter(row -> "IMMEDIATE_RETRY_REQUIRED".equals(row.coverageStatus())).count();
         final long partialReviewRows = rows.stream().filter(row -> "PARTIAL_NEEDS_REVIEW".equals(row.coverageStatus())).count();
 
@@ -192,8 +200,28 @@ class PortfolioSnapshotCoverageReportTest {
         markdown.append("- 신규 상장 펀더멘털 예외 종목 수: ").append(recentFundamentalRows).append(System.lineSeparator());
         markdown.append("- 가격 흐름 축적 중 종목 수: ").append(accumulatingRows).append(System.lineSeparator());
         markdown.append("- 재무 공시/재수집 대기 종목 수: ").append(disclosurePendingRows).append(System.lineSeparator());
+        markdown.append("- 매출성장 지표 대기 종목 수: ").append(growthPendingRows).append(System.lineSeparator());
+        markdown.append("- ROE 지표 대기 종목 수: ").append(roePendingRows).append(System.lineSeparator());
+        markdown.append("- 일부 펀더멘털 보강 대기 종목 수: ").append(mixedFundamentalRows).append(System.lineSeparator());
         markdown.append("- 즉시 백필 재시도 필요 종목 수: ").append(retryRequiredRows).append(System.lineSeparator());
         markdown.append("- 수동 점검 필요 종목 수: ").append(partialReviewRows).append(System.lineSeparator()).append(System.lineSeparator());
+
+        final List<Row> recentlyTouchedRows = rows.stream()
+                .sorted((left, right) -> nullSafeCompareDesc(left.portfolioTouchedAt(), right.portfolioTouchedAt()))
+                .limit(10)
+                .toList();
+        markdown.append("## 최근 등록·수정 우선 확인").append(System.lineSeparator()).append(System.lineSeparator());
+        markdown.append("| 종목 | 최근 변경 시각 | 상태 | 상태 설명 |").append(System.lineSeparator());
+        markdown.append("|---|---|---|---|").append(System.lineSeparator());
+        for (Row row : recentlyTouchedRows) {
+            markdown.append("| ")
+                    .append(row.symbol()).append(" | ")
+                    .append(row.portfolioTouchedAt() == null ? "-" : row.portfolioTouchedAt()).append(" | ")
+                    .append(row.coverageStatus()).append(" | ")
+                    .append(row.coverageMessage()).append(" |")
+                    .append(System.lineSeparator());
+        }
+        markdown.append(System.lineSeparator());
 
         markdown.append("| userId | portfolioItemId | 종목 | 회사명 | 자산유형 | 스냅샷일 | 최초스냅샷일 | 상태 | 상태 설명 | EPS | ROE | 매출성장 | 영업이익률 | 7일흐름 | 30일흐름 |")
                 .append(System.lineSeparator());
@@ -227,6 +255,19 @@ class PortfolioSnapshotCoverageReportTest {
         return value ? "Y" : "N";
     }
 
+    private int nullSafeCompareDesc(String left, String right) {
+        if (left == null && right == null) {
+            return 0;
+        }
+        if (left == null) {
+            return 1;
+        }
+        if (right == null) {
+            return -1;
+        }
+        return right.compareTo(left);
+    }
+
     private record DatabaseConfig(
             String url,
             String username,
@@ -240,6 +281,7 @@ class PortfolioSnapshotCoverageReportTest {
             String symbol,
             String companyName,
             String assetType,
+            String portfolioTouchedAt,
             String stockCreatedDate,
             String ipoDate,
             String snapshotDate,
@@ -282,6 +324,30 @@ class PortfolioSnapshotCoverageReportTest {
                 }
                 return "FUNDAMENTAL_DISCLOSURE_PENDING";
             }
+            if (hasPrice7d
+                    && hasPrice30d
+                    && hasEps
+                    && hasOperatingMargin
+                    && !hasRevenueGrowth
+                    && !hasRoe) {
+                return "PARTIAL_FUNDAMENTAL_PENDING";
+            }
+            if (hasPrice7d
+                    && hasPrice30d
+                    && hasEps
+                    && hasOperatingMargin
+                    && hasRevenueGrowth
+                    && !hasRoe) {
+                return "ROE_PENDING";
+            }
+            if (hasPrice7d
+                    && hasPrice30d
+                    && hasEps
+                    && hasOperatingMargin
+                    && !hasRevenueGrowth
+                    && hasRoe) {
+                return "REVENUE_GROWTH_PENDING";
+            }
             if (isComplete()) {
                 return "OK";
             }
@@ -299,6 +365,9 @@ class PortfolioSnapshotCoverageReportTest {
                 case "PRICE_FLOW_ACCUMULATING" -> "최근 가격 흐름 데이터를 더 쌓는 중입니다.";
                 case "RECENTLY_LISTED_FUNDAMENTAL_EXCEPTION" -> "최근 상장 종목이라 재무 지표 공시가 아직 충분하지 않습니다.";
                 case "FUNDAMENTAL_DISCLOSURE_PENDING" -> "일부 핵심 재무 지표를 재수집하거나 다음 공시를 기다리는 상태입니다.";
+                case "REVENUE_GROWTH_PENDING" -> "매출성장 지표가 아직 비어 있어 최근 공시 반영이나 재수집을 기다리는 상태입니다.";
+                case "ROE_PENDING" -> "ROE 지표가 아직 비어 있어 최근 공시 반영이나 재수집을 기다리는 상태입니다.";
+                case "PARTIAL_FUNDAMENTAL_PENDING" -> "ROE와 매출성장 일부가 비어 있어 부분 펀더멘털 보강이 더 필요합니다.";
                 case "IMMEDIATE_RETRY_REQUIRED" -> "가격 흐름 백필이 즉시 다시 필요한 상태입니다.";
                 case "PARTIAL_NEEDS_REVIEW" -> "일부 지표만 비어 있어 수동 점검이 필요합니다.";
                 case "SNAPSHOT_MISSING" -> "스냅샷 자체가 없어 초기 적재를 다시 확인해야 합니다.";

@@ -724,7 +724,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore <= 58
                 && priceStabilityScore != null
                 && priceStabilityScore >= 58) {
-            return "감액 직전이지만 방어력은 남아 있어 일단 유지";
+            return "가격 흐름은 흔들리지만 방어력은 버티는 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && qualityOfGrowthScore != null
@@ -795,7 +795,7 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore >= 60
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= 58) {
-            return "하락 위험은 크지 않지만 상승 탄력과 성장 질이 약해 유지";
+            return "방어력은 버티지만 성장 탄력이 약한 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && priceMomentumScore != null
@@ -808,7 +808,7 @@ class RecommendationSampleSetReportTest {
                 && valuationScore != null
                 && valuationScore >= 50
                 && valuationScore <= 65) {
-            return "방어력은 괜찮지만 재평가 신호가 아직 약해 유지";
+            return "흐름은 버티지만 추가 확신이 더 필요한 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && priceMomentumScore != null
@@ -829,7 +829,7 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore >= 70
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= 64) {
-            return "금융주 특성상 자본 체력은 괜찮지만 이익 재가속 신호가 약해 유지";
+            return "자본 체력은 괜찮지만 재가속 신호가 약한 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && financial
@@ -839,7 +839,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore >= 65
                 && valuationScore != null
                 && valuationScore >= 75) {
-            return "자본 체력은 안정적이지만 기대가 가격에 많이 반영된 금융주 유지";
+            return "자본 체력은 안정적이지만 기대가 가격에 반영된 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && financial
@@ -849,7 +849,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore >= 65
                 && valuationScore != null
                 && valuationScore <= 60) {
-            return "자본 체력은 안정적이지만 성장 재가속과 가격 메리트가 부족한 금융주 유지";
+            return "자본 체력은 안정적이지만 추가 확신이 더 필요한 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && financial
@@ -857,7 +857,7 @@ class RecommendationSampleSetReportTest {
                 && valuationScore <= 60
                 && priceStabilityScore != null
                 && priceStabilityScore >= 68) {
-            return "금리·경기 민감도 대비 가격 여유가 크지 않아 금융주 유지";
+            return "금리 민감도를 더 확인해야 하는 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && defensive
@@ -867,7 +867,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore >= 70
                 && valuationScore != null
                 && valuationScore >= 75) {
-            return "방어력은 충분하지만 기대가 가격에 반영된 방어형 유지";
+            return "방어력은 충분하지만 기대가 가격에 반영된 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && defensive
@@ -877,7 +877,7 @@ class RecommendationSampleSetReportTest {
                 && qualityOfGrowthScore >= 64
                 && valuationScore != null
                 && valuationScore >= 70) {
-            return "방어력은 강하지만 성장 속도가 완만한 방어형 유지";
+            return "방어력은 강하지만 성장 속도가 완만한 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && defensive
@@ -885,7 +885,7 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore >= 74
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore <= 62) {
-            return "방어력은 좋지만 성장 재가속 신호가 약한 방어형 유지";
+            return "방어력은 좋지만 성장 재가속 신호가 약한 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && retailOrHousing
@@ -909,7 +909,7 @@ class RecommendationSampleSetReportTest {
                 && priceStabilityScore >= 80
                 && qualityOfGrowthScore != null
                 && qualityOfGrowthScore >= 64) {
-            return "기본 체력은 괜찮지만 소비 회복 기대가 가격에 반영된 유지";
+            return "기본 체력은 괜찮지만 소비 회복 기대가 가격에 반영된 가격 반영 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && retailOrHousing
@@ -919,7 +919,7 @@ class RecommendationSampleSetReportTest {
                 && priceMomentumScore >= 42
                 && priceStabilityScore != null
                 && priceStabilityScore >= 62) {
-            return "소비 회복 기대는 있지만 가격 여유가 크지 않아 확인형 유지";
+            return "소비 회복 기대는 있지만 가격 여유가 크지 않은 성장 확인 유지";
         }
         if ("MAINTAIN".equals(result.recommendationStatus())
                 && retailOrHousing
@@ -1018,6 +1018,14 @@ class RecommendationSampleSetReportTest {
             return "가격 부담 대비 상승 탄력과 성장 질이 약한 성장 둔화 감액";
         }
         if ("REDUCE".equals(result.recommendationStatus())
+                && isHighBetaGrowthLike(normalizedSector, normalizedIndustry)
+                && priceStabilityScore != null
+                && priceStabilityScore <= 58
+                && qualityOfGrowthScore != null
+                && qualityOfGrowthScore <= 50) {
+            return "성장 기대는 남아도 재가속 신호가 약한 성장 둔화 감액";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())
                 && priceMomentumScore != null
                 && priceMomentumScore >= 38
                 && priceMomentumScore <= 58
@@ -1036,10 +1044,9 @@ class RecommendationSampleSetReportTest {
             return "자본 체력 대비 이익 재가속 신호가 약한 성장 둔화 감액";
         }
         if ("REDUCE".equals(result.recommendationStatus())
-                && isHighBetaGrowthLike(normalizedSector, normalizedIndustry)
-                && priceStabilityScore != null
-                && priceStabilityScore <= 58) {
-            return "성장 기대는 남아도 변동성이 큰 변동성 감액";
+                && valuationScore != null
+                && valuationScore <= 40) {
+            return "가격 부담이 큰데 확신을 보완할 근거가 부족한 가격 부담 감액";
         }
         if ("REDUCE".equals(result.recommendationStatus())
                 && priceStabilityScore != null

@@ -287,18 +287,18 @@ public class RecommendationTuningProperties {
         private int deepPullbackScore = 34;
         private int pullbackScore = 48;
         private int softPullbackScore = 62;
-        private int neutralScore = 74;
-        private int healthyUptrendScore = 70;
-        private int warmUptrendScore = 56;
-        private int overheatedScore = 28;
-        private int euphoricScore = 10;
-        private int sharpWeeklySurgePenalty = 13;
-        private int weeklySurgePenalty = 9;
+        private int neutralScore = 72;
+        private int healthyUptrendScore = 68;
+        private int warmUptrendScore = 52;
+        private int overheatedScore = 24;
+        private int euphoricScore = 8;
+        private int sharpWeeklySurgePenalty = 14;
+        private int weeklySurgePenalty = 10;
         private int sharpWeeklyDropPenalty = 8;
         private int weeklyDropPenalty = 4;
         private int reboundBonus = 5;
         private int stableTrendBonus = 3;
-        private int overheatPenalty = 16;
+        private int overheatPenalty = 18;
 
         public int getSevereDrawdownScore() {
             return severeDrawdownScore;
@@ -430,11 +430,11 @@ public class RecommendationTuningProperties {
     }
 
     public static class PriceStability {
-        private int stress5Score = 88;
-        private int stress10Score = 76;
-        private int stress20Score = 52;
-        private int stress30Score = 24;
-        private int fallbackScore = 18;
+        private int stress5Score = 87;
+        private int stress10Score = 74;
+        private int stress20Score = 56;
+        private int stress30Score = 30;
+        private int fallbackScore = 16;
 
         public int getStress5Score() {
             return stress5Score;
@@ -531,7 +531,7 @@ public class RecommendationTuningProperties {
         private int compounderValuationMin = 73;
         private int compounderStabilityMin = 77;
         private int compounderMomentumMin = 60;
-        private int compounderBonus = 6;
+        private int compounderBonus = 5;
         private int expensiveEliteFundamentalMin = 80;
         private int expensiveEliteGrowthMin = 80;
         private int expensiveEliteValuationMax = 45;
@@ -552,7 +552,7 @@ public class RecommendationTuningProperties {
         private int overheatStrongCompanyFundamentalMin = 78;
         private int overheatStrongCompanyGrowthMin = 72;
         private int overheatStrongCompanyMomentumMax = 42;
-        private int overheatStrongCompanyPenalty = -6;
+        private int overheatStrongCompanyPenalty = -7;
         private int positiveNewsExpensiveNewsMin = 68;
         private int positiveNewsExpensiveValuationMax = 50;
         private int positiveNewsExpensivePenalty = -5;
@@ -565,7 +565,7 @@ public class RecommendationTuningProperties {
         private int slowingGrowthExpensivePenalty = -7;
         private int overheatedExpensiveFundamentalMin = 74;
         private int overheatedExpensiveValuationMax = 52;
-        private int overheatedExpensivePenalty = -6;
+        private int overheatedExpensivePenalty = -7;
 
         public int getCompounderFundamentalMin() {
             return compounderFundamentalMin;

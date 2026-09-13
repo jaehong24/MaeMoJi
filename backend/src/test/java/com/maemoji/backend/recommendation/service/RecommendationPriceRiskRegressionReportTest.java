@@ -341,7 +341,22 @@ class RecommendationPriceRiskRegressionReportTest {
         if ("INCREASE".equals(result.recommendationStatus())) {
             return "핵심 팩터가 고르게 강한 증액 우세";
         }
-        if ("REDUCE".equals(result.recommendationStatus()) || "STOP".equals(result.recommendationStatus())) {
+        if ("STOP".equals(result.recommendationStatus())) {
+            if (valuationScore != null && valuationScore <= 45) {
+                return "기업 체력은 버티지만 가격 부담이 큰 가격 부담 중단";
+            }
+            if (priceMomentumScore != null
+                    && priceMomentumScore <= 42
+                    && priceStabilityScore != null
+                    && priceStabilityScore <= 45) {
+                return "흐름과 안정성이 모두 약한 변동성 중단";
+            }
+            if (qualityOfGrowthScore != null && qualityOfGrowthScore <= 58) {
+                return "성장 재가속 신호가 약한 성장 둔화 중단";
+            }
+            return "가격 부담 또는 변동성 확대가 반영된 중단";
+        }
+        if ("REDUCE".equals(result.recommendationStatus())) {
             if (valuationScore != null && valuationScore <= 45) {
                 return "기업 체력은 받쳐주지만 가격 부담이 큰 가격 부담 감액";
             }
