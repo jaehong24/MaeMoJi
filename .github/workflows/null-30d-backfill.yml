@@ -34,6 +34,8 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       NULL_30D_LIMIT: ${{ github.event.inputs.recovery_limit || '300' }}
       NULL_30D_LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '120' }}
+      # Keep a margin before the GitHub job timeout and continue from the next eligible ticker tomorrow.
+      NULL_30D_MAX_RUNTIME_MINUTES: "70"
       MAEMOJI_BATCH_PRICE_SNAPSHOTS_DELAY_MILLIS: "1800"
 
     steps:
@@ -52,5 +54,5 @@ jobs:
         working-directory: backend
 
       - name: Run null-30d recovery batch
-        run: ./gradlew bootRun --args="--spring.main.web-application-type=none --maemoji.batch.run-once=price-null-30d --maemoji.batch.price-snapshots.null-30d-limit=${NULL_30D_LIMIT} --maemoji.batch.price-snapshots.null-30d-lookback-days=${NULL_30D_LOOKBACK_DAYS}"
+        run: ./gradlew bootRun --args="--spring.main.web-application-type=none --maemoji.batch.run-once=price-null-30d --maemoji.batch.price-snapshots.null-30d-limit=${NULL_30D_LIMIT} --maemoji.batch.price-snapshots.null-30d-lookback-days=${NULL_30D_LOOKBACK_DAYS} --maemoji.batch.price-snapshots.null-30d-max-runtime-minutes=${NULL_30D_MAX_RUNTIME_MINUTES}"
         working-directory: backend

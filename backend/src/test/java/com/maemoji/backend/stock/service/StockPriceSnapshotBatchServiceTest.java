@@ -20,6 +20,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -139,6 +141,8 @@ class StockPriceSnapshotBatchServiceTest {
 
         doReturn(true).when(service).syncLatestSnapshotForStock(501L);
         doReturn(true).when(service).syncLatestSnapshotForStock(601L);
+        when(mapper.hasLatestSnapshotWithThirtyDayReturn(501L)).thenReturn(true);
+        when(mapper.hasLatestSnapshotWithThirtyDayReturn(601L)).thenReturn(true);
 
         final PriceHistoryBackfillResult result = service.backfillNullThirtyDaySnapshots(300, 120);
 
@@ -165,6 +169,7 @@ class StockPriceSnapshotBatchServiceTest {
                 .when(service)
                 .backfillHistoricalSnapshotsForStock(mature, LocalDate.now().minusDays(120), LocalDate.now().minusDays(1), null);
         doReturn(true).when(service).syncLatestSnapshotForStock(702L);
+        when(mapper.hasLatestSnapshotWithThirtyDayReturn(702L)).thenReturn(true);
 
         final PriceHistoryBackfillResult result = service.backfillNullThirtyDaySnapshots(300, 120);
 
@@ -172,6 +177,36 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(result.historyRowCount()).isEqualTo(4);
         assertThat(result.refreshedCurrentSnapshotCount()).isEqualTo(1);
         verify(service, never()).syncLatestSnapshotForStock(701L);
+        verify(mapper).recordThirtyDayRecoveryState(
+                eq(701L),
+                eq("RECENT_LISTING"),
+                any(OffsetDateTime.class),
+                anyString()
+        );
+    }
+
+    @Test
+    void nullThirtyDayBackfillDefersUnavailableHistoryInsteadOfRetryingEveryRun() throws Exception {
+        final Stock unsupported = stock(751L, "GOOGM", "STOCK");
+
+        when(mapper.findPortfolioStocksNeedingThirtyDayRecovery()).thenReturn(List.of());
+        when(mapper.findNonPortfolioStocksNeedingThirtyDayRecovery(300)).thenReturn(List.of(unsupported));
+        doReturn(0)
+                .when(service)
+                .backfillHistoricalSnapshotsForStock(unsupported, LocalDate.now().minusDays(120), LocalDate.now().minusDays(1), null);
+        doReturn(true).when(service).syncLatestSnapshotForStock(751L);
+        when(mapper.hasLatestSnapshotWithThirtyDayReturn(751L)).thenReturn(false);
+
+        final PriceHistoryBackfillResult result = service.backfillNullThirtyDaySnapshots(300, 120);
+
+        assertThat(result.deferredStockCount()).isEqualTo(1);
+        assertThat(result.deferredByReason()).containsEntry("HISTORY_UNAVAILABLE", 1);
+        verify(mapper).recordThirtyDayRecoveryState(
+                eq(751L),
+                eq("HISTORY_UNAVAILABLE"),
+                any(OffsetDateTime.class),
+                eq("HISTORY_UNAVAILABLE")
+        );
     }
 
     @Test
@@ -186,6 +221,7 @@ class StockPriceSnapshotBatchServiceTest {
                 .when(service)
                 .backfillHistoricalSnapshotsForStock(importedRecently, LocalDate.now().minusDays(120), LocalDate.now().minusDays(1), null);
         doReturn(true).when(service).syncLatestSnapshotForStock(801L);
+        when(mapper.hasLatestSnapshotWithThirtyDayReturn(801L)).thenReturn(true);
 
         final PriceHistoryBackfillResult result = service.backfillNullThirtyDaySnapshots(300, 120);
 

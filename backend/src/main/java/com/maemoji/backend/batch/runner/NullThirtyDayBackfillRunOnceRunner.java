@@ -14,6 +14,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
 @ConditionalOnProperty(name = "maemoji.batch.run-once", havingValue = "price-null-30d")
@@ -47,9 +49,18 @@ public class NullThirtyDayBackfillRunOnceRunner implements ApplicationRunner {
                 Integer.class,
                 120
         );
+        final Integer maxRuntimeMinutes = environment.getProperty(
+                "maemoji.batch.price-snapshots.null-30d-max-runtime-minutes",
+                Integer.class,
+                70
+        );
 
         final PriceHistoryBackfillResult result =
-                stockPriceSnapshotBatchService.backfillNullThirtyDaySnapshots(limit, lookbackDays);
+                stockPriceSnapshotBatchService.backfillNullThirtyDaySnapshots(
+                        limit,
+                        lookbackDays,
+                        Duration.ofMinutes(Math.max(1, maxRuntimeMinutes))
+                );
 
         final boolean madeMeaningfulProgress =
                 result.historyRowCount() > 0 || result.refreshedCurrentSnapshotCount() > 0;
@@ -58,20 +69,24 @@ public class NullThirtyDayBackfillRunOnceRunner implements ApplicationRunner {
 
         if (result.failedStockCount() > 0) {
             log.warn(
-                    "30일 수익률 null 복구 단발 실행 중 일부 종목이 실패했습니다. failedStocks={}, failedTickers={}, progress={}",
+                    "30일 수익률 null 복구 단발 실행 중 일부 종목이 실패했습니다. failedStocks={}, failedTickers={}, deferredStocks={}, deferredByReason={}, progress={}",
                     result.failedStockCount(),
                     result.failedTickers(),
+                    result.deferredStockCount(),
+                    result.deferredByReason(),
                     madeMeaningfulProgress ? "PARTIAL_SUCCESS" : "FAILED"
             );
         }
 
         log.info(
-                "30일 수익률 null 복구 단발 실행을 종료합니다. requested={}, historyRows={}, refreshedCurrent={}, failedStocks={}, failedTickers={}, exitCode={}",
+                "30일 수익률 null 복구 단발 실행을 종료합니다. requested={}, historyRows={}, refreshedCurrent={}, failedStocks={}, failedTickers={}, deferredStocks={}, deferredByReason={}, exitCode={}",
                 result.requestedStockCount(),
                 result.historyRowCount(),
                 result.refreshedCurrentSnapshotCount(),
                 result.failedStockCount(),
                 result.failedTickers(),
+                result.deferredStockCount(),
+                result.deferredByReason(),
                 exitCode
         );
 

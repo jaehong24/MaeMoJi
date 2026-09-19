@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Mapper
@@ -29,6 +30,17 @@ public interface StockPriceSnapshotMapper {
     List<Long> findActivePortfolioStockIds();
 
     StockPriceSnapshotRecord findLatestSnapshotByStockId(@Param("stockId") Long stockId);
+
+    boolean hasLatestSnapshotWithThirtyDayReturn(@Param("stockId") Long stockId);
+
+    void recordThirtyDayRecoveryState(
+            @Param("stockId") Long stockId,
+            @Param("recoveryStatus") String recoveryStatus,
+            @Param("retryAfter") OffsetDateTime retryAfter,
+            @Param("detail") String detail
+    );
+
+    void clearThirtyDayRecoveryState(@Param("stockId") Long stockId);
 
     java.time.LocalDate findOldestSnapshotDateByStockId(@Param("stockId") Long stockId);
 

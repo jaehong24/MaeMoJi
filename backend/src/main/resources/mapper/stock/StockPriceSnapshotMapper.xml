@@ -222,6 +222,12 @@
         from stocks s
         where s.is_active = true
           and s.finnhub_symbol is not null
+          and not exists (
+              select 1
+              from stock_price_history_recovery_states recovery
+              where recovery.stock_id = s.id
+                and recovery.retry_after > current_timestamp
+          )
           and exists (
               select 1
               from portfolio_items pi
@@ -278,6 +284,12 @@
           and s.finnhub_symbol is not null
           and not exists (
               select 1
+              from stock_price_history_recovery_states recovery
+              where recovery.stock_id = s.id
+                and recovery.retry_after > current_timestamp
+          )
+          and not exists (
+              select 1
               from portfolio_items pi
               where pi.stock_id = s.id
                 and pi.is_active = true
@@ -310,6 +322,52 @@
         from portfolio_items
         where is_active = true
     </select>
+
+    <select id="hasLatestSnapshotWithThirtyDayReturn" resultType="boolean">
+        select exists (
+            select 1
+            from stock_price_snapshots latest
+            where latest.stock_id = #{stockId}
+              and latest.snapshot_date = (
+                  select max(snapshot_date)
+                  from stock_price_snapshots
+                  where stock_id = #{stockId}
+              )
+              and latest.change_rate_30d is not null
+        )
+    </select>
+
+    <insert id="recordThirtyDayRecoveryState">
+        insert into stock_price_history_recovery_states (
+            stock_id,
+            recovery_status,
+            retry_after,
+            last_attempt_at,
+            last_error,
+            failure_count,
+            updated_at
+        ) values (
+            #{stockId},
+            #{recoveryStatus},
+            #{retryAfter},
+            current_timestamp,
+            #{detail},
+            1,
+            current_timestamp
+        )
+        on conflict (stock_id) do update set
+            recovery_status = excluded.recovery_status,
+            retry_after = excluded.retry_after,
+            last_attempt_at = current_timestamp,
+            last_error = excluded.last_error,
+            failure_count = stock_price_history_recovery_states.failure_count + 1,
+            updated_at = current_timestamp
+    </insert>
+
+    <delete id="clearThirtyDayRecoveryState">
+        delete from stock_price_history_recovery_states
+        where stock_id = #{stockId}
+    </delete>
 
     <select id="findStockForSnapshotById" resultType="com.maemoji.backend.stock.domain.Stock">
         select

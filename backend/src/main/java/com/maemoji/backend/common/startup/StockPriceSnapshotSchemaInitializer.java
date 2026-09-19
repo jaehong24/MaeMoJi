@@ -49,5 +49,22 @@ public class StockPriceSnapshotSchemaInitializer implements ApplicationRunner {
                 create unique index if not exists uk_stock_price_snapshots_stock_date
                     on stock_price_snapshots (stock_id, snapshot_date)
                 """);
+
+        jdbcTemplate.execute("""
+                create table if not exists stock_price_history_recovery_states (
+                    stock_id bigint primary key references stocks(id) on delete cascade,
+                    recovery_status varchar(40) not null,
+                    retry_after timestamptz not null,
+                    last_attempt_at timestamptz not null default current_timestamp,
+                    last_error varchar(500),
+                    failure_count integer not null default 0,
+                    updated_at timestamptz not null default current_timestamp
+                )
+                """);
+
+        jdbcTemplate.execute("""
+                create index if not exists idx_price_history_recovery_retry_after
+                    on stock_price_history_recovery_states (retry_after)
+                """);
     }
 }

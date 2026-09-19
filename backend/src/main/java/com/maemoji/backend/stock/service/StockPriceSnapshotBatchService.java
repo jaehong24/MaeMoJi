@@ -23,6 +23,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,6 +44,10 @@ public class StockPriceSnapshotBatchService {
     private static final int MINIMUM_CORE_FUNDAMENTAL_FIELDS = 4;
     private static final int EXTENDED_RETRY_LOOKBACK_DAYS = 120;
     private static final int FORWARD_REFERENCE_TOLERANCE_DAYS = 2;
+    private static final Duration DEFAULT_NULL_30D_TIME_BUDGET = Duration.ofMinutes(70);
+    private static final Duration SOURCE_RETRY_DELAY = Duration.ofHours(24);
+    private static final Duration HISTORY_UNAVAILABLE_RETRY_DELAY = Duration.ofDays(7);
+    private static final Duration INSUFFICIENT_HISTORY_RETRY_DELAY = Duration.ofDays(14);
 
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final PriceSnapshotBatchProperties properties;
@@ -330,11 +335,21 @@ public class StockPriceSnapshotBatchService {
                 historyRowCount,
                 refreshedCurrentSnapshotCount,
                 failedStockCount,
-                List.of()
+                List.of(),
+                0,
+                Map.of()
         );
     }
 
     public PriceHistoryBackfillResult backfillNullThirtyDaySnapshots(Integer limit, Integer lookbackDays) {
+        return backfillNullThirtyDaySnapshots(limit, lookbackDays, DEFAULT_NULL_30D_TIME_BUDGET);
+    }
+
+    public PriceHistoryBackfillResult backfillNullThirtyDaySnapshots(
+            Integer limit,
+            Integer lookbackDays,
+            Duration timeBudget
+    ) {
         final String fmpApiKey = System.getenv("FMP_API_KEY");
 
         final int effectiveLimit = limit == null || limit <= 0
@@ -348,11 +363,17 @@ public class StockPriceSnapshotBatchService {
         final LocalDate today = LocalDate.now(SNAPSHOT_ZONE);
         final LocalDate fromDate = today.minusDays(effectiveLookbackDays);
         final LocalDate toDate = today.minusDays(1);
+        final Duration effectiveTimeBudget = timeBudget == null || timeBudget.isNegative() || timeBudget.isZero()
+                ? DEFAULT_NULL_30D_TIME_BUDGET
+                : timeBudget;
+        final long deadlineNanos = System.nanoTime() + effectiveTimeBudget.toNanos();
 
         int historyRowCount = 0;
         int refreshedCurrentSnapshotCount = 0;
         int failedStockCount = 0;
+        int deferredStockCount = 0;
         final List<String> failedTickers = new ArrayList<>();
+        final Map<String, Integer> deferredByReason = new HashMap<>();
 
         log.info(
                 "30일 수익률 null 전용 가격 백필을 시작합니다. fromDate={}, toDate={}, totalRequested={}, portfolioStocks={}, generalStocks={}, generalLimit={}",
@@ -364,15 +385,46 @@ public class StockPriceSnapshotBatchService {
                 effectiveLimit
         );
 
-        for (Stock stock : stocks) {
+        for (int index = 0; index < stocks.size(); index++) {
+            final Stock stock = stocks.get(index);
+            if (System.nanoTime() >= deadlineNanos) {
+                final int remainingStockCount = stocks.size() - index;
+                deferredStockCount += remainingStockCount;
+                deferredByReason.merge("TIME_BUDGET", remainingStockCount, Integer::sum);
+                log.info(
+                        "30일 수익률 null 복구의 실행 시간 예산에 도달했습니다. processed={}, deferred={}, timeBudgetMinutes={}",
+                        index,
+                        remainingStockCount,
+                        effectiveTimeBudget.toMinutes()
+                );
+                break;
+            }
             try {
-                historyRowCount += backfillHistoricalSnapshotsForStock(stock, fromDate, toDate, fmpApiKey);
+                final int savedHistoryRows = backfillHistoricalSnapshotsForStock(stock, fromDate, toDate, fmpApiKey);
+                historyRowCount += savedHistoryRows;
                 if (syncLatestSnapshotForStock(stock.getId())) {
                     refreshedCurrentSnapshotCount++;
+                }
+
+                if (stockPriceSnapshotMapper.hasLatestSnapshotWithThirtyDayReturn(stock.getId())) {
+                    stockPriceSnapshotMapper.clearThirtyDayRecoveryState(stock.getId());
+                } else {
+                    final String recoveryStatus = savedHistoryRows == 0
+                            ? "HISTORY_UNAVAILABLE"
+                            : "INSUFFICIENT_HISTORY";
+                    final Duration retryDelay = savedHistoryRows == 0
+                            ? HISTORY_UNAVAILABLE_RETRY_DELAY
+                            : INSUFFICIENT_HISTORY_RETRY_DELAY;
+                    recordThirtyDayRecoveryState(stock, recoveryStatus, retryDelay, recoveryStatus);
+                    deferredStockCount++;
+                    deferredByReason.merge(recoveryStatus, 1, Integer::sum);
                 }
             } catch (Exception exception) {
                 failedStockCount++;
                 failedTickers.add(stock.getTicker());
+                recordThirtyDayRecoveryState(stock, "SOURCE_RETRY", SOURCE_RETRY_DELAY, rootMessage(exception));
+                deferredStockCount++;
+                deferredByReason.merge("SOURCE_RETRY", 1, Integer::sum);
                 log.warn(
                         "30일 수익률 null 전용 가격 백필에 실패했습니다. stockId={}, ticker={}",
                         stock.getId(),
@@ -385,12 +437,14 @@ public class StockPriceSnapshotBatchService {
         }
 
         log.info(
-                "30일 수익률 null 전용 가격 백필이 완료되었습니다. stocks={}, historyRows={}, refreshedCurrent={}, failedStocks={}, failedTickers={}",
+                "30일 수익률 null 전용 가격 백필이 완료되었습니다. stocks={}, historyRows={}, refreshedCurrent={}, failedStocks={}, failedTickers={}, deferredStocks={}, deferredByReason={}",
                 stocks.size(),
                 historyRowCount,
                 refreshedCurrentSnapshotCount,
                 failedStockCount,
-                failedTickers
+                failedTickers,
+                deferredStockCount,
+                deferredByReason
         );
         return new PriceHistoryBackfillResult(
                 fromDate,
@@ -399,7 +453,9 @@ public class StockPriceSnapshotBatchService {
                 historyRowCount,
                 refreshedCurrentSnapshotCount,
                 failedStockCount,
-                List.copyOf(failedTickers)
+                List.copyOf(failedTickers),
+                deferredStockCount,
+                Map.copyOf(deferredByReason)
         );
     }
 
@@ -1591,6 +1647,12 @@ public class StockPriceSnapshotBatchService {
             }
             if (isRecentlyListedForPriceHistory(stock, today)) {
                 skippedRecentListings.add(stock.getTicker());
+                recordThirtyDayRecoveryState(
+                        stock,
+                        "RECENT_LISTING",
+                        Duration.ofDays(daysUntilThirtyDayHistoryEligibility(stock, today)),
+                        "최근 상장으로 30일 가격 이력 축적 중"
+                );
                 continue;
             }
             eligibleStocks.add(stock);
@@ -1604,6 +1666,45 @@ public class StockPriceSnapshotBatchService {
             );
         }
         return eligibleStocks;
+    }
+
+    private int daysUntilThirtyDayHistoryEligibility(Stock stock, LocalDate today) {
+        final LocalDate ipoDate = resolveRecentListingAnchorDate(stock);
+        if (ipoDate == null) {
+            return 1;
+        }
+        final long elapsedDays = Math.max(0, today.toEpochDay() - ipoDate.toEpochDay());
+        return (int) Math.max(1, properties.getRecentListingWindowDays() + 1L - elapsedDays);
+    }
+
+    private void recordThirtyDayRecoveryState(
+            Stock stock,
+            String recoveryStatus,
+            Duration retryDelay,
+            String detail
+    ) {
+        if (stock == null || stock.getId() == null) {
+            return;
+        }
+        try {
+            final Duration effectiveRetryDelay = retryDelay == null || retryDelay.isNegative() || retryDelay.isZero()
+                    ? Duration.ofDays(1)
+                    : retryDelay;
+            stockPriceSnapshotMapper.recordThirtyDayRecoveryState(
+                    stock.getId(),
+                    recoveryStatus,
+                    OffsetDateTime.now(SNAPSHOT_ZONE).plus(effectiveRetryDelay),
+                    detail == null ? null : detail.substring(0, Math.min(detail.length(), 500))
+            );
+        } catch (Exception exception) {
+            log.warn(
+                    "30일 수익률 복구 상태를 저장하지 못했습니다. stockId={}, ticker={}, status={}",
+                    stock.getId(),
+                    stock.getTicker(),
+                    recoveryStatus,
+                    exception
+            );
+        }
     }
 
     private BigDecimal findReferencePriceWithTolerance(
