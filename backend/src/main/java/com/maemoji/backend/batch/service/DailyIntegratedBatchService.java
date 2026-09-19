@@ -13,6 +13,7 @@ import com.maemoji.backend.user.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -33,6 +34,7 @@ public class DailyIntegratedBatchService {
     private final BatchExecutionLock batchExecutionLock;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
+    @Autowired
     public DailyIntegratedBatchService(
             StockPriceSnapshotBatchService priceSnapshotBatchService,
             StockAssetTypeMaintenanceService stockAssetTypeMaintenanceService,
