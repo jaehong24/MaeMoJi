@@ -8,7 +8,9 @@ import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,6 +43,17 @@ class UserAlertEventServiceTest {
 
         verify(mapper, never()).markAlertRead(7L, 31L);
         assertEquals(read.getReadAt(), response.readAt());
+    }
+
+    @Test
+    void anotherUsersAlertCannotBeRead() {
+        when(mapper.findAlertById(8L, 31L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.markAsRead(8L, 31L))
+                .isInstanceOfSatisfying(org.springframework.web.server.ResponseStatusException.class,
+                        error -> assertEquals(404, error.getStatusCode().value()));
+
+        verify(mapper, never()).markAlertRead(anyLong(), anyLong());
     }
 
     private UserAlertEventRecord alert(OffsetDateTime readAt) {

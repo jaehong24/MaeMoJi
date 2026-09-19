@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RecommendationHistoryServiceTest {
@@ -50,6 +51,16 @@ class RecommendationHistoryServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).changeType()).isEqualTo("SCORE_CHANGED");
         assertThat(result.get(0).scoreDelta()).isEqualTo(5);
+    }
+
+    @Test
+    void historyLookupIsAlwaysScopedToTheAuthenticatedUser() {
+        when(mapper.findRecommendationHistory(8L, 10L, 40)).thenReturn(List.of());
+
+        final List<RecommendationHistoryItemResponse> result = service.getHistory(8L, 10L);
+
+        assertThat(result).isEmpty();
+        verify(mapper).findRecommendationHistory(8L, 10L, 40);
     }
 
     private RecommendationHistoryRecord record(
