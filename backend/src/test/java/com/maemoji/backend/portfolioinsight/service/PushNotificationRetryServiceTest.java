@@ -49,7 +49,25 @@ class PushNotificationRetryServiceTest {
         service.retryFailedDeliveries();
 
         verify(mapper).deactivateDeviceToken(eq(7L), eq("token-10"), any());
-        verify(mapper).updatePushNotificationDeliveryFailure(eq("dedupe-10"), eq("UNREGISTERED"), eq("expired"), any());
+        verify(mapper).markPushNotificationDeliveryPermanentFailure(
+                eq("dedupe-10"), eq("UNREGISTERED"), eq("expired"), any()
+        );
+        verify(mapper, never()).updatePushNotificationDeliveryFailure(anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void storesSafeFailureDetailsWhenRetryProcessingThrows() throws Exception {
+        when(schema.isReady()).thenReturn(true);
+        final RetryablePushDeliveryRecord delivery = delivery();
+        when(mapper.findRetryablePushDeliveries(50)).thenReturn(List.of(delivery));
+        when(mapper.claimPushNotificationDelivery(10L)).thenReturn(1);
+        when(gateway.sendEach(anyList())).thenThrow(new IllegalStateException("Firebase temporarily unavailable"));
+
+        service.retryFailedDeliveries();
+
+        verify(mapper).updatePushNotificationDeliveryFailure(
+                eq("dedupe-10"), eq("RETRY_ERROR"), contains("IllegalStateException"), any()
+        );
     }
 
     @Test

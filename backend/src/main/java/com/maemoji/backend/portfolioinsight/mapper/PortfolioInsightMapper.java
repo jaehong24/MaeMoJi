@@ -185,6 +185,13 @@ public interface PortfolioInsightMapper {
             @Param("sentAt") OffsetDateTime sentAt
     );
 
+    int markPushNotificationDeliveryPermanentFailure(
+            @Param("dedupeKey") String dedupeKey,
+            @Param("providerErrorCode") String providerErrorCode,
+            @Param("providerErrorMessage") String providerErrorMessage,
+            @Param("sentAt") OffsetDateTime sentAt
+    );
+
     List<com.maemoji.backend.portfolioinsight.domain.RetryablePushDeliveryRecord> findRetryablePushDeliveries(
             @Param("limit") int limit
     );

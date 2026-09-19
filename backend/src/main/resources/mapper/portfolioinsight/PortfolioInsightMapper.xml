@@ -556,6 +556,17 @@
         where dedupe_key = #{dedupeKey}
     </update>
 
+    <update id="markPushNotificationDeliveryPermanentFailure">
+        update push_notification_deliveries
+        set delivery_status = 'FAILED',
+            provider_error_code = #{providerErrorCode},
+            provider_error_message = #{providerErrorMessage},
+            sent_at = #{sentAt},
+            attempt_count = 3,
+            next_retry_at = null
+        where dedupe_key = #{dedupeKey}
+    </update>
+
     <select id="findRetryablePushDeliveries"
             resultType="com.maemoji.backend.portfolioinsight.domain.RetryablePushDeliveryRecord">
         select

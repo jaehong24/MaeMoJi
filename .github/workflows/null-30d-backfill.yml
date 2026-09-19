@@ -37,6 +37,8 @@ jobs:
       # Keep a margin before the GitHub job timeout and continue from the next eligible ticker tomorrow.
       NULL_30D_MAX_RUNTIME_MINUTES: "70"
       MAEMOJI_BATCH_PRICE_SNAPSHOTS_DELAY_MILLIS: "1800"
+      # This one-off price recovery does not need notification delivery retries.
+      MAEMOJI_PUSH_RETRY_ENABLED: "false"
 
     steps:
       - name: Checkout repository

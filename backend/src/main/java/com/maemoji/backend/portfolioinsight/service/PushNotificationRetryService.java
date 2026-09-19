@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -70,25 +71,59 @@ public class PushNotificationRetryService {
             final OffsetDateTime now = OffsetDateTime.now(ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE));
             if (result.successful()) {
                 mapper.updatePushNotificationDeliverySuccess(delivery.getDedupeKey(), result.messageId(), now);
+            } else if (isPermanentTokenFailure(result.errorCode(), result.errorMessage())) {
+                mapper.markPushNotificationDeliveryPermanentFailure(
+                        delivery.getDedupeKey(), safeErrorCode(result.errorCode()), safeErrorMessage(result.errorMessage()), now
+                );
+                mapper.deactivateDeviceToken(delivery.getUserId(), delivery.getFcmToken(), now);
+                log.info("만료되었거나 유효하지 않은 푸시 토큰을 비활성화했습니다. deliveryId={}, errorCode={}",
+                        delivery.getId(), safeErrorCode(result.errorCode()));
             } else {
                 mapper.updatePushNotificationDeliveryFailure(
-                        delivery.getDedupeKey(), result.errorCode(), result.errorMessage(), now
+                        delivery.getDedupeKey(), safeErrorCode(result.errorCode()), safeErrorMessage(result.errorMessage()), now
                 );
-                if (isPermanent(result.errorCode())) {
-                    mapper.deactivateDeviceToken(delivery.getUserId(), delivery.getFcmToken(), now);
-                }
+                log.warn("푸시 재시도가 일시적으로 실패했습니다. deliveryId={}, errorCode={}",
+                        delivery.getId(), safeErrorCode(result.errorCode()));
             }
         } catch (Exception exception) {
             final OffsetDateTime now = OffsetDateTime.now(ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE));
-            mapper.updatePushNotificationDeliveryFailure(delivery.getDedupeKey(), "RETRY_ERROR", "retry failed", now);
-            log.warn("푸시 재시도에 실패했습니다. deliveryId={}", delivery.getId());
+            final String failureDetail = exception.getClass().getSimpleName() + ": " + safeExceptionMessage(exception);
+            mapper.updatePushNotificationDeliveryFailure(delivery.getDedupeKey(), "RETRY_ERROR", failureDetail, now);
+            log.warn("푸시 재시도 처리 중 예외가 발생했습니다. deliveryId={}, errorType={}, reason={}",
+                    delivery.getId(), exception.getClass().getSimpleName(), safeExceptionMessage(exception));
         }
     }
 
-    private boolean isPermanent(String code) {
-        return "UNREGISTERED".equals(code)
-                || "SENDER_ID_MISMATCH".equals(code)
-                || "registration-token-not-registered".equals(code)
-                || "mismatched-credential".equals(code);
+    private boolean isPermanentTokenFailure(String code, String message) {
+        final String normalizedCode = safeErrorCode(code).toUpperCase(Locale.ROOT);
+        if ("UNREGISTERED".equals(normalizedCode)
+                || "SENDER_ID_MISMATCH".equals(normalizedCode)
+                || "REGISTRATION-TOKEN-NOT-REGISTERED".equals(normalizedCode)
+                || "MISMATCHED-CREDENTIAL".equals(normalizedCode)) {
+            return true;
+        }
+        // INVALID_ARGUMENT is terminal only when Firebase explicitly identifies the registration token.
+        return "INVALID_ARGUMENT".equals(normalizedCode)
+                && safeErrorMessage(message).toLowerCase(Locale.ROOT).contains("token");
+    }
+
+    private String safeErrorCode(String value) {
+        return value == null || value.isBlank() ? "UNKNOWN" : value.trim();
+    }
+
+    private String safeErrorMessage(String value) {
+        if (value == null || value.isBlank()) {
+            return "Firebase에서 실패 사유를 반환하지 않았습니다.";
+        }
+        return value.replaceAll("\\s+", " ").trim().substring(0, Math.min(value.replaceAll("\\s+", " ").trim().length(), 500));
+    }
+
+    private String safeExceptionMessage(Exception exception) {
+        final String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            return "상세 사유가 없습니다.";
+        }
+        final String normalized = message.replaceAll("\\s+", " ").trim();
+        return normalized.substring(0, Math.min(normalized.length(), 300));
     }
 }
