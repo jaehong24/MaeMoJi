@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component;
 public class PushNotificationSchemaInitializer implements ApplicationRunner {
 
     private final JdbcTemplate jdbcTemplate;
+    private volatile boolean ready;
+
+    public boolean isReady() {
+        return ready;
+    }
 
     public PushNotificationSchemaInitializer(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -19,6 +24,7 @@ public class PushNotificationSchemaInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        ready = false;
         jdbcTemplate.execute("""
                 create table if not exists user_notification_preferences (
                     id bigserial primary key,
@@ -146,5 +152,6 @@ public class PushNotificationSchemaInitializer implements ApplicationRunner {
                 create unique index if not exists uk_weekly_notification_jobs_user_week
                     on weekly_notification_jobs (user_id, report_week)
                 """);
+        ready = true;
     }
 }

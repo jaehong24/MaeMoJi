@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.messaging.Message;
 import com.maemoji.backend.portfolioinsight.domain.RetryablePushDeliveryRecord;
 import com.maemoji.backend.portfolioinsight.mapper.PortfolioInsightMapper;
+import com.maemoji.backend.common.startup.PushNotificationSchemaInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,21 +26,27 @@ public class PushNotificationRetryService {
     private final FirebaseMessagingGateway gateway;
     private final ObjectMapper objectMapper;
     private final PushNotificationDispatchService dispatchService;
+    private final PushNotificationSchemaInitializer schemaInitializer;
 
     public PushNotificationRetryService(
             PortfolioInsightMapper mapper,
             FirebaseMessagingGateway gateway,
             ObjectMapper objectMapper,
-            PushNotificationDispatchService dispatchService
+            PushNotificationDispatchService dispatchService,
+            PushNotificationSchemaInitializer schemaInitializer
     ) {
         this.mapper = mapper;
         this.gateway = gateway;
         this.objectMapper = objectMapper;
         this.dispatchService = dispatchService;
+        this.schemaInitializer = schemaInitializer;
     }
 
     @Scheduled(fixedDelayString = "${MAEMOJI_PUSH_RETRY_DELAY_MILLIS:60000}")
     public void retryFailedDeliveries() {
+        if (!schemaInitializer.isReady()) {
+            return;
+        }
         mapper.recoverStalePushNotificationDeliveries();
         final List<RetryablePushDeliveryRecord> candidates = mapper.findRetryablePushDeliveries(MAX_BATCH);
         for (RetryablePushDeliveryRecord delivery : candidates) {

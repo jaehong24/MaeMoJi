@@ -1,6 +1,7 @@
 package com.maemoji.backend.portfolioinsight.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.maemoji.backend.common.startup.PushNotificationSchemaInitializer;
 import com.maemoji.backend.portfolioinsight.domain.RetryablePushDeliveryRecord;
 import com.maemoji.backend.portfolioinsight.mapper.PortfolioInsightMapper;
 import org.junit.jupiter.api.Test;
@@ -9,17 +10,19 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class PushNotificationRetryServiceTest {
+    private final PushNotificationSchemaInitializer schema = mock(PushNotificationSchemaInitializer.class);
     private final PortfolioInsightMapper mapper = mock(PortfolioInsightMapper.class);
     private final FirebaseMessagingGateway gateway = mock(FirebaseMessagingGateway.class);
     private final PushNotificationPolicyService policy = mock(PushNotificationPolicyService.class);
     private final PushNotificationDispatchService dispatch =
             new PushNotificationDispatchService(mapper, policy, gateway);
     private final PushNotificationRetryService service = new PushNotificationRetryService(
-            mapper, gateway, new ObjectMapper(), dispatch
+            mapper, gateway, new ObjectMapper(), dispatch, schema
     );
 
     @Test
     void claimsAndMarksSuccessfulRetry() throws Exception {
+        when(schema.isReady()).thenReturn(true);
         final RetryablePushDeliveryRecord delivery = delivery();
         when(mapper.findRetryablePushDeliveries(50)).thenReturn(List.of(delivery));
         when(mapper.claimPushNotificationDelivery(10L)).thenReturn(1);
@@ -35,6 +38,7 @@ class PushNotificationRetryServiceTest {
 
     @Test
     void permanentlyInvalidRetryTokenIsDisabled() throws Exception {
+        when(schema.isReady()).thenReturn(true);
         final RetryablePushDeliveryRecord delivery = delivery();
         when(mapper.findRetryablePushDeliveries(50)).thenReturn(List.of(delivery));
         when(mapper.claimPushNotificationDelivery(10L)).thenReturn(1);
@@ -46,6 +50,12 @@ class PushNotificationRetryServiceTest {
 
         verify(mapper).deactivateDeviceToken(eq(7L), eq("token-10"), any());
         verify(mapper).updatePushNotificationDeliveryFailure(eq("dedupe-10"), eq("UNREGISTERED"), eq("expired"), any());
+    }
+
+    @Test
+    void doesNotQueryDatabaseBeforeSchemaIsReady() {
+        service.retryFailedDeliveries();
+        verifyNoInteractions(mapper, gateway);
     }
 
     private RetryablePushDeliveryRecord delivery() {
