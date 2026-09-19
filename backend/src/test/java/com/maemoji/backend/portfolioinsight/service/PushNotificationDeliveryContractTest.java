@@ -11,7 +11,7 @@ class PushNotificationDeliveryContractTest {
         final Path mapper = Path.of("src/main/resources/mapper/portfolioinsight/PortfolioInsightMapper.xml");
         final String xml = Files.readString(mapper);
         assertThat(xml).contains("attempt_count &lt; 3");
-        assertThat(xml).contains("next_retry_at <= current_timestamp");
+        assertThat(xml).contains("next_retry_at &lt;= current_timestamp");
         assertThat(xml).contains("interval '5 minutes'");
         assertThat(xml).contains("delivery_status = 'PENDING'");
     }

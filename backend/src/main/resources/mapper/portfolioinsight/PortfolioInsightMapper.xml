@@ -291,7 +291,7 @@
         where push_notification_deliveries.delivery_status = 'FAILED'
           and push_notification_deliveries.attempt_count &lt; 3
           and (push_notification_deliveries.next_retry_at is null
-               or push_notification_deliveries.next_retry_at <= current_timestamp)
+               or push_notification_deliveries.next_retry_at &lt;= current_timestamp)
     </insert>
 
     <select id="findAlertsByUserId"
@@ -573,7 +573,7 @@
         join user_device_tokens udt on udt.id = pnd.device_token_id
         where pnd.delivery_status = 'FAILED'
           and pnd.attempt_count &lt; 3
-          and (pnd.next_retry_at is null or pnd.next_retry_at <= current_timestamp)
+          and (pnd.next_retry_at is null or pnd.next_retry_at &lt;= current_timestamp)
           and udt.is_active = true
           and udt.push_enabled = true
         order by pnd.next_retry_at nulls first, pnd.id asc
@@ -587,7 +587,7 @@
         where id = #{id}
           and delivery_status = 'FAILED'
           and attempt_count &lt; 3
-          and (next_retry_at is null or next_retry_at <= current_timestamp)
+          and (next_retry_at is null or next_retry_at &lt;= current_timestamp)
     </update>
 
     <update id="recoverStalePushNotificationDeliveries">
