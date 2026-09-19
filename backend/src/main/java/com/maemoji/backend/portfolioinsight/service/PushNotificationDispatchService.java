@@ -6,6 +6,8 @@ import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.WebpushConfig;
 import com.google.firebase.messaging.WebpushNotification;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.portfolioinsight.dto.TestPushNotificationRequest;
 import com.maemoji.backend.portfolioinsight.dto.TestPushNotificationResponse;
 import com.maemoji.backend.portfolioinsight.domain.UserAlertEventRecord;
@@ -25,6 +27,8 @@ import java.util.Set;
 
 @Service
 public class PushNotificationDispatchService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final Set<String> PERMANENT_TOKEN_ERROR_CODES = Set.of(
             "UNREGISTERED",
@@ -113,7 +117,7 @@ public class PushNotificationDispatchService {
         final List<Message> messages = new ArrayList<>();
         final List<String> dedupeKeys = new ArrayList<>();
         final List<UserDeviceTokenRecord> targetDevices = new ArrayList<>();
-        final String payloadJson = String.valueOf(plan.data());
+        final String payloadJson = serializePayload(plan.data());
 
         for (UserDeviceTokenRecord device : plan.targetDevices()) {
             final String dedupeKey = "alert:" + alertEvent.getId() + ":device:" + device.getId();
@@ -275,6 +279,19 @@ public class PushNotificationDispatchService {
                         .setNotification(webNotification)
                         .build())
                 .build();
+    }
+
+    Message buildRetryMessage(String token, String title, String body, Map<String, String> data) {
+        return buildMessage(token, title, body, data);
+    }
+
+    private String serializePayload(Map<String, String> data) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(data);
+        } catch (JsonProcessingException exception) {
+            // The data map is server-created and string-only; keep delivery safe if it changes later.
+            return "{}";
+        }
     }
 
     private String safeText(String value) {

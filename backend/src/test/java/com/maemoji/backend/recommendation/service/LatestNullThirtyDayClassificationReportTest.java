@@ -182,6 +182,8 @@ class LatestNullThirtyDayClassificationReportTest {
 
     private void writeReport(List<Row> rows, long noSnapshotCount) throws IOException {
         final long portfolioRows = rows.stream().filter(Row::inPortfolio).count();
+        final long excludedEtfRows = rows.stream().filter(row -> "EXCLUDED_ETF".equals(row.status())).count();
+        final long actionableRows = rows.size() - excludedEtfRows;
         final long recentListingRows = rows.stream().filter(row -> "RECENTLY_LISTED_30D_PENDING".equals(row.status())).count();
         final long historyWindowRows = rows.stream().filter(row -> "HISTORY_WINDOW_INSUFFICIENT".equals(row.status())).count();
         final long sourceGapRows = rows.stream().filter(row -> "SOURCE_UNSUPPORTED_OR_GAPPED".equals(row.status())).count();
@@ -194,6 +196,8 @@ class LatestNullThirtyDayClassificationReportTest {
                 .append(OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx")))
                 .append(System.lineSeparator());
         markdown.append("- latest_null_30d 종목 수: ").append(rows.size()).append(System.lineSeparator());
+        markdown.append("- ETF 제외 대상: ").append(excludedEtfRows).append(System.lineSeparator());
+        markdown.append("- 실제 복구/점검 대상(ETF 제외): ").append(actionableRows).append(System.lineSeparator());
         markdown.append("- latest_null_portfolio 종목 수: ").append(portfolioRows).append(System.lineSeparator());
         markdown.append("- no_snapshot 종목 수: ").append(noSnapshotCount).append(System.lineSeparator()).append(System.lineSeparator());
 
@@ -202,6 +206,11 @@ class LatestNullThirtyDayClassificationReportTest {
         markdown.append("- 소스 미지원/히스토리 공백: ").append(sourceGapRows).append(System.lineSeparator());
         markdown.append("- 즉시 백필 재시도 필요: ").append(retryRows).append(System.lineSeparator());
         markdown.append("- 수동 점검 필요: ").append(partialRows).append(System.lineSeparator()).append(System.lineSeparator());
+
+        markdown.append("## 운영 판정").append(System.lineSeparator()).append(System.lineSeparator());
+        markdown.append("- ETF는 기업형 추천 모델의 30일 복구 대상이 아니며, 가격 스냅샷 정책으로 별도 관리합니다.").append(System.lineSeparator());
+        markdown.append("- 즉시 백필 재실행 대상은 ETF를 제외한 `BACKFILL_RETRY_REQUIRED` 종목입니다.").append(System.lineSeparator());
+        markdown.append("- `SOURCE_UNSUPPORTED_OR_GAPPED` 종목은 limit 상향보다 데이터 소스/히스토리 예외 처리를 먼저 확인해야 합니다.").append(System.lineSeparator()).append(System.lineSeparator());
 
         markdown.append("| 종목 | 회사명 | 포트폴리오 | 상태 | 상태 설명 | 최신 스냅샷 | 최초 스냅샷 | IPO | 소스 | 7일 | 30일 |").append(System.lineSeparator());
         markdown.append("|---|---|---|---|---|---|---|---|---|---|---|").append(System.lineSeparator());

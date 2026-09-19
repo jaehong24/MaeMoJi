@@ -2,6 +2,7 @@ package com.maemoji.backend.recommendation.controller;
 
 import com.maemoji.backend.common.api.ApiResponse;
 import com.maemoji.backend.common.auth.AuthenticatedUserResolver;
+import com.maemoji.backend.common.security.ApiRateLimiter;
 import com.maemoji.backend.recommendation.dto.HomeRecommendationResponse;
 import com.maemoji.backend.recommendation.dto.NewsEngineStatusResponse;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/recommendations")
@@ -26,17 +28,20 @@ public class RecommendationController {
     private final RecommendationHistoryService recommendationHistoryService;
     private final NewsSentimentService newsSentimentService;
     private final AuthenticatedUserResolver authenticatedUserResolver;
+    private final ApiRateLimiter apiRateLimiter;
 
     public RecommendationController(
             RecommendationService recommendationService,
             RecommendationHistoryService recommendationHistoryService,
             NewsSentimentService newsSentimentService,
-            AuthenticatedUserResolver authenticatedUserResolver
+            AuthenticatedUserResolver authenticatedUserResolver,
+            ApiRateLimiter apiRateLimiter
     ) {
         this.recommendationService = recommendationService;
         this.recommendationHistoryService = recommendationHistoryService;
         this.newsSentimentService = newsSentimentService;
         this.authenticatedUserResolver = authenticatedUserResolver;
+        this.apiRateLimiter = apiRateLimiter;
     }
 
     @GetMapping("/{portfolioItemId:\\d+}/history")
@@ -71,6 +76,7 @@ public class RecommendationController {
             @PathVariable("portfolioItemId") Long portfolioItemId
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        apiRateLimiter.checkUser(userId, "recommendation-refresh", 12, Duration.ofHours(1));
         return ApiResponse.ok(recommendationService.refreshRecommendationDetail(userId, portfolioItemId));
     }
 
@@ -87,6 +93,7 @@ public class RecommendationController {
             @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        apiRateLimiter.checkUser(userId, "recommendation-generate", 6, Duration.ofHours(1));
         return ApiResponse.ok(recommendationService.generateLatestRecommendationsFromCachedData(userId));
     }
 

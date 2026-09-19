@@ -566,6 +566,18 @@ public class RecommendationTuningProperties {
         private int overheatedExpensiveFundamentalMin = 74;
         private int overheatedExpensiveValuationMax = 52;
         private int overheatedExpensivePenalty = -7;
+        private int stretchedPriceMomentumMin = 74;
+        private int stretchedPriceStabilityMin = 80;
+        private int stretchedPriceValuationMin = 75;
+        private int stretchedPricePenalty = -2;
+        private int qualityValuationMaintainFundamentalMin = 80;
+        private int qualityValuationMaintainGrowthMin = 80;
+        private int qualityValuationMaintainValuationMax = 45;
+        private int qualityValuationMaintainStabilityMin = 75;
+        private int qualityValuationMaintainMomentumMin = 55;
+        private int qualityValuationMaintainFloor = 58;
+        private int positiveNewsWeakFlowMomentumMax = 58;
+        private int positiveNewsWeakFlowPenalty = -4;
 
         public int getCompounderFundamentalMin() {
             return compounderFundamentalMin;
@@ -886,6 +898,31 @@ public class RecommendationTuningProperties {
         public void setOverheatedExpensivePenalty(int overheatedExpensivePenalty) {
             this.overheatedExpensivePenalty = overheatedExpensivePenalty;
         }
+
+        public int getStretchedPriceMomentumMin() { return stretchedPriceMomentumMin; }
+        public void setStretchedPriceMomentumMin(int value) { this.stretchedPriceMomentumMin = value; }
+        public int getStretchedPriceStabilityMin() { return stretchedPriceStabilityMin; }
+        public void setStretchedPriceStabilityMin(int value) { this.stretchedPriceStabilityMin = value; }
+        public int getStretchedPriceValuationMin() { return stretchedPriceValuationMin; }
+        public void setStretchedPriceValuationMin(int value) { this.stretchedPriceValuationMin = value; }
+        public int getStretchedPricePenalty() { return stretchedPricePenalty; }
+        public void setStretchedPricePenalty(int value) { this.stretchedPricePenalty = value; }
+        public int getQualityValuationMaintainFundamentalMin() { return qualityValuationMaintainFundamentalMin; }
+        public void setQualityValuationMaintainFundamentalMin(int value) { this.qualityValuationMaintainFundamentalMin = value; }
+        public int getQualityValuationMaintainGrowthMin() { return qualityValuationMaintainGrowthMin; }
+        public void setQualityValuationMaintainGrowthMin(int value) { this.qualityValuationMaintainGrowthMin = value; }
+        public int getQualityValuationMaintainValuationMax() { return qualityValuationMaintainValuationMax; }
+        public void setQualityValuationMaintainValuationMax(int value) { this.qualityValuationMaintainValuationMax = value; }
+        public int getQualityValuationMaintainStabilityMin() { return qualityValuationMaintainStabilityMin; }
+        public void setQualityValuationMaintainStabilityMin(int value) { this.qualityValuationMaintainStabilityMin = value; }
+        public int getQualityValuationMaintainMomentumMin() { return qualityValuationMaintainMomentumMin; }
+        public void setQualityValuationMaintainMomentumMin(int value) { this.qualityValuationMaintainMomentumMin = value; }
+        public int getQualityValuationMaintainFloor() { return qualityValuationMaintainFloor; }
+        public void setQualityValuationMaintainFloor(int value) { this.qualityValuationMaintainFloor = value; }
+        public int getPositiveNewsWeakFlowMomentumMax() { return positiveNewsWeakFlowMomentumMax; }
+        public void setPositiveNewsWeakFlowMomentumMax(int value) { this.positiveNewsWeakFlowMomentumMax = value; }
+        public int getPositiveNewsWeakFlowPenalty() { return positiveNewsWeakFlowPenalty; }
+        public void setPositiveNewsWeakFlowPenalty(int value) { this.positiveNewsWeakFlowPenalty = value; }
     }
 
     public static class NegativeNews {

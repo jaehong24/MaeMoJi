@@ -1,6 +1,7 @@
 package com.maemoji.backend.batch.service;
 
 import com.maemoji.backend.batch.dto.DailyBatchResult;
+import com.maemoji.backend.batch.security.BatchExecutionLock;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.service.RecommendationService;
 import com.maemoji.backend.portfolioinsight.service.WeeklyReportService;
@@ -29,6 +30,7 @@ public class DailyIntegratedBatchService {
     private final RecommendationService recommendationService;
     private final WeeklyReportService weeklyReportService;
     private final UserMapper userMapper;
+    private final BatchExecutionLock batchExecutionLock;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     public DailyIntegratedBatchService(
@@ -36,24 +38,45 @@ public class DailyIntegratedBatchService {
             StockAssetTypeMaintenanceService stockAssetTypeMaintenanceService,
             RecommendationService recommendationService,
             WeeklyReportService weeklyReportService,
-            UserMapper userMapper
+            UserMapper userMapper,
+            BatchExecutionLock batchExecutionLock
     ) {
         this.priceSnapshotBatchService = priceSnapshotBatchService;
         this.stockAssetTypeMaintenanceService = stockAssetTypeMaintenanceService;
         this.recommendationService = recommendationService;
         this.weeklyReportService = weeklyReportService;
         this.userMapper = userMapper;
+        this.batchExecutionLock = batchExecutionLock;
+    }
+
+    /** Unit tests can use the legacy constructor without opening a database connection. */
+    public DailyIntegratedBatchService(
+            StockPriceSnapshotBatchService priceSnapshotBatchService,
+            StockAssetTypeMaintenanceService stockAssetTypeMaintenanceService,
+            RecommendationService recommendationService,
+            WeeklyReportService weeklyReportService,
+            UserMapper userMapper
+    ) {
+        this(priceSnapshotBatchService, stockAssetTypeMaintenanceService, recommendationService,
+                weeklyReportService, userMapper, null);
     }
 
     public DailyBatchResult run(Integer priceLimit) {
         if (!running.compareAndSet(false, true)) {
             throw new IllegalStateException("일일 통합 배치가 이미 실행 중입니다.");
         }
+        boolean databaseLockAcquired = false;
 
         final OffsetDateTime startedAt = OffsetDateTime.now(BATCH_ZONE);
         PriceSnapshotBatchResult priceResult = null;
 
         try {
+            if (batchExecutionLock != null) {
+                databaseLockAcquired = batchExecutionLock.tryAcquireDaily();
+                if (!databaseLockAcquired) {
+                    throw new IllegalStateException("다른 서버 인스턴스에서 일일 통합 배치가 실행 중입니다.");
+                }
+            }
             log.info("일일 통합 배치를 시작합니다. startedAt={}, priceLimit={}", startedAt, priceLimit);
             final StockAssetTypeNormalizeResult assetTypeNormalizeResult =
                     stockAssetTypeMaintenanceService.normalizeAssetTypes();
@@ -172,6 +195,13 @@ public class DailyIntegratedBatchService {
                     rootMessage(exception)
             );
         } finally {
+            if (databaseLockAcquired) {
+                try {
+                    batchExecutionLock.releaseDaily();
+                } catch (Exception exception) {
+                    log.warn("일일 통합 배치 DB 락 해제에 실패했습니다.", exception);
+                }
+            }
             running.set(false);
         }
     }

@@ -204,6 +204,21 @@ public class RecommendationScoreCalculator {
         String status = totalWeight == 0
                 ? "MAINTAIN"
                 : resolveV4Status(adjustedScore, input.effectiveRiskProfile());
+        final RecommendationTuningProperties.ConflictRules conflictRules = tuningProperties.getConflictRules();
+        if ("REDUCE".equals(status)
+                && input.fundamentalQualityScore() != null
+                && input.fundamentalQualityScore() >= conflictRules.getQualityValuationMaintainFundamentalMin()
+                && input.qualityOfGrowthScore() != null
+                && input.qualityOfGrowthScore() >= conflictRules.getQualityValuationMaintainGrowthMin()
+                && input.valuationScore() != null
+                && input.valuationScore() <= conflictRules.getQualityValuationMaintainValuationMax()
+                && input.priceStabilityScore() != null
+                && input.priceStabilityScore() >= conflictRules.getQualityValuationMaintainStabilityMin()
+                && input.priceMomentumScore() != null
+                && input.priceMomentumScore() >= conflictRules.getQualityValuationMaintainMomentumMin()) {
+            adjustedScore = Math.max(adjustedScore, conflictRules.getQualityValuationMaintainFloor());
+            status = resolveV4Status(adjustedScore, input.effectiveRiskProfile());
+        }
         final IncreaseEligibility increaseEligibility = resolveIncreaseEligibility(input, appliedFactors);
         if ("INCREASE".equals(status) && !increaseEligibility.eligible()) {
             status = "MAINTAIN";
@@ -492,6 +507,9 @@ public class RecommendationScoreCalculator {
                     || (stability != null && stability <= rule.getExpensiveGoodStabilityMax())) {
                     adjustment -= 2;
             }
+            if (momentum != null && momentum <= rule.getPositiveNewsWeakFlowMomentumMax()) {
+                adjustment += rule.getPositiveNewsWeakFlowPenalty();
+            }
         }
         if (normalizedNews != null
                 && normalizedNews >= rule.getPositiveNewsWeakGrowthNewsMin()
@@ -533,6 +551,14 @@ public class RecommendationScoreCalculator {
             if (momentum != null && momentum >= 74) {
                 adjustment -= 2;
             }
+        }
+        if (momentum != null
+                && momentum >= rule.getStretchedPriceMomentumMin()
+                && stability != null
+                && stability >= rule.getStretchedPriceStabilityMin()
+                && valuation != null
+                && valuation >= rule.getStretchedPriceValuationMin()) {
+            adjustment += rule.getStretchedPricePenalty();
         }
         if (fundamental != null
                 && fundamental >= 82

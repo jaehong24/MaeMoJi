@@ -185,6 +185,14 @@ public interface PortfolioInsightMapper {
             @Param("sentAt") OffsetDateTime sentAt
     );
 
+    List<com.maemoji.backend.portfolioinsight.domain.RetryablePushDeliveryRecord> findRetryablePushDeliveries(
+            @Param("limit") int limit
+    );
+
+    int claimPushNotificationDelivery(@Param("id") Long id);
+
+    int recoverStalePushNotificationDeliveries();
+
     int insertWeeklyNotificationJobIfAbsent(
             @Param("userId") Long userId,
             @Param("reportId") Long reportId,

@@ -11,6 +11,7 @@ import com.maemoji.backend.portfolioinsight.dto.TestPushNotificationRequest;
 import com.maemoji.backend.portfolioinsight.dto.TestPushNotificationResponse;
 import com.maemoji.backend.portfolioinsight.service.PushNotificationDispatchService;
 import com.maemoji.backend.portfolioinsight.service.PushNotificationSettingsService;
+import com.maemoji.backend.common.security.ApiRateLimiter;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -30,15 +32,18 @@ public class PushNotificationController {
     private final PushNotificationSettingsService pushNotificationSettingsService;
     private final PushNotificationDispatchService pushNotificationDispatchService;
     private final AuthenticatedUserResolver authenticatedUserResolver;
+    private final ApiRateLimiter apiRateLimiter;
 
     public PushNotificationController(
             PushNotificationSettingsService pushNotificationSettingsService,
             PushNotificationDispatchService pushNotificationDispatchService,
-            AuthenticatedUserResolver authenticatedUserResolver
+            AuthenticatedUserResolver authenticatedUserResolver,
+            ApiRateLimiter apiRateLimiter
     ) {
         this.pushNotificationSettingsService = pushNotificationSettingsService;
         this.pushNotificationDispatchService = pushNotificationDispatchService;
         this.authenticatedUserResolver = authenticatedUserResolver;
+        this.apiRateLimiter = apiRateLimiter;
     }
 
     @GetMapping("/preferences")
@@ -91,6 +96,7 @@ public class PushNotificationController {
             @Valid @RequestBody(required = false) TestPushNotificationRequest request
     ) {
         final Long userId = authenticatedUserResolver.requireUserId(authorizationHeader);
+        apiRateLimiter.checkUser(userId, "test-push", 5, Duration.ofHours(1));
         return ApiResponse.ok(pushNotificationDispatchService.sendTestPush(userId, request));
     }
 }

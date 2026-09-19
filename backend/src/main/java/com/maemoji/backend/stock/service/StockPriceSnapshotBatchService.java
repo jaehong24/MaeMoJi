@@ -1040,7 +1040,18 @@ public class StockPriceSnapshotBatchService {
                 );
             }
         }
-        return fetchYahooHistoricalPricePoints(symbol, fromDate, toDate);
+        try {
+            return fetchYahooHistoricalPricePoints(symbol, fromDate, toDate);
+        } catch (Exception exception) {
+            // A missing Yahoo series is a per-symbol data gap, not a batch-level failure.
+            // The caller records HISTORY_UNAVAILABLE and the remaining symbols continue.
+            log.warn(
+                    "Yahoo 과거 가격을 사용할 수 없어 해당 종목을 보류합니다. symbol={}, reason={}",
+                    symbol,
+                    exception.getMessage()
+            );
+            return List.of();
+        }
     }
 
     private List<HistoricalPricePoint> fetchFmpHistoricalPricePoints(

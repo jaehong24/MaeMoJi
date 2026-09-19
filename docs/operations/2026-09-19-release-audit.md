@@ -25,6 +25,9 @@
 | P2 | 추천 해석 테스트가 이전 6개 인수 메서드를 호출 | 현재 7개 인수 형식으로 수정, 상태별 한국어 문구 검사 유지 | RecommendationServiceQueryFlowTest |
 | P2 | 앱 API의 응답 형식 협상 불명확 | 공통 요청에 Accept: application/json 지정 | ApiAuthHeaders |
 | P2 | 웹 알림 payload 처리에 deprecated dart:html 사용, 모든 query 삭제 | package:web 사용, notificationPayload만 제거하고 다른 query 보존 | Flutter 정적 분석/웹 빌드 확인 대상 |
+| P1 | 일시적인 Firebase 실패 후 dedupe 키가 영구적으로 재사용 불가 | 실패 delivery를 최대 3회, 5분 간격으로 재시도하고 attempt_count/next_retry_at 저장 | PushNotificationRetryService 및 성공/영구 실패 단위 테스트 |
+| P1 | AtomicBoolean만으로는 여러 서버/Actions 실행의 동시 배치를 막지 못함 | PostgreSQL session advisory lock을 추가하고 종료 시 해제 | BatchExecutionLock, DailyIntegratedBatchService |
+| P1 | 비용이 큰 API를 반복 호출해 외부 API·푸시 비용이 증가할 수 있음 | 사용자·기능별 요청 창 제한과 429 응답 추가 | ApiRateLimiter, 호출량 제한 테스트 |
 
 개발 로그인 사용이 필요한 경우에만 로컬 실행에서 `SPRING_PROFILES_ACTIVE=local`, `MAEMOJI_DEV_LOGIN_ENABLED=true`를 설정한다. Render나 GitHub Actions에 개발 로그인 옵션을 켜지 않는다. prod와 local이 동시에 있어도 허용하지 않는다.
 
@@ -51,18 +54,19 @@
 
 ### 3. 알림 전달의 재시도/트랜잭션 분리 (P1)
 
-- `PushNotificationDispatchService.dispatchImmediate`: insertPushNotificationDelivery의 dedupe_key 충돌 시 바로 건너뛴다. FAILED도 같은 키를 차지하므로 같은 이벤트 재호출만으로 복구되지 않는다.
+- `PushNotificationDispatchService.dispatchImmediate`: FAILED delivery는 최대 3회, 5분 간격으로 재시도하도록 보완했다. `PushNotificationRetryService`가 60초마다 최대 50건을 선점해 자동 재시도한다. 영구 실패 토큰은 비활성화한다.
 - `WeeklyDigestNotificationService`: 부분 성공은 PARTIAL_SUCCESS지만 작업 재등록 SQL은 FAILED/SKIPPED만 대상으로 한다. 실패 디바이스만 재시도하는 경로가 필요하다.
 - `WeeklyReportService.generateLatestReport`: 트랜잭션 내부에서 외부 FCM을 호출한다. DB 롤백/프로세스 중단과 푸시 성공이 어긋나거나 DB 연결을 오래 점유할 수 있다.
 - 같은 클래스의 generateCurrentWeekReportIfAbsent → generateLatestReport 호출은 Spring 프록시 트랜잭션 적용 여부를 별도로 다뤄야 한다.
-- 개선: DB에 이벤트/발송 작업 원자적 저장 → 커밋 후 별도 dispatcher → 디바이스별 상태/attempt/nextRetryAt/lease → 일시 실패만 재시도 → 성공한 디바이스는 제외. 크래시 후 lease 회수 테스트를 추가한다.
-- payloadJson에 Map.toString()을 저장하는 경로도 실제 JSON 직렬화로 교체한다.
+- 개선 잔여: DB에 이벤트/발송 작업 원자적 저장 → 커밋 후 별도 dispatcher → 디바이스별 lease → 일시 실패만 재시도 → 성공한 디바이스는 제외. 현재 worker는 `RETRYING` stale 행을 10분 후 복구하며, 외부 부하/운영 장애 시나리오를 추가 검증해야 한다.
+- `payloadJson`은 Map.toString() 대신 Jackson JSON으로 저장하도록 교체했다.
 
 ### 4. 호출량 제한과 배치 중복 방지 (P1)
 
 - 테스트 푸시, 추천 재분석, 종목 저장에 인증 사용자 단위 호출 제한을 추가한다. 로그인/공개 로고 프록시는 IP 기반 보호도 필요하다.
 - 현재 즉시 푸시 정책의 쿨다운은 사용자용 알림 피로도 정책이며 API 남용 방지와 다르다.
-- `DailyIntegratedBatchService`의 AtomicBoolean은 한 JVM에만 유효하다. Actions와 웹 관리자 실행의 동시 동작을 막는 DB lease/락이 필요하다.
+- `DailyIntegratedBatchService`에 PostgreSQL session advisory lock을 추가했다. JVM 내부 AtomicBoolean과 함께 동작하며 Actions/웹 관리자 간 중복 실행을 차단한다. 락 연결이 끊겼을 때의 장애 시나리오와 락 대기 정책은 운영 점검에서 확인한다.
+- 추천 재생성 6회/시간, 상세 재분석 12회/시간, 테스트 푸시 5회/시간, 종목 등록 10회/시간을 사용자별로 제한했다. 현재 제한기는 단일 인스턴스 메모리 기반이므로 서버 수평 확장 전 Redis/게이트웨이 제한기로 교체해야 한다.
 - 재시도 상한/백오프/동시 실행수/하루 공급자 요청량을 함께 제한한다. 사용자가 늘어도 요청량이 무제한 증가하지 않는 부하 테스트를 한다.
 
 ### 5. 운영 장애 감지와 출시 검증 (P1)
@@ -84,8 +88,9 @@
 ## 검증 기록
 
 - backend: `LIVE_DB_REPORTS=false`, `LIVE_SNAPSHOT_VALIDATION=false`, Java 17 toolchain으로 `gradlew test --no-daemon` 실행.
-- 총 172건: 157 통과, 3 실패, 12 제외. 실패는 위 점수모델 3건. 새 방어 및 수정한 문구 테스트는 통과했다.
+- 총 179건: 167 통과, 0 실패, 12 제외. 점수모델 회귀 3건, 알림 재시도, 배치 락, API 호출량 제한 테스트를 포함한다. 라이브 DB 리포트 테스트는 `LIVE_DB_REPORTS=true`가 아니어서 제외됐다.
 - 라이브 DB/푸시/외부 API 검증은 하지 않았다. SQL 선택 테스트는 파싱/조건 검사이며 실제 PostgreSQL 실행계획·동시성 테스트를 대체하지 않는다.
+- 2026-09-19 읽기 전용 운영 리포트: `latest_null_30d` 618개, 즉시 백필 재시도 필요 145개, 소스 미지원/히스토리 공백 3개, `no_snapshot` 0개. 운영 API `/` HEAD 응답은 200이었다. 이 점검은 커버리지 테스트의 운영 스키마 변경 구문 때문에 해당 테스트를 제외하고 실행했다.
 - Flutter: `flutter analyze --no-pub` 경고/오류 없음, `flutter test --no-pub` 6건 통과.
 - 웹: `flutter build web --release --no-pub --dart-define=API_BASE_URL=https://maemoji-ig16.onrender.com` 성공 (Wasm dry run 포함). 빌드 성공은 실제 기기 푸시 수신/딥링크 검증을 의미하지 않는다.
 - `git diff --check` 통과. 이번 작업으로 커밋/푸시/운영 배포는 하지 않았다.

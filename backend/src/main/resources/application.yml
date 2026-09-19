@@ -37,6 +37,9 @@ logging:
 maemoji:
   auth:
     dev-login-enabled: ${MAEMOJI_DEV_LOGIN_ENABLED:false}
+  notifications:
+    retry:
+      enabled: ${MAEMOJI_PUSH_RETRY_ENABLED:true}
   batch:
     stock-master:
       enabled: ${STOCK_MASTER_SYNC_ENABLED:false}
@@ -174,6 +177,18 @@ maemoji:
         overheated-expensive-fundamental-min: 74
         overheated-expensive-valuation-max: 52
         overheated-expensive-penalty: -7
+        stretched-price-momentum-min: 74
+        stretched-price-stability-min: 80
+        stretched-price-valuation-min: 75
+        stretched-price-penalty: -2
+        quality-valuation-maintain-fundamental-min: 80
+        quality-valuation-maintain-growth-min: 80
+        quality-valuation-maintain-valuation-max: 45
+        quality-valuation-maintain-stability-min: 75
+        quality-valuation-maintain-momentum-min: 55
+        quality-valuation-maintain-floor: 58
+        positive-news-weak-flow-momentum-max: 58
+        positive-news-weak-flow-penalty: -4
       negative-news:
         normalized-news10-penalty: -5
         normalized-news20-penalty: -3
