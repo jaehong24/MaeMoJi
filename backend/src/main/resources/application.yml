@@ -32,9 +32,11 @@ mybatis:
 
 logging:
   level:
-    com.maemoji.backend: debug
+    com.maemoji.backend: info
 
 maemoji:
+  auth:
+    dev-login-enabled: ${MAEMOJI_DEV_LOGIN_ENABLED:false}
   batch:
     stock-master:
       enabled: ${STOCK_MASTER_SYNC_ENABLED:false}

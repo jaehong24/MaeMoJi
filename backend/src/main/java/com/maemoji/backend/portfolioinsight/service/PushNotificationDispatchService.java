@@ -240,7 +240,7 @@ public class PushNotificationDispatchService {
                     activeDevices.size(),
                     0,
                     activeDevices.size(),
-                    "테스트 푸시 발송 실패: " + exception.getMessage()
+                    "테스트 푸시 발송에 실패했습니다. 잠시 후 다시 시도해주세요."
             );
         }
     }

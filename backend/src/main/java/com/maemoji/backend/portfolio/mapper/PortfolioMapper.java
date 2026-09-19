@@ -19,6 +19,10 @@ public interface PortfolioMapper {
 
     int countActivePortfolioItemsByUserId(@Param("userId") Long userId);
 
+    boolean isActivePortfolioItem(@Param("userId") Long userId, @Param("portfolioItemId") Long portfolioItemId);
+
+    boolean isActiveStock(@Param("stockId") Long stockId);
+
     void insertPortfolioItem(
             @Param("userId") Long userId,
             @Param("request") PortfolioCreateRequest request

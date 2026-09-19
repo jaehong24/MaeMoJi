@@ -1060,7 +1060,14 @@ public class StockPriceSnapshotBatchService {
                         + encode(fmpApiKey),
                 "FMP historical price"
         );
-        final JsonNode values = response.path("value");
+        return parseFmpHistoricalPricePoints(response);
+    }
+
+    private List<HistoricalPricePoint> parseFmpHistoricalPricePoints(JsonNode response) {
+        if (response == null || response.isNull()) {
+            return List.of();
+        }
+        final JsonNode values = response.isArray() ? response : response.path("value");
         if (!values.isArray() || values.isEmpty()) {
             return List.of();
         }

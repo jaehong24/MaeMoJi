@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.ErrorResponse;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -45,13 +46,21 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(ApiResponse.error(message));
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException exception) {
-        return ResponseEntity.badRequest().body(ApiResponse.error(exception.getMessage()));
+    @ExceptionHandler({IllegalArgumentException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(Exception exception) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("입력값을 다시 확인해주세요."));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception exception) {
+        // Preserve framework 4xx responses without exposing request values or parser details.
+        if (exception instanceof ErrorResponse error && error.getStatusCode().is4xxClientError()) {
+            return ResponseEntity.status(error.getStatusCode())
+                    .headers(error.getHeaders())
+                    .body(ApiResponse.error("요청 주소와 입력값을 확인해주세요."));
+        }
         log.error("처리되지 않은 API 오류가 발생했습니다.", exception);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

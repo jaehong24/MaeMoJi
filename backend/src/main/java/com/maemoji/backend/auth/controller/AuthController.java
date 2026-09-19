@@ -45,7 +45,7 @@ public class AuthController {
 
     @PostMapping("/dev")
     public ApiResponse<AuthLoginResponse> loginAsDev(HttpServletRequest request) {
-        return ApiResponse.ok(googleAuthService.loginAsDev(request.getServerName()));
+        return ApiResponse.ok(googleAuthService.loginAsDev(request.getServerName(), request.getRemoteAddr()));
     }
 
     @GetMapping("/me")

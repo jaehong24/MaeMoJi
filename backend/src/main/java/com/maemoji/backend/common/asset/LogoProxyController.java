@@ -13,7 +13,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Set;
@@ -56,10 +56,20 @@ public class LogoProxyController {
                 .GET()
                 .build();
 
-        final HttpResponse<byte[]> response = httpClient.send(
-                request,
-                HttpResponse.BodyHandlers.ofByteArray()
-        );
+        final HttpResponse<byte[]> response;
+        try {
+            response = httpClient.send(request, info -> new BoundedByteArraySubscriber(MAX_LOGO_BYTES));
+        } catch (IOException exception) {
+            for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+                if (cause instanceof BoundedByteArraySubscriber.BodyTooLargeException) {
+                    return ResponseEntity.status(413).body(new byte[0]);
+                }
+            }
+            return ResponseEntity.status(502).body(new byte[0]);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return ResponseEntity.status(503).body(new byte[0]);
+        }
 
         if (response.statusCode() != 200 || response.body() == null || response.body().length == 0) {
             return ResponseEntity.status(502).body(new byte[0]);
@@ -80,6 +90,7 @@ public class LogoProxyController {
         }
 
         return ResponseEntity.ok()
+                .header("X-Content-Type-Options", "nosniff")
                 .header(HttpHeaders.CACHE_CONTROL, CacheControl.maxAge(Duration.ofDays(7)).cachePublic().getHeaderValue())
                 .contentType(MediaType.parseMediaType(contentType))
                 .body(response.body());

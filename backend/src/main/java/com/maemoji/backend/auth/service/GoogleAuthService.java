@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.auth.dto.AuthLoginResponse;
 import com.maemoji.backend.auth.dto.AuthUserResponse;
 import com.maemoji.backend.common.auth.AuthTokenHasher;
+import com.maemoji.backend.common.auth.DevLoginPolicy;
 import com.maemoji.backend.user.domain.UserSessionRecord;
 import com.maemoji.backend.user.mapper.UserMapper;
 import org.springframework.http.HttpStatus;
@@ -12,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -35,15 +35,18 @@ public class GoogleAuthService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final AuthTokenHasher authTokenHasher;
+    private final DevLoginPolicy devLoginPolicy;
 
     public GoogleAuthService(
             UserMapper userMapper,
             ObjectMapper objectMapper,
-            AuthTokenHasher authTokenHasher
+            AuthTokenHasher authTokenHasher,
+            DevLoginPolicy devLoginPolicy
     ) {
         this.userMapper = userMapper;
         this.objectMapper = objectMapper;
         this.authTokenHasher = authTokenHasher;
+        this.devLoginPolicy = devLoginPolicy;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -113,10 +116,8 @@ public class GoogleAuthService {
     }
 
     @Transactional
-    public AuthLoginResponse loginAsDev(String hostName) {
-        if (!isAllowedDevHost(hostName)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "로컬 개발 환경에서만 사용할 수 있습니다.");
-        }
+    public AuthLoginResponse loginAsDev(String hostName, String remoteAddress) {
+        devLoginPolicy.requireLocalDevelopment(hostName, remoteAddress);
 
         userMapper.insertDevUser();
         final Long userId = userMapper.findIdByEmail("dev@maemoji.local");
@@ -173,26 +174,6 @@ public class GoogleAuthService {
         }
         if (!CURRENT_CONSENT_VERSION.equals(consentVersion)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "최신 서비스 안내에 다시 동의해주세요.");
-        }
-    }
-
-    private boolean isAllowedDevHost(String hostName) {
-        if (hostName == null || hostName.isBlank()) {
-            return false;
-        }
-
-        final String normalized = hostName.trim().toLowerCase();
-        if (normalized.equals("localhost")
-                || normalized.equals("127.0.0.1")
-                || normalized.equals("10.0.2.2")) {
-            return true;
-        }
-
-        try {
-            final InetAddress address = InetAddress.getByName(normalized);
-            return address.isLoopbackAddress() || address.isAnyLocalAddress();
-        } catch (Exception ignored) {
-            return false;
         }
     }
 

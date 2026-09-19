@@ -4,6 +4,9 @@ import com.maemoji.backend.portfolio.dto.PortfolioCreateRequest;
 import com.maemoji.backend.portfolio.dto.PortfolioItemSummaryResponse;
 import com.maemoji.backend.portfolio.mapper.PortfolioMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -12,6 +15,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -26,6 +31,66 @@ class PortfolioServiceTest {
             portfolioMapper,
             portfolioWarmupService
     );
+
+    @BeforeEach
+    void activeStocksAreAvailable() {
+        when(portfolioMapper.isActiveStock(anyLong())).thenReturn(true);
+    }
+
+    @Test
+    void inactiveItemCannotBypassFiveItemLimit() {
+        when(portfolioMapper.findPortfolioItemIdByUserIdAndStockId(1L, 2L)).thenReturn(3L);
+        when(portfolioMapper.countActivePortfolioItemsByUserId(1L)).thenReturn(5);
+        assertThatThrownBy(() -> portfolioService.createOrUpdatePortfolioItem(1L, createRequest(2L)))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        error -> assertThat(error.getStatusCode().value()).isEqualTo(400));
+        verify(portfolioMapper, never()).updatePortfolioItem(anyLong(), org.mockito.ArgumentMatchers.any());
+        verify(portfolioWarmupService, never()).warmUpAfterPortfolioSaved(anyLong(), anyLong());
+    }
+
+    @Test
+    void activeItemCanStillBeEditedAtLimit() {
+        when(portfolioMapper.findPortfolioItemIdByUserIdAndStockId(1L, 2L)).thenReturn(3L);
+        when(portfolioMapper.isActivePortfolioItem(1L, 3L)).thenReturn(true);
+        portfolioService.createOrUpdatePortfolioItem(1L, createRequest(2L));
+        verify(portfolioMapper).updatePortfolioItem(3L, createRequest(2L));
+        verify(portfolioMapper, never()).countActivePortfolioItemsByUserId(1L);
+    }
+
+    @Test
+    void inactiveItemCanBeReactivatedBelowLimit() {
+        when(portfolioMapper.findPortfolioItemIdByUserIdAndStockId(1L, 2L)).thenReturn(3L);
+        when(portfolioMapper.countActivePortfolioItemsByUserId(1L)).thenReturn(4);
+        portfolioService.createOrUpdatePortfolioItem(1L, createRequest(2L));
+        verify(portfolioMapper).lockUserPortfolio(1L);
+        verify(portfolioMapper).updatePortfolioItem(3L, createRequest(2L));
+    }
+
+    @Test
+    void missingStockIsNotReportedAsDatabaseFailure() {
+        when(portfolioMapper.isActiveStock(2L)).thenReturn(false);
+        assertThatThrownBy(() -> portfolioService.createOrUpdatePortfolioItem(1L, createRequest(2L)))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        error -> assertThat(error.getStatusCode().value()).isEqualTo(404));
+        verify(portfolioMapper, never()).insertPortfolioItem(anyLong(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void fullWarmupQueueDoesNotTurnCommittedSaveIntoError() {
+        when(portfolioMapper.findPortfolioItemIdByUserIdAndStockId(1L, 2L)).thenReturn(null);
+        doThrow(new TaskRejectedException("full"))
+                .when(portfolioWarmupService).warmUpAfterPortfolioSaved(1L, 2L);
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            portfolioService.createOrUpdatePortfolioItem(1L, createRequest(2L));
+            verify(portfolioMapper).insertPortfolioItem(1L, createRequest(2L));
+            for (TransactionSynchronization synchronization : TransactionSynchronizationManager.getSynchronizations()) {
+                synchronization.afterCommit();
+            }
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
 
     @Test
     void createPortfolioItemTriggersImmediateSnapshotWarmup() {

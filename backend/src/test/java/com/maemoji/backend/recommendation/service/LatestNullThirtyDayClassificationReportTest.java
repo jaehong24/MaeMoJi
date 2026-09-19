@@ -21,6 +21,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named = "LIVE_DB_REPORTS", matches = "true")
 class LatestNullThirtyDayClassificationReportTest {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");

@@ -127,6 +127,7 @@ class RecommendationServiceQueryFlowTest {
                         false,
                         false
                 ),
+                null,
                 null
         );
 
@@ -166,7 +167,8 @@ class RecommendationServiceQueryFlowTest {
                         74,
                         72,
                         64
-                )
+                ),
+                null
         );
 
         assertThat(comment).contains("유지");
@@ -192,7 +194,8 @@ class RecommendationServiceQueryFlowTest {
                         60,
                         56,
                         52
-                )
+                ),
+                null
         );
 
         assertThat(comment).contains("감액");
@@ -211,6 +214,7 @@ class RecommendationServiceQueryFlowTest {
                 28,
                 null,
                 neutralNews(),
+                null,
                 null
         );
 

@@ -25,6 +25,7 @@
             updated_at
         from stocks s
         where s.is_active = true
+          and upper(btrim(coalesce(s.asset_type, ''))) &lt;&gt; 'ETF'
           and s.finnhub_symbol is not null
           and exists (
               select 1
@@ -75,6 +76,7 @@
             updated_at
         from stocks s
         where s.is_active = true
+          and upper(btrim(coalesce(s.asset_type, ''))) &lt;&gt; 'ETF'
           and s.finnhub_symbol is not null
           and not exists (
               select 1
@@ -129,7 +131,7 @@
         from stocks s
         where s.is_active = true
           and s.finnhub_symbol is not null
-          and coalesce(s.asset_type, '') = 'ETF'
+          and upper(btrim(coalesce(s.asset_type, ''))) = 'ETF'
           and exists (
               select 1
               from portfolio_items pi
@@ -174,7 +176,7 @@
         from stocks s
         where s.is_active = true
           and s.finnhub_symbol is not null
-          and coalesce(s.asset_type, '') = 'ETF'
+          and upper(btrim(coalesce(s.asset_type, ''))) = 'ETF'
           and not exists (
               select 1
               from portfolio_items pi
@@ -221,6 +223,7 @@
             updated_at
         from stocks s
         where s.is_active = true
+          and upper(btrim(coalesce(s.asset_type, ''))) &lt;&gt; 'ETF'
           and s.finnhub_symbol is not null
           and not exists (
               select 1
@@ -281,6 +284,7 @@
             updated_at
         from stocks s
         where s.is_active = true
+          and upper(btrim(coalesce(s.asset_type, ''))) &lt;&gt; 'ETF'
           and s.finnhub_symbol is not null
           and not exists (
               select 1

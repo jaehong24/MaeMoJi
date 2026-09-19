@@ -32,6 +32,20 @@ import static org.mockito.Mockito.when;
 
 class StockPriceSnapshotBatchServiceTest {
 
+    @Test
+    void fmpHistoryAcceptsRawArrayAndLegacyWrapper() throws Exception {
+        final ObjectMapper json = new ObjectMapper();
+        final String row = "{\"date\":\"2026-09-18\",\"price\":123.45}";
+        for (String payload : List.of("[" + row + "]", "{\"value\":[" + row + "]}")) {
+            final List<?> points = ReflectionTestUtils.invokeMethod(service,
+                    "parseFmpHistoricalPricePoints", json.readTree(payload));
+            assertThat(points).hasSize(1);
+        }
+        final List<?> empty = ReflectionTestUtils.invokeMethod(service,
+                "parseFmpHistoricalPricePoints", json.readTree("{\"error\":\"unavailable\"}"));
+        assertThat(empty).isEmpty();
+    }
+
     private final StockPriceSnapshotMapper mapper = mock(StockPriceSnapshotMapper.class);
     private final PriceSnapshotBatchProperties properties = new PriceSnapshotBatchProperties();
     private final StockPriceReturnCalculator returnCalculator = mock(StockPriceReturnCalculator.class);

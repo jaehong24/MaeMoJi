@@ -44,6 +44,15 @@
         )
     </insert>
 
+    <select id="isActivePortfolioItem" resultType="boolean">
+        select exists (select 1 from portfolio_items
+            where id = #{portfolioItemId} and user_id = #{userId} and is_active = true)
+    </select>
+
+    <select id="isActiveStock" resultType="boolean">
+        select exists (select 1 from stocks where id = #{stockId} and is_active = true)
+    </select>
+
     <update id="updatePortfolioItem">
         update portfolio_items
         set

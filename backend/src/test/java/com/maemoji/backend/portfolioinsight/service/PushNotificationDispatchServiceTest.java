@@ -20,6 +20,14 @@ import static org.mockito.Mockito.when;
 
 class PushNotificationDispatchServiceTest {
 
+    @Test
+    void testPushDoesNotExposeProviderException() throws Exception {
+        when(gateway.sendEach(anyList())).thenThrow(new IllegalStateException("private credential detail"));
+        final var result = service.sendTestPush(7L, null);
+        org.assertj.core.api.Assertions.assertThat(result.toString()).doesNotContain("private credential detail");
+        org.assertj.core.api.Assertions.assertThat(result.toString()).contains("잠시 후 다시 시도해주세요");
+    }
+
     private final PortfolioInsightMapper mapper = mock(PortfolioInsightMapper.class);
     private final PushNotificationPolicyService policy = mock(PushNotificationPolicyService.class);
     private final FirebaseMessagingGateway gateway = mock(FirebaseMessagingGateway.class);

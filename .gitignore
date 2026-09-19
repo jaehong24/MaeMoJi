@@ -52,3 +52,5 @@ backend/.env
 # Local import tools and database backups must never be committed.
 /.tmp/
 /db-backups/*.dump
+/db-backups/*.sql
+/db-backups/*.sql.gz

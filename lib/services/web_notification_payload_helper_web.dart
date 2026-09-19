@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 String? consumeWebNotificationPayload() {
   final payload = Uri.base.queryParameters['notificationPayload'];
@@ -9,11 +9,12 @@ String? consumeWebNotificationPayload() {
 
   try {
     final decoded = utf8.decode(base64Url.decode(base64Url.normalize(payload)));
-    final cleanedUri = Uri(
-      path: Uri.base.path,
-      fragment: Uri.base.fragment.isEmpty ? null : Uri.base.fragment,
+    final parameters = Map<String, List<String>>.from(Uri.base.queryParametersAll)
+      ..remove('notificationPayload');
+    final cleanedUri = Uri.base.replace(
+      query: Uri(queryParameters: parameters).query,
     );
-    html.window.history.replaceState(null, '', cleanedUri.toString());
+    web.window.history.replaceState(null, '', cleanedUri.toString());
     return decoded;
   } catch (_) {
     return null;

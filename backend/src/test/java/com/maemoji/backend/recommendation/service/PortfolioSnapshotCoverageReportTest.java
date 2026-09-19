@@ -19,6 +19,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named = "LIVE_DB_REPORTS", matches = "true")
 class PortfolioSnapshotCoverageReportTest {
     private static final int RECENT_PRICE_HISTORY_WINDOW_DAYS = 32;
     private static final int RECENT_FUNDAMENTAL_WINDOW_DAYS = 90;

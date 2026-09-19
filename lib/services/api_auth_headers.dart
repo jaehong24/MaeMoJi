@@ -6,11 +6,15 @@ class ApiAuthHeaders {
   static Map<String, String> json() {
     return {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...AuthSessionStore.instance.authorizationHeaders,
     };
   }
 
   static Map<String, String> auth() {
-    return AuthSessionStore.instance.authorizationHeaders;
+    return {
+      'Accept': 'application/json',
+      ...AuthSessionStore.instance.authorizationHeaders,
+    };
   }
 }

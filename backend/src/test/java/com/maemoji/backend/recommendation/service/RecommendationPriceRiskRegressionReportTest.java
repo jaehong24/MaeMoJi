@@ -37,6 +37,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+@org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named = "LIVE_DB_REPORTS", matches = "true")
 class RecommendationPriceRiskRegressionReportTest {
 
     private static final List<String> TARGET_SYMBOLS = List.of(
