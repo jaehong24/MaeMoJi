@@ -281,17 +281,7 @@
             #{dedupeKey},
             #{sentAt}
         )
-        on conflict (dedupe_key) do update
-        set delivery_status = 'PENDING',
-            attempt_count = push_notification_deliveries.attempt_count + 1,
-            next_retry_at = null,
-            provider_error_code = null,
-            provider_error_message = null,
-            sent_at = null
-        where push_notification_deliveries.delivery_status = 'FAILED'
-          and push_notification_deliveries.attempt_count &lt; 3
-          and (push_notification_deliveries.next_retry_at is null
-               or push_notification_deliveries.next_retry_at &lt;= current_timestamp)
+        on conflict (dedupe_key) do nothing
     </insert>
 
     <select id="findAlertsByUserId"

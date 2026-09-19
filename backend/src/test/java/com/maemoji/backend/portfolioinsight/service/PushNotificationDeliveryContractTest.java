@@ -19,7 +19,9 @@ class PushNotificationDeliveryContractTest {
         assertThat(xml).contains("attempt_count &lt; 3");
         assertThat(xml).contains("next_retry_at &lt;= current_timestamp");
         assertThat(xml).contains("interval '5 minutes'");
-        assertThat(xml).contains("delivery_status = 'PENDING'");
+        assertThat(xml).contains("delivery_status = 'FAILED'");
+        assertThat(xml).contains("<insert id=\"insertPushNotificationDelivery\">");
+        assertThat(xml).contains("on conflict (dedupe_key) do nothing");
     }
 
     @Test

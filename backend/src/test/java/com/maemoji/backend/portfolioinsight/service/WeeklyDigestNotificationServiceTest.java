@@ -1,6 +1,7 @@
 package com.maemoji.backend.portfolioinsight.service;
 
 import com.maemoji.backend.portfolioinsight.domain.UserNotificationPreferenceRecord;
+import com.maemoji.backend.portfolioinsight.domain.UserDeviceTokenRecord;
 import com.maemoji.backend.portfolioinsight.dto.WeeklyReportResponse;
 import com.maemoji.backend.portfolioinsight.mapper.PortfolioInsightMapper;
 import org.junit.jupiter.api.Test;
@@ -65,5 +66,44 @@ class WeeklyDigestNotificationServiceTest {
                 any()
         );
         verify(gateway, never()).sendEach(any());
+    }
+
+    @Test
+    void failedWeeklyDeviceDeliveryIsStoredForTheSharedRetryWorker() throws Exception {
+        final UserNotificationPreferenceRecord preference = new UserNotificationPreferenceRecord();
+        preference.setWeeklyDigestEnabled(true);
+        final WeeklyReportResponse report = new WeeklyReportResponse(
+                11L, LocalDate.of(2026, 7, 13), OffsetDateTime.now(), "주간 변화", "요약", 1, 0, 1, 0, List.of()
+        );
+        final UserDeviceTokenRecord firstDevice = device(101L, "token-success");
+        final UserDeviceTokenRecord secondDevice = device(102L, "token-retry");
+        when(mapper.findNotificationPreferenceByUserId(7L)).thenReturn(preference);
+        when(mapper.findDeviceTokensByUserId(7L)).thenReturn(List.of(firstDevice, secondDevice));
+        when(mapper.insertWeeklyNotificationJobIfAbsent(eq(7L), eq(11L), eq(report.reportWeek()), any())).thenReturn(1);
+        when(mapper.insertPushNotificationDelivery(any(), eq(7L), any(), eq("WEEKLY_DIGEST"), eq("WEEKLY_REPORT"), any(), any(), any(), any()))
+                .thenReturn(1);
+        when(gateway.sendEach(any())).thenReturn(List.of(
+                FirebaseMessagingGateway.SendResult.success("sent-1"),
+                FirebaseMessagingGateway.SendResult.failure("UNAVAILABLE", "temporary")
+        ));
+
+        final var result = service.dispatchWeeklyDigest(7L, report);
+
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isEqualTo(1);
+        verify(mapper).updatePushNotificationDeliverySuccess(eq("weekly:11:device:101"), eq("sent-1"), any());
+        verify(mapper).updatePushNotificationDeliveryFailure(
+                eq("weekly:11:device:102"), eq("UNAVAILABLE"), eq("temporary"), any()
+        );
+    }
+
+    private UserDeviceTokenRecord device(Long id, String token) {
+        final UserDeviceTokenRecord device = new UserDeviceTokenRecord();
+        device.setId(id);
+        device.setUserId(7L);
+        device.setFcmToken(token);
+        device.setIsActive(true);
+        device.setPushEnabled(true);
+        return device;
     }
 }

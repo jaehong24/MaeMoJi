@@ -1,5 +1,7 @@
 package com.maemoji.backend.portfolioinsight.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.Message;
@@ -18,6 +20,8 @@ import java.util.Map;
 
 @Service
 public class WeeklyDigestNotificationService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final PortfolioInsightMapper portfolioInsightMapper;
     private final PushNotificationPolicyService pushNotificationPolicyService;
@@ -110,7 +114,25 @@ public class WeeklyDigestNotificationService {
         }
 
         final List<Message> messages = new ArrayList<>();
+        final List<UserDeviceTokenRecord> dispatchDevices = new ArrayList<>();
+        final List<String> dedupeKeys = new ArrayList<>();
+        final String payloadJson = serializePayload(plan.data());
         for (UserDeviceTokenRecord device : plan.targetDevices()) {
+            final String dedupeKey = "weekly:" + report.reportId() + ":device:" + device.getId();
+            final int deliveryInserted = portfolioInsightMapper.insertPushNotificationDelivery(
+                    null,
+                    userId,
+                    device.getId(),
+                    "WEEKLY_DIGEST",
+                    "WEEKLY_REPORT",
+                    dedupeKey,
+                    plan.title(),
+                    plan.body(),
+                    payloadJson
+            );
+            if (deliveryInserted == 0) {
+                continue;
+            }
             messages.add(Message.builder()
                     .setToken(device.getFcmToken())
                     .setNotification(Notification.builder()
@@ -125,6 +147,12 @@ public class WeeklyDigestNotificationService {
                                     .build())
                             .build())
                     .build());
+            dispatchDevices.add(device);
+            dedupeKeys.add(dedupeKey);
+        }
+
+        if (messages.isEmpty()) {
+            return new WeeklyDigestDispatchResult(false, 0, 0, 0, "주간 푸시는 이미 발송했거나 재시도 대기 중입니다.");
         }
 
         try {
@@ -134,11 +162,15 @@ public class WeeklyDigestNotificationService {
             for (int index = 0; index < results.size(); index++) {
                 final FirebaseMessagingGateway.SendResult result = results.get(index);
                 if (result.successful()) {
+                    portfolioInsightMapper.updatePushNotificationDeliverySuccess(dedupeKeys.get(index), result.messageId(), now);
                     successCount++;
                 } else {
+                    portfolioInsightMapper.updatePushNotificationDeliveryFailure(
+                            dedupeKeys.get(index), safeErrorCode(result.errorCode()), safeErrorMessage(result.errorMessage()), now
+                    );
                     failureCount++;
                     if (isPermanentTokenError(result.errorCode())) {
-                        final UserDeviceTokenRecord device = plan.targetDevices().get(index);
+                        final UserDeviceTokenRecord device = dispatchDevices.get(index);
                         portfolioInsightMapper.deactivateDeviceToken(userId, device.getFcmToken(), now);
                     }
                 }
@@ -148,7 +180,7 @@ public class WeeklyDigestNotificationService {
                     userId,
                     report.reportWeek(),
                     failureCount == 0 ? "SUCCESS" : "PARTIAL_SUCCESS",
-                    plan.targetDevices().size(),
+                    dispatchDevices.size(),
                     successCount,
                     failureCount,
                     now,
@@ -156,24 +188,29 @@ public class WeeklyDigestNotificationService {
                     null
             );
 
-            return new WeeklyDigestDispatchResult(true, plan.targetDevices().size(), successCount, failureCount, null);
+            return new WeeklyDigestDispatchResult(true, dispatchDevices.size(), successCount, failureCount, null);
         } catch (Exception exception) {
+            for (String dedupeKey : dedupeKeys) {
+                portfolioInsightMapper.updatePushNotificationDeliveryFailure(
+                        dedupeKey, "FIREBASE_SEND_ERROR", safeExceptionMessage(exception), now
+                );
+            }
             portfolioInsightMapper.updateWeeklyNotificationJobResult(
                     userId,
                     report.reportWeek(),
                     "FAILED",
-                    plan.targetDevices().size(),
+                    dispatchDevices.size(),
                     0,
-                    plan.targetDevices().size(),
+                    dispatchDevices.size(),
                     now,
                     now,
                     exception.getMessage()
             );
             return new WeeklyDigestDispatchResult(
                     false,
-                    plan.targetDevices().size(),
+                    dispatchDevices.size(),
                     0,
-                    plan.targetDevices().size(),
+                    dispatchDevices.size(),
                     exception.getMessage()
             );
         }
@@ -205,6 +242,29 @@ public class WeeklyDigestNotificationService {
                 || "SENDER_ID_MISMATCH".equals(errorCode)
                 || "registration-token-not-registered".equals(errorCode)
                 || "mismatched-credential".equals(errorCode);
+    }
+
+    private String serializePayload(Map<String, String> data) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(data);
+        } catch (JsonProcessingException exception) {
+            return "{}";
+        }
+    }
+
+    private String safeErrorCode(String errorCode) {
+        return errorCode == null || errorCode.isBlank() ? "UNKNOWN" : errorCode;
+    }
+
+    private String safeErrorMessage(String errorMessage) {
+        return errorMessage == null || errorMessage.isBlank()
+                ? "Firebase에서 실패 사유를 반환하지 않았습니다."
+                : errorMessage;
+    }
+
+    private String safeExceptionMessage(Exception exception) {
+        final String message = exception.getMessage();
+        return message == null || message.isBlank() ? "Firebase 발송 처리 중 예외가 발생했습니다." : message;
     }
 
     private boolean hasMeaningfulChange(WeeklyReportResponse report) {
