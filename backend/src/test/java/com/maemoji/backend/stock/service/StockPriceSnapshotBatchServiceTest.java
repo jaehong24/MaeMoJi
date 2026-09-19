@@ -33,6 +33,13 @@ import static org.mockito.Mockito.when;
 class StockPriceSnapshotBatchServiceTest {
 
     @Test
+    void normalizesClassShareSymbolsForYahooHistory() {
+        assertThat(StockPriceSnapshotBatchService.normalizeYahooSymbol("HVT.A")).isEqualTo("HVT-A");
+        assertThat(StockPriceSnapshotBatchService.normalizeYahooSymbol("LEN.B")).isEqualTo("LEN-B");
+        assertThat(StockPriceSnapshotBatchService.normalizeYahooSymbol("AAPL")).isEqualTo("AAPL");
+    }
+
+    @Test
     void fmpHistoryAcceptsRawArrayAndLegacyWrapper() throws Exception {
         final ObjectMapper json = new ObjectMapper();
         final String row = "{\"date\":\"2026-09-18\",\"price\":123.45}";

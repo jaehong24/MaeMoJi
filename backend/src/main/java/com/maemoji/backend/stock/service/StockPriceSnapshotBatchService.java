@@ -48,12 +48,14 @@ public class StockPriceSnapshotBatchService {
     private static final Duration SOURCE_RETRY_DELAY = Duration.ofHours(24);
     private static final Duration HISTORY_UNAVAILABLE_RETRY_DELAY = Duration.ofDays(7);
     private static final Duration INSUFFICIENT_HISTORY_RETRY_DELAY = Duration.ofDays(14);
+    private static final Duration FMP_HISTORY_RATE_LIMIT_COOLDOWN = Duration.ofMinutes(15);
 
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final PriceSnapshotBatchProperties properties;
     private final StockPriceReturnCalculator priceReturnCalculator;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private volatile OffsetDateTime fmpHistoricalRateLimitedUntil = OffsetDateTime.MIN;
 
     public StockPriceSnapshotBatchService(
             StockPriceSnapshotMapper stockPriceSnapshotMapper,
@@ -1021,7 +1023,7 @@ public class StockPriceSnapshotBatchService {
             LocalDate toDate,
             String fmpApiKey
     ) throws Exception {
-        if (hasText(fmpApiKey)) {
+        if (hasText(fmpApiKey) && !OffsetDateTime.now(SNAPSHOT_ZONE).isBefore(fmpHistoricalRateLimitedUntil)) {
             try {
                 final List<HistoricalPricePoint> fmpPoints = fetchFmpHistoricalPricePoints(
                         symbol,
@@ -1033,6 +1035,14 @@ public class StockPriceSnapshotBatchService {
                     return fmpPoints;
                 }
             } catch (Exception exception) {
+                if (isRateLimited(exception)) {
+                    fmpHistoricalRateLimitedUntil = OffsetDateTime.now(SNAPSHOT_ZONE)
+                            .plus(FMP_HISTORY_RATE_LIMIT_COOLDOWN);
+                    log.warn(
+                            "FMP 과거 가격 요청 제한을 감지해 {}분간 Yahoo 우선 조회로 전환합니다.",
+                            FMP_HISTORY_RATE_LIMIT_COOLDOWN.toMinutes()
+                    );
+                }
                 log.info(
                         "FMP 과거 가격은 사용할 수 없어 Yahoo fallback으로 전환합니다. symbol={}, reason={}",
                         symbol,
@@ -1110,7 +1120,7 @@ public class StockPriceSnapshotBatchService {
         final long period2 = toDate.plusDays(1).atStartOfDay(ZoneId.of("UTC")).toEpochSecond() - 1;
         final JsonNode response = getExternalJson(
                 "https://query1.finance.yahoo.com/v8/finance/chart/"
-                        + encode(symbol)
+                        + encode(normalizeYahooSymbol(symbol))
                         + "?period1="
                         + period1
                         + "&period2="
@@ -1151,6 +1161,14 @@ public class StockPriceSnapshotBatchService {
             ));
         }
         return result;
+    }
+
+    static String normalizeYahooSymbol(String symbol) {
+        return symbol == null ? "" : symbol.trim().replace('.', '-');
+    }
+
+    private boolean isRateLimited(Exception exception) {
+        return exception.getMessage() != null && exception.getMessage().contains("status=429");
     }
 
     private JsonNode firstValueNode(JsonNode root) {

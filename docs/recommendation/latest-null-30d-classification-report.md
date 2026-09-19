@@ -1,16 +1,16 @@
 # MaeMoJi latest_null_30d 분류 리포트
 
-- 생성 시각: 2026-09-19 15:08:09 +09:00
-- latest_null_30d 종목 수: 618
+- 생성 시각: 2026-09-19 20:16:09 +09:00
+- latest_null_30d 종목 수: 493
 - ETF 제외 대상: 470
-- 실제 복구/점검 대상(ETF 제외): 148
+- 실제 복구/점검 대상(ETF 제외): 23
 - latest_null_portfolio 종목 수: 0
 - no_snapshot 종목 수: 0
 
 - 최근 상장 30일 대기: 0
 - 30일 히스토리 부족: 0
 - 소스 미지원/히스토리 공백: 3
-- 즉시 백필 재시도 필요: 145
+- 즉시 백필 재시도 필요: 20
 - 수동 점검 필요: 0
 
 ## 운영 판정
@@ -117,103 +117,11 @@
 | PTNM | 피타늄 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-03-18 | - | FINNHUB_FMP | N | N |
 | RAY | 레이텍 홀딩 | N | SOURCE_UNSUPPORTED_OR_GAPPED | 7일 흐름은 있지만 30일 기준점이 비어 있어 소스 공백 또는 장기 히스토리 보강이 필요해요. | 2026-09-19 | 2026-03-18 | - | FINNHUB_FMP | Y | N |
 | REE | 리 오토모티브 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-03-18 | - | FINNHUB | N | N |
-| RITM | 리듬 캐피털 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RIV | RIVERNORTH OPPORTUNITIES | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RL | 랄프 로렌 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RLGT | 알 에이 디 아이 에이 엔 티 엘 오 지 아이 에스 티 아이 씨 에스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RLI | RLI | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RM | 리저널 매니지먼트 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RMAX | 리맥스 홀딩스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RMI | RIVERNORTH OPPORTUNISTIC MUNICIPAL INCOME | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RMM | RIVERNORTH MANAGED DURATION MUNICIPAL INCOME | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RMMZ | RIVERNORTH MANAGED DURATION MUNICIPAL INCOME II | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB_FMP | N | N |
-| RMT | ROYCE MICRO CAP TRUST | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RNG | 링센트럴 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RNGR | 레인저 에너지 서비시스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RNR | 르네상스리 홀딩스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RNST | 르네산트 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| ROG | 로저스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| ROL | 롤린스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| ROLR | 에이치 아이 지 에이치 알 오 엘 엘 이 알 테크놀로지스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RPC | 리지포스트 캐피털 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RPM | RPM 인터내셔널 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RPT | 리듬 프로퍼티 트러스트 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RRC | 레인지 리소시스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RRX | 리걸 렉스노드 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RS | 릴라이언스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RSF | RIVERNORTH CAPITAL AND INCOME | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB_FMP_EMPTY | N | N |
-| RSI | 러시 스트리트 인터랙티브 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RSKD | 리스키파이드 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RTO | 렌토킬 이니셜(ADR) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RVLV | 리볼브 그룹 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RVP | 알 이 티 알 에이 씨 티 에이 비 엘 이 테크놀로지스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RVT | ROYCE VALUE TRUST | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RVTY | 레비티 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RWT | 레드우드 트러스트 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RXO | RXO | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RYAM | 레이어니어 어드밴스드 머티리얼스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RYAN | 라이언 스페셜티 홀딩스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RYDE | 알와이디이 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| RYN | 레이어니어 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| RYZ | RYERSON HOLDING CORP | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| RZC | 리인슈어런스 그룹 오브 아메리카 후순위채권(7.125%) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| S | 센티넬원 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAC | 세이프가드 애퀴지션 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB_FMP | N | N |
-| SAFE | 세이프홀드 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAGU | SHREYA ACQUISITION GROUP | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-05-22 | - | FINNHUB_FMP_EMPTY | N | N |
-| SAH | 소닉 오토모티브 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAJ | 사라토가 인베스트먼트 일반채권(2027-10-31 8.000%) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAM | 보스턴 비어 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAR | 사라토가 인베스트먼트 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SARO | 스탠더드에어로 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAT | 사라토가 인베스트먼트 일반채권(2027-04-30 6.000%) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAV | 사라토가 인베스트먼트 7.50% 노트 (2031-06-02 만기) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAY | 사라토가 인베스트먼트 일반채권(2027-12-31 8.125%) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SAZ | 사라토가 인베스트먼트 일반채권(2028-04-15 8.500%) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SB | 세이프 벌커스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SBEV | 에스 피 엘 에이 에스 에이치 비 이 브이 이 알 에이 지 이 그룹 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SBH | 샐리 뷰티 홀딩스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SBI | WESTERN ASSET INTERMEDIATE MUNICIPAL | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SBR | 사빈 로열티 트러스트 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SBSI | 사우스사이드 뱅크셰어스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SBSW | 시바녜 스틸워터(ADR) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SBXD | 실버박스 4 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB_FMP | N | N |
-| SBXE | 실버박스 V | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB_FMP_EMPTY | N | N |
-| SCCD | 에스 에이 씨 에이치 이 엠 캐피털 6 00 엔 오 티 이 에스 디 유 이 2026 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SCCE | 에스 에이 씨 에이치 이 엠 캐피털 6 00 엔 오 티 이 에스 디 유 이 2027 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SCCF | 에스 에이 씨 에이치 이 엠 캐피털 7 125 엔 오 티 이 에스 디 유 이 2027 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SCCG | 에스 에이 씨 에이치 이 엠 캐피털 8 00 엔 오 티 이 에스 디 유 이 2027 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SCD | LMP CAPITAL AND INCOME | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SCI | 서비스 코퍼레이션 인터내셔널 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SCL | 스테판 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
+| RMAX | 리맥스 홀딩스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB_FMP | N | N |
+| SBEV | 에스 피 엘 에이 에스 에이치 비 이 브이 이 알 에이 지 이 그룹 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB_FMP | N | N |
 | SCLS | STONEPORT ADVISORS COMMODITY LONG SHORT | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-07-17 | 2026-06-20 | - | FINNHUB | Y | N |
-| SCM | 스텔러스 캐피털 인베스트먼트 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SD | 샌드리지 에너지 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SDEV | 에스 티 에이 비 엘 이 씨 오 아이 엔 디 이 브이 이 엘 오 피 엠 이 엔 티 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SDHC | 스미스 더글러스 홈스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SEB | 에스 이 에이 비 오 에이 알 디 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SEG | 시포트 엔터테인먼트 그룹 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SEI | 솔라리스 에너지 인프라스트럭처 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SER | 에스 이 알 아이 엔 에이 테라퓨틱스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SES | SES AI | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SF | 스티펄 파이낸셜 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SFB | 스티펄 파이낸셜 선순위채권 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SFBS | 서비스퍼스트 뱅크셰어스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SFL | SFL 코퍼레이션 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SG | 스위트그린 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SGHC | 슈퍼 그룹 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SGI | 솜니그룹 인터내셔널 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-04-06 | - | FINNHUB | N | N |
-| SKLZ | 스킬즈 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB | N | N |
-| STEW | SRH TOTAL RETURN | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
-| STG | 선랜즈 테크놀로지 그룹(ADR) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| STN | 스탠텍 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| STRW | 에스 티 알 에이 더블유 비 이 알 알 와이 에프 아이 이 엘 디 에스 알이아이티 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| STUB | 스텁허브 홀딩스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| STVN | 스테바나토 그룹 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| STXS | 에스 티 이 알 이 오 티 에이 엑스 아이 에스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| STZ | 컨스털레이션 브랜즈 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
+| SKLZ | 스킬즈 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-06-30 | - | FINNHUB_FMP | N | N |
 | SUB | 에스유비 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SUI | 선 커뮤니티스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SUIL | 에스유아이엘 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SUPL | 에스유피엘 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SUPV | 그루포 수페르비에예(ADR) | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
@@ -225,25 +133,14 @@
 | SVIX | 에스브이아이엑스 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SVM | 에스브이엠 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SVOL | 에스브이오엘 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SVV | 세이버스 밸류 빌리지 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SVXY | 에스브이엑스와이 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SW | 스머핏 웨스트록 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SWAN | 에스더블유에이엔 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SWK | 스탠리 블랙 앤 데커 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SWX | 사우스웨스트 가스 홀딩스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SWZ | SWISS HELVETIA | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
-| SXC | 선코크 에너지 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SXI | 스탠덱스 인터내셔널 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SXQG | 에스엑스큐지 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SXT | 센시언트 테크놀로지스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SYF | 싱크로니 파이낸셜 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SYFI | 에스와이에프아이 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SYLD | 에스와이엘디 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| SYNX | 에스와이엔엑스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
 | SYSB | 에스와이에스비 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | SZK | 에스지케이 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TABD | 티에이비디 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TAC | 트랜스알타 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TACK | 티에이씨케이 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TACN | 티에이씨엔 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TACU | 티에이씨유 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
@@ -255,26 +152,21 @@
 | TAIL | 티에이아이엘 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TAJX | 티에이제이엑스 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TAL | TAL 에듀케이션 그룹(ADR) | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TALO | 탈로스 에너지 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TALV | 티에이엘브이 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TAN | 티에이엔 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TAP | 몰슨 쿠어스 베버리지 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TAP.A | 엠 오 엘 에스 오 엔 씨 오 오 알 에스 비 이 브이 이 알 에이 지 이 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
+| TAP.A | 엠 오 엘 에스 오 엔 씨 오 오 알 에스 비 이 브이 이 알 에이 지 이 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
 | TAPR | 티에이피알 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TAXF | 티에이엑스에프 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TAXM | 티에이엑스엠 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TAXX | 티에이엑스엑스 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TBB | AT&T 일반채권(2066-11-01 5.350%) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBBB | BBB 푸즈 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBF | 티비에프 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBFC | 티비에프씨 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBFG | 티비에프지 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBG | 티비지 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TBI | 트루블루 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBJL | 티비제이엘 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBLL | 티비엘엘 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBLU | TORTOISE GLOBAL WATER | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TBN | 탬보란 리소시스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
 | TBT | 티비티 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBUX | 티비유엑스 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TBX | 티비엑스 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
@@ -282,26 +174,9 @@
 | TCAF | 티씨에이에프 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TCAI | TORTOISE AI INFRASTRUCTURE | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TCAL | 티씨에이엘 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TCBX | 서드 코스트 뱅크셰어스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TCHP | 티씨에이치피 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TCI | 트랜스컨티넨탈 리얼티 인베스트먼츠 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TCPA | 트랜스캐나다 파이프라인 후순위채권(2085-11-01 6.250%) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP_EMPTY | N | N |
 | TCPB | 티씨피비 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TCV | 티씨브이 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TDAY | USA 투데이 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TDC | 테라데이타 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TDF | TEMPLETON DRAGON | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
-| TDOC | 텔러닥 헬스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TDW | 타이드워터 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TE | T1 에너지 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
-| TEI | TEMPLETON EMERGING MARKETS INCOME | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TEO | 텔레콤 아르헨티나(ADR) | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TEX | 테렉스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TFIN | 트라이엄프 파이낸셜 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TFX | 텔레플렉스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TG | 트레데가 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TGB | 티 에이 에스 이 케이 오 엠 아이 엔 이 에스 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
-| TGE | 더 제너레이션 에센셜스 그룹 | N | BACKFILL_RETRY_REQUIRED | 스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요. | 2026-09-19 | 2026-07-01 | - | FINNHUB_FMP | N | N |
 | TLDR | 티엘디알 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TLH | 티엘에이치 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
 | TLTD | 티엘티디 | N | EXCLUDED_ETF | ETF는 기업형 추천 모델과 분리되어 있어요. | 2026-09-19 | 2026-07-01 | - | FINNHUB | N | N |
