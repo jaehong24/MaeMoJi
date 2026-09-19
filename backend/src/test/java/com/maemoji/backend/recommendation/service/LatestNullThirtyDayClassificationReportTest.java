@@ -73,6 +73,8 @@ class LatestNullThirtyDayClassificationReportTest {
                         ls.change_rate_7d is not null as has_price_7d,
                         ls.change_rate_30d is not null as has_price_30d,
                         ls.source,
+                        recovery.recovery_status,
+                        recovery.retry_after::text as recovery_retry_after,
                         exists (
                             select 1
                             from portfolio_stock_ids psi
@@ -81,6 +83,7 @@ class LatestNullThirtyDayClassificationReportTest {
                     from stocks s
                     join latest_snapshot ls on ls.stock_id = s.id
                     left join oldest_snapshot os on os.stock_id = s.id
+                    left join stock_price_history_recovery_states recovery on recovery.stock_id = s.id
                     where s.is_active = true
                       and s.finnhub_symbol is not null
                       and ls.change_rate_30d is null
@@ -108,6 +111,8 @@ class LatestNullThirtyDayClassificationReportTest {
                             resultSet.getBoolean("has_price_7d"),
                             resultSet.getBoolean("has_price_30d"),
                             resultSet.getString("source"),
+                            resultSet.getString("recovery_status"),
+                            resultSet.getString("recovery_retry_after"),
                             resultSet.getBoolean("in_portfolio")
                     ));
                 }
@@ -212,8 +217,8 @@ class LatestNullThirtyDayClassificationReportTest {
         markdown.append("- 즉시 백필 재실행 대상은 ETF를 제외한 `BACKFILL_RETRY_REQUIRED` 종목입니다.").append(System.lineSeparator());
         markdown.append("- `SOURCE_UNSUPPORTED_OR_GAPPED` 종목은 limit 상향보다 데이터 소스/히스토리 예외 처리를 먼저 확인해야 합니다.").append(System.lineSeparator()).append(System.lineSeparator());
 
-        markdown.append("| 종목 | 회사명 | 포트폴리오 | 상태 | 상태 설명 | 최신 스냅샷 | 최초 스냅샷 | IPO | 소스 | 7일 | 30일 |").append(System.lineSeparator());
-        markdown.append("|---|---|---|---|---|---|---|---|---|---|---|").append(System.lineSeparator());
+        markdown.append("| 종목 | 회사명 | 포트폴리오 | 상태 | 상태 설명 | 복구 상태 | 재시도 시각 | 최신 스냅샷 | 최초 스냅샷 | IPO | 소스 | 7일 | 30일 |").append(System.lineSeparator());
+        markdown.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|").append(System.lineSeparator());
         for (Row row : rows) {
             markdown.append("| ")
                     .append(row.ticker()).append(" | ")
@@ -221,6 +226,8 @@ class LatestNullThirtyDayClassificationReportTest {
                     .append(row.inPortfolio() ? "Y" : "N").append(" | ")
                     .append(row.status()).append(" | ")
                     .append(row.message()).append(" | ")
+                    .append(valueOrDash(row.recoveryStatus())).append(" | ")
+                    .append(valueOrDash(row.recoveryRetryAfter())).append(" | ")
                     .append(valueOrDash(row.snapshotDate())).append(" | ")
                     .append(valueOrDash(row.oldestSnapshotDate())).append(" | ")
                     .append(valueOrDash(row.ipoDate())).append(" | ")
@@ -258,6 +265,8 @@ class LatestNullThirtyDayClassificationReportTest {
             boolean hasPrice7d,
             boolean hasPrice30d,
             String source,
+            String recoveryStatus,
+            String recoveryRetryAfter,
             boolean inPortfolio
     ) {
         String status() {
@@ -266,6 +275,15 @@ class LatestNullThirtyDayClassificationReportTest {
             }
             if (isRecentPriceListing()) {
                 return "RECENTLY_LISTED_30D_PENDING";
+            }
+            if ("HISTORY_UNAVAILABLE".equals(recoveryStatus)) {
+                return "SOURCE_UNSUPPORTED_OR_GAPPED";
+            }
+            if ("INSUFFICIENT_HISTORY".equals(recoveryStatus)) {
+                return "HISTORY_WINDOW_INSUFFICIENT";
+            }
+            if ("SOURCE_RETRY".equals(recoveryStatus)) {
+                return "BACKFILL_RETRY_REQUIRED";
             }
             if (oldestSnapshotDate == null) {
                 return "BACKFILL_RETRY_REQUIRED";
@@ -287,8 +305,8 @@ class LatestNullThirtyDayClassificationReportTest {
             return switch (status()) {
                 case "EXCLUDED_ETF" -> "ETF는 기업형 추천 모델과 분리되어 있어요.";
                 case "RECENTLY_LISTED_30D_PENDING" -> "최근 상장 종목이라 30일 가격 흐름이 아직 충분히 쌓이지 않았어요.";
-                case "HISTORY_WINDOW_INSUFFICIENT" -> "히스토리 시작일이 30일 기준보다 짧아 30일 수익률을 아직 만들 수 없어요.";
-                case "SOURCE_UNSUPPORTED_OR_GAPPED" -> "7일 흐름은 있지만 30일 기준점이 비어 있어 소스 공백 또는 장기 히스토리 보강이 필요해요.";
+                case "HISTORY_WINDOW_INSUFFICIENT" -> "30일 전 기준 가격이 충분하지 않아 다음 예정 시점에 다시 확인해요.";
+                case "SOURCE_UNSUPPORTED_OR_GAPPED" -> "가격 제공자에서 30일 이력을 받지 못해 다음 예정 시점에 다시 확인해요.";
                 case "BACKFILL_RETRY_REQUIRED" -> "스냅샷 또는 가격 흐름 백필을 다시 시도해야 해요.";
                 default -> "일부 지표만 비어 있어 수동 점검이 필요해요.";
             };
