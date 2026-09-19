@@ -595,7 +595,7 @@
         set delivery_status = 'FAILED',
             next_retry_at = current_timestamp
         where delivery_status = 'RETRYING'
-          and sent_at < current_timestamp - interval '10 minutes'
+          and sent_at &lt; current_timestamp - interval '10 minutes'
           and attempt_count &lt; 3
     </update>
 
