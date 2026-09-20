@@ -21,11 +21,11 @@ import static org.mockito.Mockito.when;
 class WeeklyDigestNotificationServiceTest {
 
     private final PortfolioInsightMapper mapper = mock(PortfolioInsightMapper.class);
-    private final FirebaseMessagingGateway gateway = mock(FirebaseMessagingGateway.class);
+    private final PushDeliveryOutboxNotifier outboxNotifier = mock(PushDeliveryOutboxNotifier.class);
     private final WeeklyDigestNotificationService service = new WeeklyDigestNotificationService(
             mapper,
             new PushNotificationPolicyService(),
-            gateway
+            outboxNotifier
     );
 
     @Test
@@ -65,11 +65,11 @@ class WeeklyDigestNotificationServiceTest {
                 any(),
                 any()
         );
-        verify(gateway, never()).sendEach(any());
+        verify(outboxNotifier, never()).requestDispatchAfterCommit();
     }
 
     @Test
-    void failedWeeklyDeviceDeliveryIsStoredForTheSharedRetryWorker() throws Exception {
+    void weeklyDeviceDeliveriesAreQueuedForTheSharedOutboxWorker() {
         final UserNotificationPreferenceRecord preference = new UserNotificationPreferenceRecord();
         preference.setWeeklyDigestEnabled(true);
         final WeeklyReportResponse report = new WeeklyReportResponse(
@@ -80,21 +80,18 @@ class WeeklyDigestNotificationServiceTest {
         when(mapper.findNotificationPreferenceByUserId(7L)).thenReturn(preference);
         when(mapper.findDeviceTokensByUserId(7L)).thenReturn(List.of(firstDevice, secondDevice));
         when(mapper.insertWeeklyNotificationJobIfAbsent(eq(7L), eq(11L), eq(report.reportWeek()), any())).thenReturn(1);
-        when(mapper.insertPushNotificationDelivery(any(), eq(7L), any(), eq("WEEKLY_DIGEST"), eq("WEEKLY_REPORT"), any(), any(), any(), any()))
+        when(mapper.insertPushNotificationDelivery(
+                org.mockito.ArgumentMatchers.isNull(), eq(11L), eq(7L), any(), eq("WEEKLY_DIGEST"),
+                eq("WEEKLY_REPORT"), any(), any(), any(), any()
+        ))
                 .thenReturn(1);
-        when(gateway.sendEach(any())).thenReturn(List.of(
-                FirebaseMessagingGateway.SendResult.success("sent-1"),
-                FirebaseMessagingGateway.SendResult.failure("UNAVAILABLE", "temporary")
-        ));
 
         final var result = service.dispatchWeeklyDigest(7L, report);
 
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isEqualTo(1);
-        verify(mapper).updatePushNotificationDeliverySuccess(eq("weekly:11:device:101"), eq("sent-1"), any());
-        verify(mapper).updatePushNotificationDeliveryFailure(
-                eq("weekly:11:device:102"), eq("UNAVAILABLE"), eq("temporary"), any()
-        );
+        assertThat(result.dispatched()).isTrue();
+        assertThat(result.targetDeviceCount()).isEqualTo(2);
+        verify(mapper).refreshWeeklyNotificationJobDeliveryResult(11L);
+        verify(outboxNotifier).requestDispatchAfterCommit();
     }
 
     private UserDeviceTokenRecord device(Long id, String token) {

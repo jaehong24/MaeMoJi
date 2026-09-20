@@ -85,6 +85,7 @@ public class PushNotificationSchemaInitializer implements ApplicationRunner {
                 create table if not exists push_notification_deliveries (
                     id bigserial primary key,
                     alert_event_id bigint,
+                    weekly_report_id bigint,
                     user_id bigint not null,
                     device_token_id bigint not null,
                     notification_kind varchar(30) not null,
@@ -117,8 +118,14 @@ public class PushNotificationSchemaInitializer implements ApplicationRunner {
         // 기존 운영 테이블에도 재시도 상태를 안전하게 추가한다.
         jdbcTemplate.execute("""
                 alter table push_notification_deliveries
+                    add column if not exists weekly_report_id bigint,
                     add column if not exists attempt_count integer not null default 0,
                     add column if not exists next_retry_at timestamptz
+                """);
+
+        jdbcTemplate.execute("""
+                create index if not exists idx_push_notification_deliveries_weekly_report
+                    on push_notification_deliveries (weekly_report_id, delivery_status)
                 """);
 
         jdbcTemplate.execute("""

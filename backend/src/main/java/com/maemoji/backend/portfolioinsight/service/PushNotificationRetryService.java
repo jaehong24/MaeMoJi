@@ -9,6 +9,7 @@ import com.maemoji.backend.common.startup.PushNotificationSchemaInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -45,27 +46,47 @@ public class PushNotificationRetryService {
 
     @Scheduled(fixedDelayString = "${MAEMOJI_PUSH_RETRY_DELAY_MILLIS:60000}")
     public void retryFailedDeliveries() {
+        dispatchPendingAndRetryDeliveries();
+    }
+
+    @EventListener
+    public void dispatchQueuedDeliveries(PushDeliveryQueuedEvent ignored) {
+        dispatchPendingAndRetryDeliveries();
+    }
+
+    private void dispatchPendingAndRetryDeliveries() {
         if (!schemaInitializer.isReady()) {
             return;
         }
         mapper.recoverStalePushNotificationDeliveries();
+        final List<RetryablePushDeliveryRecord> pendingCandidates = mapper.findPendingPushDeliveries(MAX_BATCH);
+        for (RetryablePushDeliveryRecord delivery : pendingCandidates) {
+            if (mapper.claimPendingPushNotificationDelivery(delivery.getId()) != 1) {
+                continue;
+            }
+            sendDelivery(delivery);
+        }
         final List<RetryablePushDeliveryRecord> candidates = mapper.findRetryablePushDeliveries(MAX_BATCH);
         for (RetryablePushDeliveryRecord delivery : candidates) {
             if (mapper.claimPushNotificationDelivery(delivery.getId()) != 1) {
                 continue;
             }
-            retryOne(delivery);
+            sendDelivery(delivery);
         }
     }
 
-    private void retryOne(RetryablePushDeliveryRecord delivery) {
+    private void sendDelivery(RetryablePushDeliveryRecord delivery) {
         try {
             final Map<String, String> data = objectMapper.readValue(
                     delivery.getPayloadJson() == null ? "{}" : delivery.getPayloadJson(),
                     new TypeReference<>() { }
             );
             final Message message = dispatchService.buildRetryMessage(
-                    delivery.getFcmToken(), delivery.getTitle(), delivery.getBody(), data
+                    delivery.getFcmToken(),
+                    delivery.getTitle(),
+                    delivery.getBody(),
+                    data,
+                    delivery.getNotificationKind()
             );
             final FirebaseMessagingGateway.SendResult result = gateway.sendEach(List.of(message)).get(0);
             final OffsetDateTime now = OffsetDateTime.now(ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE));
@@ -85,12 +106,20 @@ public class PushNotificationRetryService {
                 log.warn("푸시 재시도가 일시적으로 실패했습니다. deliveryId={}, errorCode={}",
                         delivery.getId(), safeErrorCode(result.errorCode()));
             }
+            refreshWeeklyJobIfNeeded(delivery);
         } catch (Exception exception) {
             final OffsetDateTime now = OffsetDateTime.now(ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE));
             final String failureDetail = exception.getClass().getSimpleName() + ": " + safeExceptionMessage(exception);
             mapper.updatePushNotificationDeliveryFailure(delivery.getDedupeKey(), "RETRY_ERROR", failureDetail, now);
             log.warn("푸시 재시도 처리 중 예외가 발생했습니다. deliveryId={}, errorType={}, reason={}",
                     delivery.getId(), exception.getClass().getSimpleName(), safeExceptionMessage(exception));
+            refreshWeeklyJobIfNeeded(delivery);
+        }
+    }
+
+    private void refreshWeeklyJobIfNeeded(RetryablePushDeliveryRecord delivery) {
+        if (delivery.getWeeklyReportId() != null) {
+            mapper.refreshWeeklyNotificationJobDeliveryResult(delivery.getWeeklyReportId());
         }
     }
 

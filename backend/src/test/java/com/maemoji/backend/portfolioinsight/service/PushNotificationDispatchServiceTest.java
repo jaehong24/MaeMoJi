@@ -31,8 +31,9 @@ class PushNotificationDispatchServiceTest {
     private final PortfolioInsightMapper mapper = mock(PortfolioInsightMapper.class);
     private final PushNotificationPolicyService policy = mock(PushNotificationPolicyService.class);
     private final FirebaseMessagingGateway gateway = mock(FirebaseMessagingGateway.class);
+    private final PushDeliveryOutboxNotifier outboxNotifier = mock(PushDeliveryOutboxNotifier.class);
     private final PushNotificationDispatchService service =
-            new PushNotificationDispatchService(mapper, policy, gateway);
+            new PushNotificationDispatchService(mapper, policy, gateway, outboxNotifier);
 
     private UserAlertEventRecord alert;
     private UserDeviceTokenRecord device;
@@ -62,36 +63,18 @@ class PushNotificationDispatchServiceTest {
         when(policy.resolveNotificationKind(any())).thenReturn("IMMEDIATE");
         when(mapper.findDeviceTokensByUserId(7L)).thenReturn(List.of(device));
         when(mapper.insertPushNotificationDelivery(
-                anyLong(), anyLong(), anyLong(), anyString(), anyString(),
+                anyLong(), org.mockito.ArgumentMatchers.isNull(), anyLong(), anyLong(), anyString(), anyString(),
                 anyString(), anyString(), anyString(), anyString()
         )).thenReturn(1);
     }
 
     @Test
-    void unregisteredTokenIsDeactivated() throws Exception {
-        when(gateway.sendEach(anyList())).thenReturn(List.of(
-                FirebaseMessagingGateway.SendResult.failure("UNREGISTERED", "등록 해제된 토큰")
-        ));
+    void immediateAlertIsQueuedBeforeTheOutboxWorkerSendsIt() throws Exception {
+        final var result = service.dispatchImmediate(7L, alert);
 
-        service.dispatchImmediate(7L, alert);
-
-        verify(mapper).deactivateDeviceToken(anyLong(), anyString(), any());
-        verify(mapper).updatePushNotificationDeliveryFailure(
-                anyString(), anyString(), anyString(), any()
-        );
-    }
-
-    @Test
-    void temporaryFirebaseFailureKeepsTokenActive() throws Exception {
-        when(gateway.sendEach(anyList())).thenReturn(List.of(
-                FirebaseMessagingGateway.SendResult.failure("UNAVAILABLE", "일시적인 서버 오류")
-        ));
-
-        service.dispatchImmediate(7L, alert);
-
+        org.assertj.core.api.Assertions.assertThat(result.dispatched()).isTrue();
+        verify(outboxNotifier).requestDispatchAfterCommit();
+        verify(gateway, never()).sendEach(anyList());
         verify(mapper, never()).deactivateDeviceToken(anyLong(), anyString(), any());
-        verify(mapper).updatePushNotificationDeliveryFailure(
-                anyString(), anyString(), anyString(), any()
-        );
     }
 }

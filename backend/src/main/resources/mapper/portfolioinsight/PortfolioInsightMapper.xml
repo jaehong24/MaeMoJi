@@ -501,6 +501,7 @@
     <insert id="insertPushNotificationDelivery">
         insert into push_notification_deliveries (
             alert_event_id,
+            weekly_report_id,
             user_id,
             device_token_id,
             notification_kind,
@@ -511,6 +512,7 @@
             payload_json
         ) values (
             #{alertEventId},
+            #{weeklyReportId},
             #{userId},
             #{deviceTokenId},
             #{notificationKind},
@@ -563,6 +565,7 @@
             pnd.id,
             pnd.user_id,
             pnd.device_token_id,
+            pnd.weekly_report_id,
             udt.fcm_token,
             pnd.dedupe_key,
             pnd.title,
@@ -581,6 +584,29 @@
         limit #{limit}
     </select>
 
+    <select id="findPendingPushDeliveries"
+            resultType="com.maemoji.backend.portfolioinsight.domain.RetryablePushDeliveryRecord">
+        select
+            pnd.id,
+            pnd.user_id,
+            pnd.device_token_id,
+            pnd.weekly_report_id,
+            udt.fcm_token,
+            pnd.dedupe_key,
+            pnd.title,
+            pnd.body,
+            pnd.payload_json,
+            pnd.alert_type,
+            pnd.notification_kind
+        from push_notification_deliveries pnd
+        join user_device_tokens udt on udt.id = pnd.device_token_id
+        where pnd.delivery_status = 'PENDING'
+          and udt.is_active = true
+          and udt.push_enabled = true
+        order by pnd.created_at asc, pnd.id asc
+        limit #{limit}
+    </select>
+
     <update id="claimPushNotificationDelivery">
         update push_notification_deliveries
         set delivery_status = 'RETRYING',
@@ -591,6 +617,14 @@
           and (next_retry_at is null or next_retry_at &lt;= current_timestamp)
     </update>
 
+    <update id="claimPendingPushNotificationDelivery">
+        update push_notification_deliveries
+        set delivery_status = 'RETRYING',
+            sent_at = current_timestamp
+        where id = #{id}
+          and delivery_status = 'PENDING'
+    </update>
+
     <update id="recoverStalePushNotificationDeliveries">
         update push_notification_deliveries
         set delivery_status = 'FAILED',
@@ -598,6 +632,34 @@
         where delivery_status = 'RETRYING'
           and sent_at &lt; current_timestamp - interval '10 minutes'
           and attempt_count &lt; 3
+    </update>
+
+    <update id="refreshWeeklyNotificationJobDeliveryResult">
+        update weekly_notification_jobs job
+        set target_device_count = summary.target_device_count,
+            success_count = summary.success_count,
+            failure_count = summary.failure_count,
+            job_status = case
+                when summary.pending_count &gt; 0 then 'PENDING'
+                when summary.failure_count = 0 then 'SUCCESS'
+                when summary.success_count &gt; 0 then 'PARTIAL_SUCCESS'
+                else 'FAILED'
+            end,
+            completed_at = case when summary.pending_count = 0 then current_timestamp else null end,
+            error_message = case when summary.failure_count &gt; 0 then '일부 기기에서 주간 푸시 발송에 실패했습니다.' else null end
+        from (
+            select
+                count(*) as target_device_count,
+                count(*) filter (where delivery_status = 'SENT') as success_count,
+                count(*) filter (where delivery_status = 'FAILED' and attempt_count &gt;= 3) as failure_count,
+                count(*) filter (
+                    where delivery_status in ('PENDING', 'RETRYING')
+                       or (delivery_status = 'FAILED' and attempt_count &lt; 3)
+                ) as pending_count
+            from push_notification_deliveries
+            where weekly_report_id = #{reportId}
+        ) summary
+        where job.report_id = #{reportId}
     </update>
 
     <insert id="insertWeeklyNotificationJobIfAbsent">

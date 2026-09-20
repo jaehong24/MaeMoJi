@@ -162,6 +162,7 @@ public interface PortfolioInsightMapper {
 
     int insertPushNotificationDelivery(
             @Param("alertEventId") Long alertEventId,
+            @Param("weeklyReportId") Long weeklyReportId,
             @Param("userId") Long userId,
             @Param("deviceTokenId") Long deviceTokenId,
             @Param("notificationKind") String notificationKind,
@@ -196,9 +197,17 @@ public interface PortfolioInsightMapper {
             @Param("limit") int limit
     );
 
+    List<com.maemoji.backend.portfolioinsight.domain.RetryablePushDeliveryRecord> findPendingPushDeliveries(
+            @Param("limit") int limit
+    );
+
     int claimPushNotificationDelivery(@Param("id") Long id);
 
+    int claimPendingPushNotificationDelivery(@Param("id") Long id);
+
     int recoverStalePushNotificationDeliveries();
+
+    int refreshWeeklyNotificationJobDeliveryResult(@Param("reportId") Long reportId);
 
     int insertWeeklyNotificationJobIfAbsent(
             @Param("userId") Long userId,

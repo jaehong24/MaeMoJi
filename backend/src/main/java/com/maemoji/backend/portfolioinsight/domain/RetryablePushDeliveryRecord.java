@@ -4,6 +4,7 @@ public class RetryablePushDeliveryRecord {
     private Long id;
     private Long userId;
     private Long deviceTokenId;
+    private Long weeklyReportId;
     private String fcmToken;
     private String dedupeKey;
     private String title;
@@ -18,6 +19,8 @@ public class RetryablePushDeliveryRecord {
     public void setUserId(Long value) { userId = value; }
     public Long getDeviceTokenId() { return deviceTokenId; }
     public void setDeviceTokenId(Long value) { deviceTokenId = value; }
+    public Long getWeeklyReportId() { return weeklyReportId; }
+    public void setWeeklyReportId(Long value) { weeklyReportId = value; }
     public String getFcmToken() { return fcmToken; }
     public void setFcmToken(String value) { fcmToken = value; }
     public String getDedupeKey() { return dedupeKey; }

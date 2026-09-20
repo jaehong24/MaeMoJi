@@ -2,10 +2,6 @@ package com.maemoji.backend.portfolioinsight.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.firebase.messaging.AndroidConfig;
-import com.google.firebase.messaging.AndroidNotification;
-import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
 import com.maemoji.backend.portfolioinsight.domain.UserDeviceTokenRecord;
 import com.maemoji.backend.portfolioinsight.domain.UserNotificationPreferenceRecord;
 import com.maemoji.backend.portfolioinsight.dto.WeeklyReportResponse;
@@ -25,16 +21,16 @@ public class WeeklyDigestNotificationService {
 
     private final PortfolioInsightMapper portfolioInsightMapper;
     private final PushNotificationPolicyService pushNotificationPolicyService;
-    private final FirebaseMessagingGateway firebaseMessagingGateway;
+    private final PushDeliveryOutboxNotifier outboxNotifier;
 
     public WeeklyDigestNotificationService(
             PortfolioInsightMapper portfolioInsightMapper,
             PushNotificationPolicyService pushNotificationPolicyService,
-            FirebaseMessagingGateway firebaseMessagingGateway
+            PushDeliveryOutboxNotifier outboxNotifier
     ) {
         this.portfolioInsightMapper = portfolioInsightMapper;
         this.pushNotificationPolicyService = pushNotificationPolicyService;
-        this.firebaseMessagingGateway = firebaseMessagingGateway;
+        this.outboxNotifier = outboxNotifier;
     }
 
     public WeeklyDigestDispatchPlan planWeeklyDigest(Long userId, WeeklyReportResponse report) {
@@ -113,14 +109,13 @@ public class WeeklyDigestNotificationService {
             return new WeeklyDigestDispatchResult(false, 0, 0, 0, "대상 디바이스가 없습니다.");
         }
 
-        final List<Message> messages = new ArrayList<>();
         final List<UserDeviceTokenRecord> dispatchDevices = new ArrayList<>();
-        final List<String> dedupeKeys = new ArrayList<>();
         final String payloadJson = serializePayload(plan.data());
         for (UserDeviceTokenRecord device : plan.targetDevices()) {
             final String dedupeKey = "weekly:" + report.reportId() + ":device:" + device.getId();
             final int deliveryInserted = portfolioInsightMapper.insertPushNotificationDelivery(
                     null,
+                    report.reportId(),
                     userId,
                     device.getId(),
                     "WEEKLY_DIGEST",
@@ -133,87 +128,15 @@ public class WeeklyDigestNotificationService {
             if (deliveryInserted == 0) {
                 continue;
             }
-            messages.add(Message.builder()
-                    .setToken(device.getFcmToken())
-                    .setNotification(Notification.builder()
-                            .setTitle(plan.title())
-                            .setBody(plan.body())
-                            .build())
-                    .putAllData(plan.data())
-                    .setAndroidConfig(AndroidConfig.builder()
-                            .setPriority(AndroidConfig.Priority.NORMAL)
-                            .setNotification(AndroidNotification.builder()
-                                    .setChannelId("maemoji_weekly_digest")
-                                    .build())
-                            .build())
-                    .build());
             dispatchDevices.add(device);
-            dedupeKeys.add(dedupeKey);
         }
 
-        if (messages.isEmpty()) {
+        if (dispatchDevices.isEmpty()) {
             return new WeeklyDigestDispatchResult(false, 0, 0, 0, "주간 푸시는 이미 발송했거나 재시도 대기 중입니다.");
         }
-
-        try {
-            final List<FirebaseMessagingGateway.SendResult> results = firebaseMessagingGateway.sendEach(messages);
-            int successCount = 0;
-            int failureCount = 0;
-            for (int index = 0; index < results.size(); index++) {
-                final FirebaseMessagingGateway.SendResult result = results.get(index);
-                if (result.successful()) {
-                    portfolioInsightMapper.updatePushNotificationDeliverySuccess(dedupeKeys.get(index), result.messageId(), now);
-                    successCount++;
-                } else {
-                    portfolioInsightMapper.updatePushNotificationDeliveryFailure(
-                            dedupeKeys.get(index), safeErrorCode(result.errorCode()), safeErrorMessage(result.errorMessage()), now
-                    );
-                    failureCount++;
-                    if (isPermanentTokenError(result.errorCode())) {
-                        final UserDeviceTokenRecord device = dispatchDevices.get(index);
-                        portfolioInsightMapper.deactivateDeviceToken(userId, device.getFcmToken(), now);
-                    }
-                }
-            }
-
-            portfolioInsightMapper.updateWeeklyNotificationJobResult(
-                    userId,
-                    report.reportWeek(),
-                    failureCount == 0 ? "SUCCESS" : "PARTIAL_SUCCESS",
-                    dispatchDevices.size(),
-                    successCount,
-                    failureCount,
-                    now,
-                    now,
-                    null
-            );
-
-            return new WeeklyDigestDispatchResult(true, dispatchDevices.size(), successCount, failureCount, null);
-        } catch (Exception exception) {
-            for (String dedupeKey : dedupeKeys) {
-                portfolioInsightMapper.updatePushNotificationDeliveryFailure(
-                        dedupeKey, "FIREBASE_SEND_ERROR", safeExceptionMessage(exception), now
-                );
-            }
-            portfolioInsightMapper.updateWeeklyNotificationJobResult(
-                    userId,
-                    report.reportWeek(),
-                    "FAILED",
-                    dispatchDevices.size(),
-                    0,
-                    dispatchDevices.size(),
-                    now,
-                    now,
-                    exception.getMessage()
-            );
-            return new WeeklyDigestDispatchResult(
-                    false,
-                    dispatchDevices.size(),
-                    0,
-                    dispatchDevices.size(),
-                    exception.getMessage()
-            );
-        }
+        portfolioInsightMapper.refreshWeeklyNotificationJobDeliveryResult(report.reportId());
+        outboxNotifier.requestDispatchAfterCommit();
+        return new WeeklyDigestDispatchResult(true, dispatchDevices.size(), 0, 0, "주간 푸시 발송을 준비했습니다.");
     }
 
     public record WeeklyDigestDispatchPlan(

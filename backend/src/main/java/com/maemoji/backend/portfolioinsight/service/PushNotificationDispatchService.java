@@ -40,15 +40,18 @@ public class PushNotificationDispatchService {
     private final PortfolioInsightMapper portfolioInsightMapper;
     private final PushNotificationPolicyService pushNotificationPolicyService;
     private final FirebaseMessagingGateway firebaseMessagingGateway;
+    private final PushDeliveryOutboxNotifier outboxNotifier;
 
     public PushNotificationDispatchService(
             PortfolioInsightMapper portfolioInsightMapper,
             PushNotificationPolicyService pushNotificationPolicyService,
-            FirebaseMessagingGateway firebaseMessagingGateway
+            FirebaseMessagingGateway firebaseMessagingGateway,
+            PushDeliveryOutboxNotifier outboxNotifier
     ) {
         this.portfolioInsightMapper = portfolioInsightMapper;
         this.pushNotificationPolicyService = pushNotificationPolicyService;
         this.firebaseMessagingGateway = firebaseMessagingGateway;
+        this.outboxNotifier = outboxNotifier;
     }
 
     public PushDispatchPlan planImmediateDispatch(Long userId, UserAlertEventRecord alertEvent) {
@@ -114,15 +117,14 @@ public class PushNotificationDispatchService {
             return PushDispatchResult.notDispatched(plan.targetDevices().size(), plan.body());
         }
 
-        final List<Message> messages = new ArrayList<>();
-        final List<String> dedupeKeys = new ArrayList<>();
-        final List<UserDeviceTokenRecord> targetDevices = new ArrayList<>();
+        int queuedCount = 0;
         final String payloadJson = serializePayload(plan.data());
 
         for (UserDeviceTokenRecord device : plan.targetDevices()) {
             final String dedupeKey = "alert:" + alertEvent.getId() + ":device:" + device.getId();
             final int inserted = portfolioInsightMapper.insertPushNotificationDelivery(
                     alertEvent.getId(),
+                    null,
                     userId,
                     device.getId(),
                     plan.notificationKind(),
@@ -136,51 +138,14 @@ public class PushNotificationDispatchService {
                 continue;
             }
 
-            dedupeKeys.add(dedupeKey);
-            targetDevices.add(device);
-            messages.add(buildMessage(device.getFcmToken(), plan.title(), plan.body(), plan.data()));
+            queuedCount++;
         }
 
-        if (messages.isEmpty()) {
+        if (queuedCount == 0) {
             return PushDispatchResult.notDispatched(plan.targetDevices().size(), "이미 같은 푸시를 발송했습니다.");
         }
-
-        final OffsetDateTime now = OffsetDateTime.now(ZoneId.of(PushNotificationSettingsService.DEFAULT_TIMEZONE));
-        try {
-            final List<FirebaseMessagingGateway.SendResult> results = firebaseMessagingGateway.sendEach(messages);
-            int successCount = 0;
-            int failureCount = 0;
-
-            for (int index = 0; index < results.size(); index++) {
-                final FirebaseMessagingGateway.SendResult result = results.get(index);
-                final String dedupeKey = dedupeKeys.get(index);
-                if (result.successful()) {
-                    portfolioInsightMapper.updatePushNotificationDeliverySuccess(dedupeKey, result.messageId(), now);
-                    successCount++;
-                } else {
-                    portfolioInsightMapper.updatePushNotificationDeliveryFailure(
-                            dedupeKey,
-                            safeErrorCode(result.errorCode()),
-                            result.errorMessage(),
-                            now
-                    );
-                    deactivateInvalidToken(userId, targetDevices.get(index), result, now);
-                    failureCount++;
-                }
-            }
-
-            return new PushDispatchResult(true, plan.targetDevices().size(), successCount, failureCount, null);
-        } catch (Exception exception) {
-            for (String dedupeKey : dedupeKeys) {
-                portfolioInsightMapper.updatePushNotificationDeliveryFailure(
-                        dedupeKey,
-                        "FIREBASE_SEND_ERROR",
-                        exception.getMessage(),
-                        now
-                );
-            }
-            return new PushDispatchResult(false, plan.targetDevices().size(), 0, dedupeKeys.size(), exception.getMessage());
-        }
+        outboxNotifier.requestDispatchAfterCommit();
+        return new PushDispatchResult(true, queuedCount, 0, 0, "푸시 발송을 준비했습니다.");
     }
 
     public TestPushNotificationResponse sendTestPush(Long userId, TestPushNotificationRequest request) {
@@ -255,6 +220,17 @@ public class PushNotificationDispatchService {
             String body,
             Map<String, String> data
     ) {
+        return buildMessage(token, title, body, data, "IMMEDIATE");
+    }
+
+    private Message buildMessage(
+            String token,
+            String title,
+            String body,
+            Map<String, String> data,
+            String notificationKind
+    ) {
+        final boolean weeklyDigest = "WEEKLY_DIGEST".equals(notificationKind);
         final WebpushNotification webNotification = WebpushNotification.builder()
                 .setTitle(title)
                 .setBody(body)
@@ -269,9 +245,9 @@ public class PushNotificationDispatchService {
                         .build())
                 .putAllData(data)
                 .setAndroidConfig(AndroidConfig.builder()
-                        .setPriority(AndroidConfig.Priority.HIGH)
+                        .setPriority(weeklyDigest ? AndroidConfig.Priority.NORMAL : AndroidConfig.Priority.HIGH)
                         .setNotification(AndroidNotification.builder()
-                                .setChannelId("maemoji_alerts")
+                                .setChannelId(weeklyDigest ? "maemoji_weekly_digest" : "maemoji_alerts")
                                 .build())
                         .build())
                 .setWebpushConfig(WebpushConfig.builder()
@@ -281,8 +257,14 @@ public class PushNotificationDispatchService {
                 .build();
     }
 
-    Message buildRetryMessage(String token, String title, String body, Map<String, String> data) {
-        return buildMessage(token, title, body, data);
+    Message buildRetryMessage(
+            String token,
+            String title,
+            String body,
+            Map<String, String> data,
+            String notificationKind
+    ) {
+        return buildMessage(token, title, body, data, notificationKind);
     }
 
     private String serializePayload(Map<String, String> data) {

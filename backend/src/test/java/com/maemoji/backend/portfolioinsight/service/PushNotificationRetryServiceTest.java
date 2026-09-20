@@ -14,8 +14,9 @@ class PushNotificationRetryServiceTest {
     private final PortfolioInsightMapper mapper = mock(PortfolioInsightMapper.class);
     private final FirebaseMessagingGateway gateway = mock(FirebaseMessagingGateway.class);
     private final PushNotificationPolicyService policy = mock(PushNotificationPolicyService.class);
+    private final PushDeliveryOutboxNotifier outboxNotifier = mock(PushDeliveryOutboxNotifier.class);
     private final PushNotificationDispatchService dispatch =
-            new PushNotificationDispatchService(mapper, policy, gateway);
+            new PushNotificationDispatchService(mapper, policy, gateway, outboxNotifier);
     private final PushNotificationRetryService service = new PushNotificationRetryService(
             mapper, gateway, new ObjectMapper(), dispatch, schema
     );
@@ -34,6 +35,23 @@ class PushNotificationRetryServiceTest {
 
         verify(mapper).updatePushNotificationDeliverySuccess(eq("dedupe-10"), eq("message-1"), any());
         verify(mapper, never()).deactivateDeviceToken(anyLong(), anyString(), any());
+    }
+
+    @Test
+    void sendsQueuedDeliveryOnlyAfterTheOutboxWorkerClaimsIt() throws Exception {
+        when(schema.isReady()).thenReturn(true);
+        final RetryablePushDeliveryRecord delivery = delivery();
+        delivery.setWeeklyReportId(51L);
+        when(mapper.findPendingPushDeliveries(50)).thenReturn(List.of(delivery));
+        when(mapper.claimPendingPushNotificationDelivery(10L)).thenReturn(1);
+        when(gateway.sendEach(anyList())).thenReturn(List.of(
+                FirebaseMessagingGateway.SendResult.success("message-queued")
+        ));
+
+        service.retryFailedDeliveries();
+
+        verify(mapper).updatePushNotificationDeliverySuccess(eq("dedupe-10"), eq("message-queued"), any());
+        verify(mapper).refreshWeeklyNotificationJobDeliveryResult(51L);
     }
 
     @Test
