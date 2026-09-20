@@ -574,7 +574,7 @@
             pnd.alert_type,
             pnd.notification_kind
         from push_notification_deliveries pnd
-        join user_device_tokens udt on udt.id = pnd.device_token_id
+        join user_device_tokens udt on udt.id = pnd.device_token_id and udt.user_id = pnd.user_id
         where pnd.delivery_status = 'FAILED'
           and pnd.attempt_count &lt; 3
           and (pnd.next_retry_at is null or pnd.next_retry_at &lt;= current_timestamp)
@@ -599,7 +599,7 @@
             pnd.alert_type,
             pnd.notification_kind
         from push_notification_deliveries pnd
-        join user_device_tokens udt on udt.id = pnd.device_token_id
+        join user_device_tokens udt on udt.id = pnd.device_token_id and udt.user_id = pnd.user_id
         where pnd.delivery_status = 'PENDING'
           and udt.is_active = true
           and udt.push_enabled = true
@@ -615,6 +615,10 @@
           and delivery_status = 'FAILED'
           and attempt_count &lt; 3
           and (next_retry_at is null or next_retry_at &lt;= current_timestamp)
+          and exists (select 1 from user_device_tokens d
+                      where d.id = push_notification_deliveries.device_token_id
+                        and d.user_id = push_notification_deliveries.user_id
+                        and d.is_active = true and d.push_enabled = true)
     </update>
 
     <update id="claimPendingPushNotificationDelivery">
@@ -623,6 +627,10 @@
             sent_at = current_timestamp
         where id = #{id}
           and delivery_status = 'PENDING'
+          and exists (select 1 from user_device_tokens d
+                      where d.id = push_notification_deliveries.device_token_id
+                        and d.user_id = push_notification_deliveries.user_id
+                        and d.is_active = true and d.push_enabled = true)
     </update>
 
     <update id="recoverStalePushNotificationDeliveries">

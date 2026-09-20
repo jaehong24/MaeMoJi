@@ -49,9 +49,9 @@ public class PushNotificationRetryService {
         dispatchPendingAndRetryDeliveries();
     }
 
-    @EventListener
+    // Scheduled polling uses a fresh thread/connection after the producer transaction ends.
     public void dispatchQueuedDeliveries(PushDeliveryQueuedEvent ignored) {
-        dispatchPendingAndRetryDeliveries();
+        // The durable PENDING row is sufficient; never dispatch inside afterCommit callbacks.
     }
 
     private void dispatchPendingAndRetryDeliveries() {
