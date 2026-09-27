@@ -142,7 +142,7 @@
             case
                 when upper(coalesce(s.ticker, '')) in (
                     'QQQ', 'SPY', 'VOO', 'IVV', 'VTI', 'SCHD', 'JEPI', 'JEPQ',
-                    'VYM', 'SOXX', 'SMH', 'IBIT', 'FBTC', 'ETHA', 'ARKK'
+                    'VYM', 'SOXX', 'SMH', 'IBIT', 'FBTC', 'ETHA', 'ARKK', 'XOVR'
                 ) then 0
                 else 1
             end asc,
@@ -177,6 +177,10 @@
         where s.is_active = true
           and s.finnhub_symbol is not null
           and upper(btrim(coalesce(s.asset_type, ''))) = 'ETF'
+          and upper(coalesce(s.ticker, '')) in (
+              'QQQ', 'SPY', 'VOO', 'IVV', 'VTI', 'SCHD', 'JEPI', 'JEPQ',
+              'VYM', 'SOXX', 'SMH', 'IBIT', 'FBTC', 'ETHA', 'ARKK', 'XOVR'
+          )
           and not exists (
               select 1
               from portfolio_items pi
@@ -187,7 +191,7 @@
             case
                 when upper(coalesce(s.ticker, '')) in (
                     'QQQ', 'SPY', 'VOO', 'IVV', 'VTI', 'SCHD', 'JEPI', 'JEPQ',
-                    'VYM', 'SOXX', 'SMH', 'IBIT', 'FBTC', 'ETHA', 'ARKK'
+                    'VYM', 'SOXX', 'SMH', 'IBIT', 'FBTC', 'ETHA', 'ARKK', 'XOVR'
                 ) then 0
                 else 1
             end asc,

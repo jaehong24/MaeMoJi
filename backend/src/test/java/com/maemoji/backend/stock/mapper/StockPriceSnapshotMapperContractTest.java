@@ -27,4 +27,24 @@ class StockPriceSnapshotMapperContractTest {
             assertThat(sql.indexOf(predicate)).isLessThan(sql.indexOf("order by"));
         }
     }
+
+    @Test
+    void nonPortfolioEtfSelectionOnlyIncludesSupportedPopularUniverse() throws Exception {
+        final Configuration configuration = new Configuration();
+        final String resource = "mapper/stock/StockPriceSnapshotMapper.xml";
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream(resource)) {
+            new XMLMapperBuilder(input, configuration, resource, configuration.getSqlFragments()).parse();
+        }
+
+        final String sql = configuration.getMappedStatement(
+                        StockPriceSnapshotMapper.class.getName() + ".findActiveNonPortfolioEtfStocksForSnapshot"
+                )
+                .getBoundSql(Map.of("limit", 50))
+                .getSql();
+
+        assertThat(sql)
+                .contains("upper(coalesce(s.ticker, '')) in")
+                .contains("'QQQ'")
+                .contains("'XOVR'");
+    }
 }
