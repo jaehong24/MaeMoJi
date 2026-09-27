@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_user.dart';
+import '../navigation/onboarding_step.dart';
 import '../services/auth_service.dart';
 import '../services/auth_session_store.dart';
 import '../theme/app_theme.dart';
@@ -29,7 +30,8 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
   @override
   void initState() {
     super.initState();
-    final currentNickname = AuthSessionStore.instance.session?.user.nickname ?? '';
+    final currentNickname =
+        AuthSessionStore.instance.session?.user.nickname ?? '';
     _nicknameController.text = NicknameValidator.isValid(currentNickname)
         ? currentNickname
         : '';
@@ -211,9 +213,7 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
       }
       setState(() {
         _nicknameAvailable = available;
-        _helperMessage = available
-            ? '사용할 수 있는 닉네임이에요.'
-            : null;
+        _helperMessage = available ? '사용할 수 있는 닉네임이에요.' : null;
         _errorMessage = available ? null : '이미 사용 중인 닉네임이에요.';
       });
     } catch (error) {
@@ -303,13 +303,14 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
   }
 
   void _openNext(AuthUser user) {
-    final destination = user.hasRiskProfile
-        ? const AppShell()
-        : const InvestmentDnaSurveyScreen();
+    final destination = switch (resolveOnboardingStep(user)) {
+      OnboardingStep.nickname => const NicknameSetupScreen(),
+      OnboardingStep.riskProfileSurvey => const InvestmentDnaSurveyScreen(),
+      OnboardingStep.app => const AppShell(),
+    };
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => destination),
       (route) => false,
     );
   }
-
 }

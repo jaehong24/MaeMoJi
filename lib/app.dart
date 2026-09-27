@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'config/api_config.dart';
 import 'currency/currency_controller.dart';
 import 'currency/currency_scope.dart';
+import 'navigation/onboarding_step.dart';
 import 'screens/app_shell.dart';
 import 'screens/auth_screen.dart';
 import 'screens/brand_launch_screen.dart';
@@ -96,11 +97,13 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
               return const AuthScreen();
             }
 
-            if (!(_authSessionStore.session?.user.nicknameConfirmed ?? false)) {
+            final onboardingStep = resolveOnboardingStep(
+              _authSessionStore.session!.user,
+            );
+            if (onboardingStep == OnboardingStep.nickname) {
               return const NicknameSetupScreen();
             }
-
-            if (!(_authSessionStore.session?.user.hasRiskProfile ?? false)) {
+            if (onboardingStep == OnboardingStep.riskProfileSurvey) {
               return const InvestmentDnaSurveyScreen();
             }
 

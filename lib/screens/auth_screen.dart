@@ -11,6 +11,7 @@ import 'legal_document_screen.dart';
 import 'nickname_setup_screen.dart';
 import '../config/api_config.dart';
 import '../models/auth_session.dart';
+import '../navigation/onboarding_step.dart';
 import '../services/auth_service.dart';
 import '../services/auth_session_store.dart';
 import '../services/local_dev_preferences_store.dart';
@@ -291,14 +292,11 @@ class _AuthScreenState extends State<AuthScreen> {
                                           ? const SizedBox(
                                               width: 18,
                                               height: 18,
-                                              child:
-                                                  CircularProgressIndicator(
+                                              child: CircularProgressIndicator(
                                                 strokeWidth: 2,
                                               ),
                                             )
-                                          : const Text(
-                                              '개발 계정으로 바로 시작',
-                                            ),
+                                          : const Text('개발 계정으로 바로 시작'),
                                     ),
                                   ),
                                 ],
@@ -480,11 +478,11 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    final destination = session.user.nicknameConfirmed
-        ? (session.user.hasRiskProfile
-              ? const AppShell()
-              : const InvestmentDnaSurveyScreen())
-        : const NicknameSetupScreen();
+    final destination = switch (resolveOnboardingStep(session.user)) {
+      OnboardingStep.nickname => const NicknameSetupScreen(),
+      OnboardingStep.riskProfileSurvey => const InvestmentDnaSurveyScreen(),
+      OnboardingStep.app => const AppShell(),
+    };
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => destination),
       (route) => false,
