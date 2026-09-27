@@ -249,7 +249,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     children: [
                       Expanded(
                         child: _MiniMetricCard(
-                          label: '신뢰도',
+                          label: '자료 충족도',
                           value: '${resolvedItem.confidence}%',
                         ),
                       ),

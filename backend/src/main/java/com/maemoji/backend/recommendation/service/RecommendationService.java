@@ -54,6 +54,9 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendationService {
 
+    private static final ZoneId MARKET_DATE_ZONE = ZoneId.of("America/New_York");
+    private static final long MAX_PRICE_SNAPSHOT_AGE_DAYS = 7;
+
     private static final Logger log = LoggerFactory.getLogger(RecommendationService.class);
     private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE_V2";
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
@@ -660,18 +663,23 @@ public class RecommendationService {
                 recommendationMapper.findLatestNewsAnalysisByStockId(target.getStockId())
         );
         final CachedNewsSummary newsSummary = summarizeCachedNews(cachedNews);
-        final Double thirtyDayReturn = snapshot == null || snapshot.getChangeRate30d() == null
+        final boolean freshPriceSnapshot = isFreshPriceSnapshot(snapshot);
+        final Double thirtyDayReturn = !freshPriceSnapshot || snapshot.getChangeRate30d() == null
                 ? null
                 : snapshot.getChangeRate30d().doubleValue();
         final boolean hardStopRisk = (thirtyDayReturn != null && thirtyDayReturn <= -35)
                 || containsHardRiskKeyword(blankToEmpty(target.getMemo()));
-        final int confidence = resolveLightweightConfidence(target, snapshot, newsSummary);
+        final int confidence = resolveLightweightConfidence(snapshot, newsSummary);
         final PriceSnapshot lightweightPriceSnapshot = snapshot == null
                 ? PriceSnapshot.unavailable()
                 : new PriceSnapshot(
                         snapshot.getCurrentPrice() == null ? null : snapshot.getCurrentPrice().doubleValue(),
-                        snapshot.getChangeRate7d() == null ? null : snapshot.getChangeRate7d().doubleValue(),
-                        snapshot.getChangeRate30d() == null ? null : snapshot.getChangeRate30d().doubleValue(),
+                        !freshPriceSnapshot || snapshot.getChangeRate7d() == null
+                                ? null
+                                : snapshot.getChangeRate7d().doubleValue(),
+                        !freshPriceSnapshot || snapshot.getChangeRate30d() == null
+                                ? null
+                                : snapshot.getChangeRate30d().doubleValue(),
                         snapshot.getMarketCap(),
                         snapshot.getPerValue(),
                         snapshot.getEpsTtm(),
@@ -1056,22 +1064,15 @@ public class RecommendationService {
     }
 
     private int resolveLightweightConfidence(
-            RecommendationTarget target,
             StockPriceSnapshotRecord snapshot,
             CachedNewsSummary newsSummary
     ) {
-        int confidence = 50;
+        int confidence = 55;
         if (snapshot != null && snapshot.getCurrentPrice() != null) {
             confidence += 5;
         }
-        if (snapshot != null && snapshot.getChangeRate30d() != null) {
+        if (isFreshPriceSnapshot(snapshot) && snapshot.getChangeRate30d() != null) {
             confidence += 10;
-        }
-        if (target.getInvestmentStartDate() != null) {
-            confidence += 5;
-        }
-        if (!blankToEmpty(target.getMemo()).isBlank()) {
-            confidence += 5;
         }
         if (newsSummary.sentimentScore() != null) {
             confidence += Math.round(newsSummary.confidence() / 10.0f);
@@ -5799,12 +5800,6 @@ public class RecommendationService {
         if (priceSnapshot.hasThirtyDayReturn()) {
             confidence += 10;
         }
-        if (target.getInvestmentStartDate() != null) {
-            confidence += 5;
-        }
-        if (!blankToEmpty(target.getMemo()).isBlank()) {
-            confidence += 5;
-        }
         if (!newsSentiment.relatedNews().isEmpty()) {
             confidence += Math.round(newsSentiment.analysisConfidence() / 10.0f);
         }
@@ -5852,12 +5847,13 @@ public class RecommendationService {
         if (latestSnapshot != null
                 && latestSnapshot.getCurrentPrice() != null
                 && latestSnapshot.getCurrentPrice().doubleValue() > 0) {
+            final boolean freshPriceSnapshot = isFreshPriceSnapshot(latestSnapshot);
             return new PriceSnapshot(
                     latestSnapshot.getCurrentPrice().doubleValue(),
-                    latestSnapshot.getChangeRate7d() == null
+                    !freshPriceSnapshot || latestSnapshot.getChangeRate7d() == null
                             ? null
                             : latestSnapshot.getChangeRate7d().doubleValue(),
-                    latestSnapshot.getChangeRate30d() == null
+                    !freshPriceSnapshot || latestSnapshot.getChangeRate30d() == null
                             ? null
                             : latestSnapshot.getChangeRate30d().doubleValue(),
                     latestSnapshot.getMarketCap(),
@@ -5918,6 +5914,15 @@ public class RecommendationService {
         } catch (Exception ignored) {
             return PriceSnapshot.unavailable();
         }
+    }
+
+    private boolean isFreshPriceSnapshot(StockPriceSnapshotRecord snapshot) {
+        if (snapshot == null || snapshot.getSnapshotDate() == null) {
+            return false;
+        }
+        final LocalDate marketDate = LocalDate.now(MARKET_DATE_ZONE);
+        return !snapshot.getSnapshotDate().isBefore(marketDate.minusDays(MAX_PRICE_SNAPSHOT_AGE_DAYS))
+                && !snapshot.getSnapshotDate().isAfter(marketDate.plusDays(1));
     }
 
     private boolean isSameRecommendationDay(LocalDate recommendationDate) {

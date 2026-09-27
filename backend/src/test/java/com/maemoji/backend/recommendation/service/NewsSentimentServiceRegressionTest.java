@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.recommendation.domain.NewsAnalysisCacheRecord;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -22,6 +23,20 @@ class NewsSentimentServiceRegressionTest {
             new ObjectMapper(),
             recommendationMapper
     );
+
+    @Test
+    void clearlyMarksUnavailableKoreanSummaryInsteadOfInventingOne() {
+        final String summary = (String) ReflectionTestUtils.invokeMethod(
+                service,
+                "buildGenericKoreanSummary",
+                "Company announces quarterly results",
+                "Revenue increased during the quarter."
+        );
+
+        assertThat(summary).contains("한국어 요약을 불러오지 못했습니다");
+        assertThat(summary).contains("원문");
+        assertThat(summary).doesNotContain("핵심 흐름을 뉴스 판단에 반영했습니다");
+    }
 
     @Test
     void appliesSingleArticleEvidenceFactorAndConfidence() throws Exception {

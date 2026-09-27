@@ -6,6 +6,7 @@ import com.maemoji.backend.recommendation.domain.RecommendationRecord;
 import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
+import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +44,26 @@ class RecommendationServiceQueryFlowTest {
             tuningProperties,
             mock(PlatformTransactionManager.class)
     );
+
+    @Test
+    void acceptsOnlyRecentMarketSnapshotsAsFresh() {
+        final LocalDate marketDate = LocalDate.now(ZoneId.of("America/New_York"));
+        final StockPriceSnapshotRecord fresh = new StockPriceSnapshotRecord();
+        fresh.setSnapshotDate(marketDate.minusDays(7));
+        final StockPriceSnapshotRecord stale = new StockPriceSnapshotRecord();
+        stale.setSnapshotDate(marketDate.minusDays(8));
+        final StockPriceSnapshotRecord missingDate = new StockPriceSnapshotRecord();
+
+        assertThat((Boolean) ReflectionTestUtils.invokeMethod(
+                recommendationService, "isFreshPriceSnapshot", fresh
+        )).isTrue();
+        assertThat((Boolean) ReflectionTestUtils.invokeMethod(
+                recommendationService, "isFreshPriceSnapshot", stale
+        )).isFalse();
+        assertThat((Boolean) ReflectionTestUtils.invokeMethod(
+                recommendationService, "isFreshPriceSnapshot", missingDate
+        )).isFalse();
+    }
 
     @Test
     void getLatestRecommendationsReturnsStoredRecordsWithoutRecomputing() {

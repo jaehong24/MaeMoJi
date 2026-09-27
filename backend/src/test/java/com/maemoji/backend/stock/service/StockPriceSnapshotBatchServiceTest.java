@@ -1,6 +1,7 @@
 package com.maemoji.backend.stock.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.maemoji.backend.stock.config.PriceSnapshotBatchProperties;
 import com.maemoji.backend.stock.domain.Stock;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
@@ -31,6 +32,25 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class StockPriceSnapshotBatchServiceTest {
+
+    @Test
+    void convertsFinnhubPercentagePointsWithoutGuessingFromMagnitude() {
+        final ObjectMapper json = new ObjectMapper();
+        final JsonNode metrics = json.createObjectNode()
+                .put("small", 0.5)
+                .put("whole", 1.0)
+                .put("large", 13.25)
+                .put("negative", -0.5);
+
+        assertThat((Double) ReflectionTestUtils.invokeMethod(service, "readFinnhubPercentage", metrics, "small"))
+                .isEqualTo(0.005);
+        assertThat((Double) ReflectionTestUtils.invokeMethod(service, "readFinnhubPercentage", metrics, "whole"))
+                .isEqualTo(0.01);
+        assertThat((Double) ReflectionTestUtils.invokeMethod(service, "readFinnhubPercentage", metrics, "large"))
+                .isEqualTo(0.1325);
+        assertThat((Double) ReflectionTestUtils.invokeMethod(service, "readFinnhubPercentage", metrics, "negative"))
+                .isEqualTo(-0.005);
+    }
 
     @Test
     void normalizesClassShareSymbolsForYahooHistory() {

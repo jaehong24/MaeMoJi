@@ -925,48 +925,48 @@ public class StockPriceSnapshotBatchService {
                 firstNonNull(
                         readNullableDouble(growthNode, "growthRevenue"),
                         firstNonNull(
-                                readNormalizedPercentage(metricNode, "revenueGrowthTTMYoy"),
+                                readFinnhubPercentage(metricNode, "revenueGrowthTTMYoy"),
                                 fallbackRevenueGrowth
                         )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "grossProfitMarginTTM"),
                         firstNonNull(
-                                readNormalizedPercentage(metricNode, "grossMarginTTM"),
+                                readFinnhubPercentage(metricNode, "grossMarginTTM"),
                                 fallbackGrossMargin
                         )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "netProfitMarginTTM"),
                         firstNonNull(
-                                readNormalizedPercentage(metricNode, "netProfitMarginTTM"),
+                                readFinnhubPercentage(metricNode, "netProfitMarginTTM"),
                                 fallbackNetMargin
                         )
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "operatingProfitMarginTTM"),
                         firstNonNull(
-                                readNormalizedPercentage(metricNode, "operatingMarginTTM"),
+                                readFinnhubPercentage(metricNode, "operatingMarginTTM"),
                                 fallbackOperatingMargin
                         )
                 ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "returnOnEquityTTM"),
                         firstNonNull(
-                                readNormalizedPercentage(metricNode, "roeTTM"),
+                                readFinnhubPercentage(metricNode, "roeTTM"),
                                 fallbackRoe
                         )
                 ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "returnOnAssetsTTM"),
                         firstNonNull(
-                                readNormalizedPercentage(metricNode, "roaTTM"),
+                                readFinnhubPercentage(metricNode, "roaTTM"),
                                 fallbackRoa
                         )
                 ),
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "returnOnInvestedCapitalTTM"),
-                        readNormalizedPercentage(metricNode, "roiTTM")
+                        readFinnhubPercentage(metricNode, "roiTTM")
                 ),
                 firstNonNull(
                         readNullableDouble(ratioNode, "debtToEquityRatioTTM"),
@@ -1319,19 +1319,14 @@ public class StockPriceSnapshotBatchService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private Double readNormalizedPercentage(JsonNode node, String fieldName) {
+    private Double readFinnhubPercentage(JsonNode node, String fieldName) {
         final Double value = readNullableDouble(node, fieldName);
         if (value == null) {
             return null;
         }
-        return normalizePercent(value);
-    }
-
-    private Double normalizePercent(Double value) {
-        if (value == null) {
-            return null;
-        }
-        return Math.abs(value) > 1.0 ? value / 100.0 : value;
+        // Finnhub basic-financial percentage fields are percentage points
+        // (for example, 0.5 means 0.5%), while FMP ratio fields are decimals.
+        return value / 100.0;
     }
 
     private Double deriveFreeCashFlowYield(JsonNode metricNode) {

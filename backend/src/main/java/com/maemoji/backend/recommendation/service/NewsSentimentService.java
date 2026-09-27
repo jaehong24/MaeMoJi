@@ -1388,15 +1388,19 @@ public class NewsSentimentService {
         final String normalizedSummary = defaultIfBlank(rawSummary, "").trim();
 
         if (!normalizedHeadline.isBlank() && !normalizedSummary.isBlank()) {
-            return "이 기사는 " + quoteHeadline(normalizedHeadline) + "와 관련된 내용을 다루며, 원문 요약 기준 핵심 흐름을 뉴스 판단에 반영했습니다.";
+            return "한국어 요약을 불러오지 못했습니다. 원문에서 "
+                    + quoteHeadline(normalizedHeadline)
+                    + " 내용을 확인해 주세요.";
         }
         if (!normalizedHeadline.isBlank()) {
-            return "이 기사는 " + quoteHeadline(normalizedHeadline) + "를 중심으로 한 내용이라 관련 뉴스로 반영했습니다.";
+            return "한국어 요약을 불러오지 못했습니다. 원문 제목 "
+                    + quoteHeadline(normalizedHeadline)
+                    + "을 확인해 주세요.";
         }
         if (!normalizedSummary.isBlank()) {
-            return "원문 요약 기준 종목과 직접 연결되는 내용이 확인되어 관련 뉴스로 반영했습니다.";
+            return "한국어 요약을 불러오지 못했습니다. 기사 원문을 확인해 주세요.";
         }
-        return "기사 원문 기준으로 종목 관련성이 확인되어 뉴스 분석에 반영했습니다.";
+        return "기사 요약을 불러오지 못했습니다. 원문을 확인해 주세요.";
     }
 
     private String quoteHeadline(String headline) {
