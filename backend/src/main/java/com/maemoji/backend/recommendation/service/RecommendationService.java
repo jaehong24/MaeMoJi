@@ -59,7 +59,7 @@ public class RecommendationService {
     private static final long MAX_PRICE_SNAPSHOT_AGE_DAYS = 7;
 
     private static final Logger log = LoggerFactory.getLogger(RecommendationService.class);
-    private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE_V2";
+    private static final String ENGINE_VERSION = "RULE_V3_EXPLAINABLE_SCORE_V3_STOP_GUARD";
     private static final ZoneId HOME_ZONE = ZoneId.of("Asia/Seoul");
     private static final int RECENT_NEWS_TRADING_DAY_WINDOW = 3;
     private static final int DISPLAY_NEWS_LIMIT = 3;
@@ -77,11 +77,6 @@ public class RecommendationService {
             "INSTITUTION",
             "FORMULA"
     );
-    private static final Set<String> HARD_RISK_KEYWORDS = Set.of(
-            "fraud", "delist", "bankruptcy", "lawsuit", "investigation",
-            "분식", "상장폐지", "파산", "소송", "회계부정", "조사"
-    );
-
     private final RecommendationMapper recommendationMapper;
     private final ObjectMapper objectMapper;
     private final NewsSentimentService newsSentimentService;
@@ -422,9 +417,6 @@ public class RecommendationService {
         }
 
         final BigDecimal currentAmount = safeAmount(target.getDailyInvestAmount());
-        final String memo = blankToEmpty(target.getMemo());
-        final boolean hasHardRisk = containsHardRiskKeyword(memo);
-
         final PriceSnapshot priceSnapshot = fetchPriceSnapshot(target, allowExternalPriceFetch);
         final NewsSentimentService.NewsSentimentResult newsSentiment =
                 resolveNewsSentiment(target, sharedNewsSentiment, allowExternalNewsFetch);
@@ -437,8 +429,7 @@ public class RecommendationService {
                 target,
                 priceSnapshot,
                 newsSentiment,
-                confidenceScore,
-                hasHardRisk
+                confidenceScore
         );
         final RecommendationScoreCalculator.V4ScoreResult v4ScoreResult =
                 scoreCalculator.calculateV4(v4Context.input());
@@ -668,8 +659,6 @@ public class RecommendationService {
         final Double thirtyDayReturn = !freshPriceSnapshot || snapshot.getChangeRate30d() == null
                 ? null
                 : snapshot.getChangeRate30d().doubleValue();
-        final boolean hardStopRisk = (thirtyDayReturn != null && thirtyDayReturn <= -35)
-                || containsHardRiskKeyword(blankToEmpty(target.getMemo()));
         final int confidence = resolveLightweightConfidence(snapshot, newsSummary);
         final PriceSnapshot lightweightPriceSnapshot = snapshot == null
                 ? PriceSnapshot.unavailable()
@@ -705,8 +694,7 @@ public class RecommendationService {
                 target,
                 lightweightPriceSnapshot,
                 lightweightNewsSentiment,
-                confidence,
-                containsHardRiskKeyword(blankToEmpty(target.getMemo()))
+                confidence
         );
         final RecommendationScoreCalculator.ScoreResult scoreResult = scoreCalculator.calculateV4Legacy(
                 v4Context.input(),
@@ -2505,8 +2493,7 @@ public class RecommendationService {
             RecommendationTarget target,
             PriceSnapshot priceSnapshot,
             NewsSentimentService.NewsSentimentResult newsSentiment,
-            int confidence,
-            boolean hasHardRisk
+            int confidence
     ) {
         final Integer priceMomentumScore = resolvePriceMomentumScore(priceSnapshot);
         final Integer priceStabilityScore = resolvePriceStabilityScore(
@@ -2566,7 +2553,7 @@ public class RecommendationService {
                         crossFactorAdjustment,
                         userAdjustment,
                         effectiveRiskProfile,
-                        priceSnapshot.hasSevereDrop() || hasHardRisk,
+                        false,
                         newsSentiment.hardNegativeOverride(),
                         newsSentiment.hardNegativeCategory(),
                         confidence
@@ -6040,11 +6027,6 @@ public class RecommendationService {
         }
 
         return objectMapper.readTree(response.body());
-    }
-
-    private boolean containsHardRiskKeyword(String memo) {
-        final String lowered = memo.toLowerCase(Locale.ROOT);
-        return HARD_RISK_KEYWORDS.stream().anyMatch(lowered::contains);
     }
 
     private String formatSignedPercent(Double value) {

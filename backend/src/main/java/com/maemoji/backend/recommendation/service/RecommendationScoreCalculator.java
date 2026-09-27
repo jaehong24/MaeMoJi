@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class RecommendationScoreCalculator {
 
     public static final String FORMULA_VERSION = "SCORE_V3_PRICE_NEWS";
-    public static final String FORMULA_VERSION_V4 = "SCORE_V4_MULTI_FACTOR";
+    public static final String FORMULA_VERSION_V4 = "SCORE_V4_MULTI_FACTOR_STOP_GUARD_V2";
     private static final int PRICE_WEIGHT = 55;
     private static final int NEWS_WEIGHT = 45;
     private final RecommendationTuningProperties tuningProperties;
@@ -204,6 +204,9 @@ public class RecommendationScoreCalculator {
         String status = totalWeight == 0
                 ? "MAINTAIN"
                 : resolveV4Status(adjustedScore, input.effectiveRiskProfile());
+        if ("STOP".equals(status) && !isStopEligible(input)) {
+            status = "REDUCE";
+        }
         final RecommendationTuningProperties.ConflictRules conflictRules = tuningProperties.getConflictRules();
         if ("REDUCE".equals(status)
                 && input.fundamentalQualityScore() != null
@@ -289,6 +292,31 @@ public class RecommendationScoreCalculator {
             return "REDUCE";
         }
         return "STOP";
+    }
+
+    private boolean isStopEligible(V4Input input) {
+        if (input.hardStopRisk()) {
+            return true;
+        }
+        if (!input.hardNegativeNews()) {
+            return false;
+        }
+
+        final boolean criticalNews = "ACCOUNTING_OR_FRAUD".equals(input.hardNegativeNewsCategory())
+                || "LIQUIDITY_OR_BANKRUPTCY".equals(input.hardNegativeNewsCategory());
+        if (!criticalNews) {
+            return false;
+        }
+
+        final boolean weakPriceEvidence = scoreAtMost(input.priceMomentumScore(), 35)
+                || scoreAtMost(input.priceStabilityScore(), 35);
+        final boolean weakBusinessEvidence = scoreAtMost(input.fundamentalQualityScore(), 50)
+                || scoreAtMost(input.qualityOfGrowthScore(), 45);
+        return weakPriceEvidence && weakBusinessEvidence;
+    }
+
+    private boolean scoreAtMost(Integer score, int maximum) {
+        return score != null && score <= maximum;
     }
 
     private void addFactorResult(

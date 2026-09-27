@@ -491,7 +491,7 @@ class RecommendationScoreCalculatorTest {
     }
 
     @Test
-    void v4HardNegativeNewsPushesFragileNamesToStopMoreAggressively() {
+    void v4GenericHardNegativeNewsDoesNotStopAccumulationByItself() {
         final RecommendationScoreCalculator.V4ScoreResult resilient = calculator.calculateV4(
                 new RecommendationScoreCalculator.V4Input(
                         68,
@@ -543,8 +543,54 @@ class RecommendationScoreCalculatorTest {
 
         assertThat(resilient.recommendationStatus()).isEqualTo("REDUCE");
         assertThat(resilient.finalScore()).isGreaterThanOrEqualTo(40);
-        assertThat(fragile.recommendationStatus()).isEqualTo("STOP");
+        assertThat(fragile.recommendationStatus()).isEqualTo("REDUCE");
         assertThat(fragile.finalScore()).isLessThan(resilient.finalScore());
+    }
+
+    @Test
+    void v4CriticalAccountingRiskStopsOnlyWhenPriceAndBusinessAreAlsoWeak() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        25, 20,
+                        32, 12,
+                        -80, 22,
+                        44, 14,
+                        35, 12,
+                        38, 12,
+                        60, 8,
+                        0, 0,
+                        "BALANCED",
+                        false,
+                        true,
+                        "ACCOUNTING_OR_FRAUD",
+                        90
+                )
+        );
+
+        assertThat(result.recommendationStatus()).isEqualTo("STOP");
+    }
+
+    @Test
+    void v4MissingFactorsNeverCauseStopByThemselves() {
+        final RecommendationScoreCalculator.V4ScoreResult result = calculator.calculateV4(
+                new RecommendationScoreCalculator.V4Input(
+                        20, 20,
+                        25, 12,
+                        null, 0,
+                        null, 0,
+                        null, 0,
+                        null, 0,
+                        35, 8,
+                        -10, -4,
+                        "BALANCED",
+                        false,
+                        false,
+                        35
+                )
+        );
+
+        assertThat(result.finalScore()).isLessThan(40);
+        assertThat(result.recommendationStatus()).isEqualTo("REDUCE");
     }
 
     @Test
