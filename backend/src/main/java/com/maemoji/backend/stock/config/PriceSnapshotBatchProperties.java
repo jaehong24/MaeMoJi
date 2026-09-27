@@ -9,7 +9,7 @@ public class PriceSnapshotBatchProperties {
     private String cron = "0 40 6 * * *";
     private int delayMillis = 1200;
     private int defaultLimit = 500;
-    private int etfPriceOnlyLimit = 250;
+    private int etfPriceOnlyLimit = 50;
     private int historyLookbackDays = 45;
     private int recentListingWindowDays = 32;
     private int recentFundamentalListingWindowDays = 90;
