@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class RecommendationPerformanceEvaluationServiceTest {
 
@@ -24,6 +25,11 @@ class RecommendationPerformanceEvaluationServiceTest {
                 .evaluateDueRecommendations(evaluationDate);
 
         assertThat(inserted).isEqualTo(12);
-        verify(jdbcTemplate).update(anyString(), eq(evaluationDate), eq(evaluationDate));
+        final ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sqlCaptor.capture(), eq(evaluationDate), eq(evaluationDate));
+        assertThat(sqlCaptor.getValue())
+                .doesNotContain("&lt;")
+                .doesNotContain("&gt;")
+                .contains("on conflict (recommendation_id, horizon_days) do nothing");
     }
 }

@@ -63,8 +63,8 @@ public class RecommendationPerformanceEvaluationService {
                     select p.snapshot_date, p.current_price
                     from stock_price_snapshots p
                     where p.stock_id = pi.stock_id
-                      and p.snapshot_date &lt;= r.recommendation_date
-                      and p.current_price &gt; 0
+                      and p.snapshot_date <= r.recommendation_date
+                      and p.current_price > 0
                     order by p.snapshot_date desc, p.id desc
                     limit 1
                 ) baseline on true
@@ -72,9 +72,9 @@ public class RecommendationPerformanceEvaluationService {
                     select p.snapshot_date, p.current_price
                     from stock_price_snapshots p
                     where p.stock_id = pi.stock_id
-                      and p.snapshot_date &gt;= r.recommendation_date + horizon.days
-                      and p.snapshot_date &lt;= ?
-                      and p.current_price &gt; 0
+                      and p.snapshot_date >= r.recommendation_date + horizon.days
+                      and p.snapshot_date <= ?
+                      and p.current_price > 0
                     order by p.snapshot_date asc, p.id asc
                     limit 1
                 ) evaluated on true
@@ -83,7 +83,7 @@ public class RecommendationPerformanceEvaluationService {
                 ) outcome
                 cross join lateral (
                     select case
-                        when r.current_amount &gt; 0 and r.recommended_amount &gt;= 0
+                        when r.current_amount > 0 and r.recommended_amount >= 0
                             then least(1.2, r.recommended_amount / r.current_amount)
                         when r.recommendation_status = 'INCREASE' then 1.2
                         when r.recommendation_status = 'MAINTAIN' then 1.0
@@ -104,12 +104,12 @@ public class RecommendationPerformanceEvaluationService {
                         from stock_price_snapshots p
                         where p.stock_id = pi.stock_id
                           and p.snapshot_date between baseline.snapshot_date and evaluated.snapshot_date
-                          and p.current_price &gt; 0
+                          and p.current_price > 0
                     ) path
                 ) drawdown on true
-                where r.recommendation_date + horizon.days &lt;= ?
-                  and coalesce(s.asset_type, 'STOCK') &lt;&gt; 'ETF'
-                  and coalesce(r.engine_version, '') &lt;&gt; 'ETF_PENDING'
+                where r.recommendation_date + horizon.days <= ?
+                  and coalesce(s.asset_type, 'STOCK') <> 'ETF'
+                  and coalesce(r.engine_version, '') <> 'ETF_PENDING'
                 on conflict (recommendation_id, horizon_days) do nothing
                 """, evaluationDate, evaluationDate);
         log.info("추천 성과 만기 평가를 완료했습니다. evaluationDate={}, inserted={}", evaluationDate, inserted);
