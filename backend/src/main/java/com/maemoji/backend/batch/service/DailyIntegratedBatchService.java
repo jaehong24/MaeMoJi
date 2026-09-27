@@ -4,6 +4,7 @@ import com.maemoji.backend.batch.dto.DailyBatchResult;
 import com.maemoji.backend.batch.security.BatchExecutionLock;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.service.RecommendationService;
+import com.maemoji.backend.recommendation.service.RecommendationPerformanceEvaluationService;
 import com.maemoji.backend.portfolioinsight.service.WeeklyReportService;
 import com.maemoji.backend.stock.dto.PriceSnapshotBatchResult;
 import com.maemoji.backend.stock.dto.StockAssetTypeNormalizeResult;
@@ -32,6 +33,7 @@ public class DailyIntegratedBatchService {
     private final WeeklyReportService weeklyReportService;
     private final UserMapper userMapper;
     private final BatchExecutionLock batchExecutionLock;
+    private final RecommendationPerformanceEvaluationService performanceEvaluationService;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     @Autowired
@@ -41,7 +43,8 @@ public class DailyIntegratedBatchService {
             RecommendationService recommendationService,
             WeeklyReportService weeklyReportService,
             UserMapper userMapper,
-            BatchExecutionLock batchExecutionLock
+            BatchExecutionLock batchExecutionLock,
+            RecommendationPerformanceEvaluationService performanceEvaluationService
     ) {
         this.priceSnapshotBatchService = priceSnapshotBatchService;
         this.stockAssetTypeMaintenanceService = stockAssetTypeMaintenanceService;
@@ -49,6 +52,7 @@ public class DailyIntegratedBatchService {
         this.weeklyReportService = weeklyReportService;
         this.userMapper = userMapper;
         this.batchExecutionLock = batchExecutionLock;
+        this.performanceEvaluationService = performanceEvaluationService;
     }
 
     /** Unit tests can use the legacy constructor without opening a database connection. */
@@ -60,7 +64,7 @@ public class DailyIntegratedBatchService {
             UserMapper userMapper
     ) {
         this(priceSnapshotBatchService, stockAssetTypeMaintenanceService, recommendationService,
-                weeklyReportService, userMapper, null);
+                weeklyReportService, userMapper, null, null);
     }
 
     public DailyBatchResult run(Integer priceLimit) {
@@ -151,6 +155,14 @@ public class DailyIntegratedBatchService {
                 } catch (Exception exception) {
                     failedUserCount++;
                     log.warn("사용자 추천 배치에 실패했습니다. userId={}", userId, exception);
+                }
+            }
+
+            if (performanceEvaluationService != null) {
+                try {
+                    performanceEvaluationService.evaluateDueRecommendations(startedAt.toLocalDate());
+                } catch (Exception exception) {
+                    log.warn("추천 성과 만기 평가에 실패했지만 일일 배치는 계속합니다.", exception);
                 }
             }
 

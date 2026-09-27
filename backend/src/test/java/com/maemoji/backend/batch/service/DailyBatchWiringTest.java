@@ -3,6 +3,7 @@ package com.maemoji.backend.batch.service;
 import com.maemoji.backend.batch.security.BatchExecutionLock;
 import com.maemoji.backend.portfolioinsight.service.WeeklyReportService;
 import com.maemoji.backend.recommendation.service.RecommendationService;
+import com.maemoji.backend.recommendation.service.RecommendationPerformanceEvaluationService;
 import com.maemoji.backend.stock.service.StockAssetTypeMaintenanceService;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import com.maemoji.backend.user.mapper.UserMapper;
@@ -19,6 +20,10 @@ class DailyBatchWiringTest {
             context.registerBean(StockPriceSnapshotBatchService.class, () -> mock(StockPriceSnapshotBatchService.class));
             context.registerBean(StockAssetTypeMaintenanceService.class, () -> mock(StockAssetTypeMaintenanceService.class));
             context.registerBean(RecommendationService.class, () -> mock(RecommendationService.class));
+            context.registerBean(
+                    RecommendationPerformanceEvaluationService.class,
+                    () -> mock(RecommendationPerformanceEvaluationService.class)
+            );
             context.registerBean(WeeklyReportService.class, () -> mock(WeeklyReportService.class));
             context.registerBean(UserMapper.class, () -> mock(UserMapper.class));
             var lock = mock(BatchExecutionLock.class);

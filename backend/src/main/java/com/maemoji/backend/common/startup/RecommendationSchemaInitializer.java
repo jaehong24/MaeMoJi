@@ -91,6 +91,36 @@ public class RecommendationSchemaInitializer implements ApplicationRunner {
                 create unique index if not exists uk_recommendation_factor_details_recommendation_factor
                     on recommendation_factor_details (recommendation_id, factor_code)
                 """);
+
+        jdbcTemplate.execute("""
+                create table if not exists recommendation_performance_evaluations (
+                    id bigserial primary key,
+                    recommendation_id bigint not null references recommendations(id) on delete cascade,
+                    horizon_days integer not null,
+                    recommendation_date date not null,
+                    evaluation_due_date date not null,
+                    baseline_date date not null,
+                    baseline_price numeric(15, 4) not null,
+                    evaluated_date date not null,
+                    evaluated_price numeric(15, 4) not null,
+                    recommendation_status varchar(20) not null,
+                    engine_version varchar(80),
+                    formula_version varchar(80),
+                    stock_return_pct numeric(12, 4) not null,
+                    strategy_return_pct numeric(12, 4) not null,
+                    benchmark_return_pct numeric(12, 4) not null,
+                    excess_return_pct numeric(12, 4) not null,
+                    max_drawdown_pct numeric(12, 4),
+                    created_at timestamptz not null default current_timestamp,
+                    constraint uk_recommendation_performance_horizon unique (recommendation_id, horizon_days),
+                    constraint ck_recommendation_performance_horizon check (horizon_days in (7, 30, 90))
+                )
+                """);
+
+        jdbcTemplate.execute("""
+                create index if not exists idx_recommendation_performance_due_date
+                    on recommendation_performance_evaluations (evaluation_due_date, horizon_days)
+                """);
     }
 
     private void addConstraintIfMissing(String constraintName, String definition) {
