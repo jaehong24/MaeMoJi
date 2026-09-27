@@ -431,6 +431,38 @@
         limit 1
     </select>
 
+    <select id="findPricePathMetricsByStockId" resultType="com.maemoji.backend.stock.domain.StockPricePathMetrics">
+        with recent as (
+            select snapshot_date, current_price
+            from stock_price_snapshots
+            where stock_id = #{stockId}
+              and current_price is not null
+              and current_price &gt; 0
+            order by snapshot_date desc, id desc
+            limit 31
+        ),
+        path as (
+            select
+                snapshot_date,
+                current_price,
+                lag(current_price) over (order by snapshot_date asc) as previous_price,
+                max(current_price) over (
+                    order by snapshot_date asc
+                    rows between unbounded preceding and current row
+                ) as running_peak
+            from recent
+        )
+        select
+            count(*)::integer as observation_count,
+            stddev_samp(
+                ((current_price / nullif(previous_price, 0)) - 1) * 100
+            ) filter (where previous_price is not null) as daily_volatility,
+            max(
+                ((running_peak - current_price) / nullif(running_peak, 0)) * 100
+            ) as max_drawdown
+        from path
+    </select>
+
     <select id="findOldestSnapshotDateByStockId" resultType="java.time.LocalDate">
         select min(snapshot_date)
         from stock_price_snapshots

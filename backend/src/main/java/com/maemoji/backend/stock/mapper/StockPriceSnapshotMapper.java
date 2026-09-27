@@ -2,6 +2,7 @@ package com.maemoji.backend.stock.mapper;
 
 import com.maemoji.backend.stock.domain.Stock;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
+import com.maemoji.backend.stock.domain.StockPricePathMetrics;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -30,6 +31,8 @@ public interface StockPriceSnapshotMapper {
     List<Long> findActivePortfolioStockIds();
 
     StockPriceSnapshotRecord findLatestSnapshotByStockId(@Param("stockId") Long stockId);
+
+    StockPricePathMetrics findPricePathMetricsByStockId(@Param("stockId") Long stockId);
 
     boolean hasLatestSnapshotWithThirtyDayReturn(@Param("stockId") Long stockId);
 

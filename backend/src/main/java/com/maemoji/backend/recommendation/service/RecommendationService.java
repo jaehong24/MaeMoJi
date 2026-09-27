@@ -21,6 +21,7 @@ import com.maemoji.backend.recommendation.dto.RelatedNewsResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.domain.Stock;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
+import com.maemoji.backend.stock.domain.StockPricePathMetrics;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.slf4j.Logger;
@@ -2508,7 +2509,10 @@ public class RecommendationService {
             boolean hasHardRisk
     ) {
         final Integer priceMomentumScore = resolvePriceMomentumScore(priceSnapshot);
-        final Integer priceStabilityScore = resolvePriceStabilityScore(priceSnapshot);
+        final Integer priceStabilityScore = resolvePriceStabilityScore(
+                priceSnapshot,
+                resolvePricePathMetrics(target.getStockId())
+        );
         final Integer newsScore = newsSentiment.relatedNews().isEmpty()
                 ? null
                 : normalizeToScore(newsSentiment.weightedSentimentScore());
@@ -3037,6 +3041,44 @@ public class RecommendationService {
         }
 
         return clampScore(score);
+    }
+
+    private Integer resolvePriceStabilityScore(
+            PriceSnapshot priceSnapshot,
+            StockPricePathMetrics pathMetrics
+    ) {
+        final Integer returnBasedScore = resolvePriceStabilityScore(priceSnapshot);
+        if (returnBasedScore == null
+                || pathMetrics == null
+                || pathMetrics.getObservationCount() == null
+                || pathMetrics.getObservationCount() < 10
+                || pathMetrics.getDailyVolatility() == null
+                || pathMetrics.getMaxDrawdown() == null) {
+            return returnBasedScore;
+        }
+
+        final double volatility = Math.max(0, pathMetrics.getDailyVolatility().doubleValue());
+        final double maxDrawdown = Math.max(0, pathMetrics.getMaxDrawdown().doubleValue());
+        double pathScore = 100 - (volatility * 9) - (maxDrawdown * 1.1);
+        if (maxDrawdown >= 30) {
+            pathScore -= 10;
+        } else if (maxDrawdown >= 20) {
+            pathScore -= 8;
+        }
+
+        return clampScore((int) Math.round((returnBasedScore * 0.4) + (pathScore * 0.6)));
+    }
+
+    private StockPricePathMetrics resolvePricePathMetrics(Long stockId) {
+        if (stockId == null) {
+            return null;
+        }
+        try {
+            return stockPriceSnapshotMapper.findPricePathMetricsByStockId(stockId);
+        } catch (Exception exception) {
+            log.warn("가격 경로 지표 조회에 실패해 기존 안정성 계산을 사용합니다. stockId={}", stockId, exception);
+            return null;
+        }
     }
 
     private FundamentalQualityAssessment resolveFundamentalQualityAssessment(PriceSnapshot priceSnapshot) {

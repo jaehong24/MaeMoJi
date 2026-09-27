@@ -7,6 +7,7 @@ import com.maemoji.backend.recommendation.domain.RecommendationTarget;
 import com.maemoji.backend.recommendation.dto.RecommendationResponse;
 import com.maemoji.backend.recommendation.mapper.RecommendationMapper;
 import com.maemoji.backend.stock.domain.StockPriceSnapshotRecord;
+import com.maemoji.backend.stock.domain.StockPricePathMetrics;
 import com.maemoji.backend.stock.mapper.StockPriceSnapshotMapper;
 import com.maemoji.backend.stock.service.StockPriceSnapshotBatchService;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,37 @@ class RecommendationServiceQueryFlowTest {
 
         assertThat(complete).isEqualTo(90);
         assertThat(sparse).isEqualTo(49);
+    }
+
+    @Test
+    void pricePathRiskSeparatesEqualEndpointReturns() throws Exception {
+        final Object snapshot = createPriceSnapshot(100.0, 1.0, 3.0);
+        final StockPricePathMetrics calm = pricePathMetrics(31, 0.8, 3.0);
+        final StockPricePathMetrics volatilePath = pricePathMetrics(31, 4.2, 24.0);
+
+        final Integer calmScore = ReflectionTestUtils.invokeMethod(
+                recommendationService, "resolvePriceStabilityScore", snapshot, calm
+        );
+        final Integer volatileScore = ReflectionTestUtils.invokeMethod(
+                recommendationService, "resolvePriceStabilityScore", snapshot, volatilePath
+        );
+
+        assertThat(calmScore).isGreaterThan(volatileScore);
+        assertThat(calmScore - volatileScore).isGreaterThanOrEqualTo(25);
+    }
+
+    @Test
+    void pricePathRiskFallsBackWhenHistoryIsThin() throws Exception {
+        final Object snapshot = createPriceSnapshot(100.0, 1.0, 3.0);
+        final StockPricePathMetrics thinHistory = pricePathMetrics(9, 8.0, 40.0);
+        final Integer legacyScore = ReflectionTestUtils.invokeMethod(
+                recommendationService, "resolvePriceStabilityScore", snapshot
+        );
+        final Integer resolvedScore = ReflectionTestUtils.invokeMethod(
+                recommendationService, "resolvePriceStabilityScore", snapshot, thinHistory
+        );
+
+        assertThat(resolvedScore).isEqualTo(legacyScore);
     }
 
     @Test
@@ -478,6 +510,14 @@ class RecommendationServiceQueryFlowTest {
                 null,
                 null
         );
+    }
+
+    private StockPricePathMetrics pricePathMetrics(int observations, double volatility, double maxDrawdown) {
+        final StockPricePathMetrics metrics = new StockPricePathMetrics();
+        metrics.setObservationCount(observations);
+        metrics.setDailyVolatility(BigDecimal.valueOf(volatility));
+        metrics.setMaxDrawdown(BigDecimal.valueOf(maxDrawdown));
+        return metrics;
     }
 
     private Object createV4ScoringContext(
