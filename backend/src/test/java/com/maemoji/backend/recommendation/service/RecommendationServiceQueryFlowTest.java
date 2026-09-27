@@ -66,6 +66,43 @@ class RecommendationServiceQueryFlowTest {
     }
 
     @Test
+    void dataCompletenessFallsWhenCoreFundamentalsAreMissing() {
+        final Integer complete = ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolveDataCompleteness",
+                true,
+                true,
+                true,
+                BigDecimal.ONE,
+                BigDecimal.ONE,
+                BigDecimal.ONE,
+                BigDecimal.ONE,
+                BigDecimal.ONE,
+                BigDecimal.ONE,
+                true,
+                100
+        );
+        final Integer sparse = ReflectionTestUtils.invokeMethod(
+                recommendationService,
+                "resolveDataCompleteness",
+                true,
+                true,
+                true,
+                BigDecimal.ONE,
+                null,
+                null,
+                null,
+                BigDecimal.ONE,
+                null,
+                false,
+                0
+        );
+
+        assertThat(complete).isEqualTo(90);
+        assertThat(sparse).isEqualTo(49);
+    }
+
+    @Test
     void getLatestRecommendationsReturnsStoredRecordsWithoutRecomputing() {
         final RecommendationTarget target = createTarget(101L, 1001L, 2001L);
         final RecommendationRecord staleRecord = createRecord(101L, 1001L, 2001L, LocalDate.now().minusDays(1));

@@ -248,7 +248,7 @@ class _MetricGrid extends StatelessWidget {
           SizedBox(
             width: itemWidth,
             child: _MetricBox(
-              label: '신뢰도',
+              label: '자료 충족도',
               value: confidence == null ? '준비 중' : '$confidence%',
             ),
           ),

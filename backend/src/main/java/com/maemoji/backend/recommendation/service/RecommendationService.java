@@ -428,7 +428,7 @@ public class RecommendationService {
         final NewsSentimentService.NewsSentimentResult newsSentiment =
                 resolveNewsSentiment(target, sharedNewsSentiment, allowExternalNewsFetch);
 
-        final int confidenceScore = resolveConfidence(target, priceSnapshot, newsSentiment);
+        final int confidenceScore = resolveConfidence(priceSnapshot, newsSentiment);
         final Integer rawNewsSentiment = newsSentiment.relatedNews().isEmpty()
                 ? null
                 : newsSentiment.weightedSentimentScore();
@@ -1067,17 +1067,20 @@ public class RecommendationService {
             StockPriceSnapshotRecord snapshot,
             CachedNewsSummary newsSummary
     ) {
-        int confidence = 55;
-        if (snapshot != null && snapshot.getCurrentPrice() != null) {
-            confidence += 5;
-        }
-        if (isFreshPriceSnapshot(snapshot) && snapshot.getChangeRate30d() != null) {
-            confidence += 10;
-        }
-        if (newsSummary.sentimentScore() != null) {
-            confidence += Math.round(newsSummary.confidence() / 10.0f);
-        }
-        return Math.min(confidence, 90);
+        final boolean fresh = isFreshPriceSnapshot(snapshot);
+        return resolveDataCompleteness(
+                snapshot != null && snapshot.getCurrentPrice() != null,
+                fresh && snapshot.getChangeRate7d() != null,
+                fresh && snapshot.getChangeRate30d() != null,
+                snapshot == null ? null : snapshot.getMarketCap(),
+                snapshot == null ? null : snapshot.getPerValue(),
+                snapshot == null ? null : snapshot.getEpsTtm(),
+                snapshot == null ? null : snapshot.getRevenueGrowthYoy(),
+                snapshot == null ? null : snapshot.getOperatingMarginTtm(),
+                snapshot == null ? null : snapshot.getRoeTtm(),
+                newsSummary.sentimentScore() != null,
+                newsSummary.confidence()
+        );
     }
 
     private List<RecommendationEvidenceResponse> buildLightweightEvidence(
@@ -5788,23 +5791,51 @@ public class RecommendationService {
     }
 
     private int resolveConfidence(
-            RecommendationTarget target,
             PriceSnapshot priceSnapshot,
             NewsSentimentService.NewsSentimentResult newsSentiment
     ) {
-        int confidence = 55;
+        return resolveDataCompleteness(
+                priceSnapshot.hasCurrentPrice(),
+                priceSnapshot.changeRate7d() != null,
+                priceSnapshot.hasThirtyDayReturn(),
+                priceSnapshot.marketCap(),
+                priceSnapshot.perValue(),
+                priceSnapshot.epsTtm(),
+                priceSnapshot.revenueGrowthYoy(),
+                priceSnapshot.operatingMarginTtm(),
+                priceSnapshot.roeTtm(),
+                !newsSentiment.relatedNews().isEmpty(),
+                newsSentiment.analysisConfidence()
+        );
+    }
 
-        if (priceSnapshot.hasCurrentPrice()) {
-            confidence += 5;
+    private int resolveDataCompleteness(
+            boolean hasCurrentPrice,
+            boolean hasSevenDayReturn,
+            boolean hasThirtyDayReturn,
+            BigDecimal marketCap,
+            BigDecimal perValue,
+            BigDecimal epsTtm,
+            BigDecimal revenueGrowthYoy,
+            BigDecimal operatingMarginTtm,
+            BigDecimal roeTtm,
+            boolean hasAnalyzedNews,
+            int newsAnalysisConfidence
+    ) {
+        int score = 10;
+        score += hasCurrentPrice ? 10 : 0;
+        score += hasSevenDayReturn ? 5 : 0;
+        score += hasThirtyDayReturn ? 10 : 0;
+        score += marketCap != null ? 7 : 0;
+        score += perValue != null ? 7 : 0;
+        score += epsTtm != null ? 7 : 0;
+        score += revenueGrowthYoy != null ? 7 : 0;
+        score += operatingMarginTtm != null ? 7 : 0;
+        score += roeTtm != null ? 7 : 0;
+        if (hasAnalyzedNews) {
+            score += Math.round(Math.max(0, Math.min(newsAnalysisConfidence, 100)) * 13.0f / 100.0f);
         }
-        if (priceSnapshot.hasThirtyDayReturn()) {
-            confidence += 10;
-        }
-        if (!newsSentiment.relatedNews().isEmpty()) {
-            confidence += Math.round(newsSentiment.analysisConfidence() / 10.0f);
-        }
-
-        return Math.min(confidence, 90);
+        return Math.min(score, 90);
     }
 
     private int resolvePriceOverheatingScore(Double thirtyDayReturn) {
