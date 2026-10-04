@@ -801,6 +801,7 @@ public class StockPriceSnapshotBatchService {
         final JsonNode quote = getJson(
                 "https://finnhub.io/api/v1/quote?symbol=" + encode(symbol) + "&token=" + encode(apiKey)
         );
+        final Double currentPrice = resolveCurrentPrice(symbol, quote, fmpApiKey);
         final JsonNode metrics = fetchMetrics
                 ? getJsonOrNull(
                         "https://finnhub.io/api/v1/stock/metric?symbol="
@@ -903,7 +904,7 @@ public class StockPriceSnapshotBatchService {
         final Double fallbackEps = deriveEpsFromStatements(incomeStatementNode);
 
         return new SnapshotData(
-                readPositiveDouble(quote, "c"),
+                currentPrice,
                 firstNonNull(
                         readNullableDouble(keyMetricNode, "marketCap"),
                         readNullableDouble(metricNode, "marketCapitalization")
@@ -912,7 +913,7 @@ public class StockPriceSnapshotBatchService {
                         readNullableDouble(ratioNode, "priceToEarningsRatioTTM"),
                         firstNonNull(
                                 readNullableDouble(metricNode, "peTTM"),
-                                derivePriceToEarningsFromStatements(readPositiveDouble(quote, "c"), fallbackEps)
+                                derivePriceToEarningsFromStatements(currentPrice, fallbackEps)
                         )
                 ),
                 firstNonNull(
@@ -1014,6 +1015,42 @@ public class StockPriceSnapshotBatchService {
                                 fallbackIncomeQuality
                         )
                 )
+        );
+    }
+
+    private Double resolveCurrentPrice(String symbol, JsonNode finnhubQuote, String fmpApiKey) {
+        final Double finnhubPrice = readPositiveDouble(finnhubQuote, "c");
+        if (finnhubPrice != null || !hasText(fmpApiKey)) {
+            return finnhubPrice;
+        }
+        try {
+            final JsonNode fmpQuote = getExternalJson(
+                    "https://financialmodelingprep.com/stable/quote?symbol="
+                            + encode(symbol)
+                            + "&apikey="
+                            + encode(fmpApiKey),
+                    "FMP current price"
+            );
+            final Double fmpPrice = extractFmpCurrentPrice(fmpQuote);
+            if (fmpPrice != null) {
+                log.info("Finnhub 현재가 공백을 FMP로 보완했습니다. symbol={}", symbol);
+            }
+            return fmpPrice;
+        } catch (Exception exception) {
+            log.warn(
+                    "Finnhub 현재가 공백의 FMP 보완에도 실패했습니다. symbol={}, reason={}",
+                    symbol,
+                    exception.getMessage()
+            );
+            return null;
+        }
+    }
+
+    private Double extractFmpCurrentPrice(JsonNode root) {
+        final JsonNode quote = firstValueNode(root);
+        return firstNonNull(
+                readPositiveDouble(quote, "price"),
+                readPositiveDouble(quote, "previousClose")
         );
     }
 
@@ -1299,6 +1336,9 @@ public class StockPriceSnapshotBatchService {
     }
 
     private Double readPositiveDouble(JsonNode node, String fieldName) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
         final double value = node.path(fieldName).asDouble(0);
         return value > 0 ? value : null;
     }

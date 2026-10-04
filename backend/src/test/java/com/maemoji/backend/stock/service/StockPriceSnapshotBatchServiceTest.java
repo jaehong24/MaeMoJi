@@ -73,6 +73,28 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(empty).isEmpty();
     }
 
+    @Test
+    void fmpCurrentPriceAcceptsRawArrayAndFallsBackToPreviousClose() throws Exception {
+        final ObjectMapper json = new ObjectMapper();
+
+        assertThat((Double) ReflectionTestUtils.invokeMethod(
+                service,
+                "extractFmpCurrentPrice",
+                json.readTree("[{\"symbol\":\"AVB\",\"price\":201.45}]")
+        )).isEqualTo(201.45);
+        assertThat((Double) ReflectionTestUtils.invokeMethod(
+                service,
+                "extractFmpCurrentPrice",
+                json.readTree("[{\"symbol\":\"ANSC\",\"price\":0,\"previousClose\":10.18}]")
+        )).isEqualTo(10.18);
+        final Object unavailablePrice = ReflectionTestUtils.invokeMethod(
+                service,
+                "extractFmpCurrentPrice",
+                json.readTree("{\"error\":\"unavailable\"}")
+        );
+        assertThat(unavailablePrice).isNull();
+    }
+
     private final StockPriceSnapshotMapper mapper = mock(StockPriceSnapshotMapper.class);
     private final PriceSnapshotBatchProperties properties = new PriceSnapshotBatchProperties();
     private final StockPriceReturnCalculator returnCalculator = mock(StockPriceReturnCalculator.class);
