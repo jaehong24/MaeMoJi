@@ -95,6 +95,26 @@ class StockPriceSnapshotBatchServiceTest {
         assertThat(unavailablePrice).isNull();
     }
 
+    @Test
+    void fmpCurrentPriceSkipsFallbackDuringRateLimitCooldown() throws Exception {
+        final ObjectMapper json = new ObjectMapper();
+        ReflectionTestUtils.setField(
+                service,
+                "fmpQuoteRateLimitedUntil",
+                OffsetDateTime.now().plusMinutes(5)
+        );
+
+        final Object price = ReflectionTestUtils.invokeMethod(
+                service,
+                "resolveCurrentPrice",
+                "AVB",
+                json.readTree("{\"c\":0}"),
+                "unused-api-key"
+        );
+
+        assertThat(price).isNull();
+    }
+
     private final StockPriceSnapshotMapper mapper = mock(StockPriceSnapshotMapper.class);
     private final PriceSnapshotBatchProperties properties = new PriceSnapshotBatchProperties();
     private final StockPriceReturnCalculator returnCalculator = mock(StockPriceReturnCalculator.class);

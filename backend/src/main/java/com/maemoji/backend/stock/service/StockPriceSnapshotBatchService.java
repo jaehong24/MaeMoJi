@@ -49,6 +49,7 @@ public class StockPriceSnapshotBatchService {
     private static final Duration HISTORY_UNAVAILABLE_RETRY_DELAY = Duration.ofDays(7);
     private static final Duration INSUFFICIENT_HISTORY_RETRY_DELAY = Duration.ofDays(14);
     private static final Duration FMP_HISTORY_RATE_LIMIT_COOLDOWN = Duration.ofMinutes(15);
+    private static final Duration FMP_QUOTE_RATE_LIMIT_COOLDOWN = Duration.ofMinutes(15);
 
     private final StockPriceSnapshotMapper stockPriceSnapshotMapper;
     private final PriceSnapshotBatchProperties properties;
@@ -56,6 +57,7 @@ public class StockPriceSnapshotBatchService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private volatile OffsetDateTime fmpHistoricalRateLimitedUntil = OffsetDateTime.MIN;
+    private volatile OffsetDateTime fmpQuoteRateLimitedUntil = OffsetDateTime.MIN;
 
     public StockPriceSnapshotBatchService(
             StockPriceSnapshotMapper stockPriceSnapshotMapper,
@@ -1023,6 +1025,9 @@ public class StockPriceSnapshotBatchService {
         if (finnhubPrice != null || !hasText(fmpApiKey)) {
             return finnhubPrice;
         }
+        if (OffsetDateTime.now(SNAPSHOT_ZONE).isBefore(fmpQuoteRateLimitedUntil)) {
+            return null;
+        }
         try {
             final JsonNode fmpQuote = getExternalJson(
                     "https://financialmodelingprep.com/stable/quote?symbol="
@@ -1037,6 +1042,16 @@ public class StockPriceSnapshotBatchService {
             }
             return fmpPrice;
         } catch (Exception exception) {
+            if (isRateLimited(exception)) {
+                fmpQuoteRateLimitedUntil = OffsetDateTime.now(SNAPSHOT_ZONE)
+                        .plus(FMP_QUOTE_RATE_LIMIT_COOLDOWN);
+                log.warn(
+                        "FMP 현재가 요청 제한을 감지해 {}분간 보완 조회를 중단합니다. symbol={}",
+                        FMP_QUOTE_RATE_LIMIT_COOLDOWN.toMinutes(),
+                        symbol
+                );
+                return null;
+            }
             log.warn(
                     "Finnhub 현재가 공백의 FMP 보완에도 실패했습니다. symbol={}, reason={}",
                     symbol,
