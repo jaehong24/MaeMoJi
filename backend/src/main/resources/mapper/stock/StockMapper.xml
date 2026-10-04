@@ -165,9 +165,11 @@
                 market_type,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%FUND COMMON STOCK%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%NOTES DUE%' then 'ETF'
                     when upper(coalesce(name_en, '')) like '%COMMON STOCK%' then 'STOCK'
                     when upper(coalesce(name_en, '')) like '%ORDINARY SHARES%' then 'STOCK'
-                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'STOCK'
                     when upper(coalesce(name_en, '')) like '% ETF%' then 'ETF'
                     when upper(coalesce(name_en, '')) like '%ETF %' then 'ETF'
                     when upper(coalesce(name_en, '')) like '% ETN%' then 'ETF'
@@ -191,6 +193,10 @@
                          ) then 'etf tag looks like common stock'
                     when upper(coalesce(asset_type, '')) = 'STOCK'
                          and (
+                             upper(coalesce(name_en, '')) like '%FUND COMMON STOCK%'
+                             or upper(coalesce(name_en, '')) like '%PREFERRED STOCK%'
+                             or upper(coalesce(name_en, '')) like '%NOTES DUE%'
+                             or
                              upper(coalesce(name_en, '')) like '% ETF%'
                              or upper(coalesce(name_en, '')) like '%ETF %'
                              or upper(coalesce(name_en, '')) like '% ETN%'
@@ -236,9 +242,11 @@
                 asset_type,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%FUND COMMON STOCK%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%NOTES DUE%' then 'ETF'
                     when upper(coalesce(name_en, '')) like '%COMMON STOCK%' then 'STOCK'
                     when upper(coalesce(name_en, '')) like '%ORDINARY SHARES%' then 'STOCK'
-                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'STOCK'
                     when upper(coalesce(name_en, '')) like '% ETF%' then 'ETF'
                     when upper(coalesce(name_en, '')) like '%ETF %' then 'ETF'
                     when upper(coalesce(name_en, '')) like '% ETN%' then 'ETF'
@@ -262,6 +270,10 @@
                          ) then 1
                     when upper(coalesce(asset_type, '')) = 'STOCK'
                          and (
+                             upper(coalesce(name_en, '')) like '%FUND COMMON STOCK%'
+                             or upper(coalesce(name_en, '')) like '%PREFERRED STOCK%'
+                             or upper(coalesce(name_en, '')) like '%NOTES DUE%'
+                             or
                              upper(coalesce(name_en, '')) like '% ETF%'
                              or upper(coalesce(name_en, '')) like '%ETF %'
                              or upper(coalesce(name_en, '')) like '% ETN%'
@@ -297,9 +309,11 @@
                 id,
                 case
                     when upper(coalesce(market_type, '')) like '%ETF%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%FUND COMMON STOCK%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'ETF'
+                    when upper(coalesce(name_en, '')) like '%NOTES DUE%' then 'ETF'
                     when upper(coalesce(name_en, '')) like '%COMMON STOCK%' then 'STOCK'
                     when upper(coalesce(name_en, '')) like '%ORDINARY SHARES%' then 'STOCK'
-                    when upper(coalesce(name_en, '')) like '%PREFERRED STOCK%' then 'STOCK'
                     when upper(coalesce(name_en, '')) like '% ETF%' then 'ETF'
                     when upper(coalesce(name_en, '')) like '%ETF %' then 'ETF'
                     when upper(coalesce(name_en, '')) like '% ETN%' then 'ETF'
