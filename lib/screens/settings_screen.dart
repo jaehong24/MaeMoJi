@@ -78,18 +78,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     .where((item) => item.readAt == null)
                     .length;
 
-                return UnreadBadgeIcon(
-                  count: unreadCount,
-                  onTap: _openAlerts,
-                );
+                return UnreadBadgeIcon(count: unreadCount, onTap: _openAlerts);
               },
             ),
           ],
         ),
         const SizedBox(height: 20),
-        AppSectionCard(
-          child: _AccountSummaryCard(user: user),
-        ),
+        AppSectionCard(child: _AccountSummaryCard(user: user)),
         const SizedBox(height: 16),
         AppSectionCard(
           child: user?.hasRiskProfile == true
@@ -206,6 +201,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Text(_signingOut ? '로그아웃 중...' : '로그아웃'),
           ),
         ),
+        TextButton(
+          onPressed: _signingOut ? null : _deleteAccount,
+          child: const Text('회원 탈퇴'),
+        ),
       ],
     );
   }
@@ -224,6 +223,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _signingOut = false;
         });
       }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('매모지를 탈퇴할까요?'),
+        content: const Text(
+          '계정, 투자성향, 포트폴리오, 추천 이력과 알림이 삭제되며 복구할 수 없어요. Google 계정은 삭제되지 않아요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('탈퇴하기'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final token = _authSessionStore.accessToken;
+    if (token == null) return;
+    setState(() => _signingOut = true);
+    try {
+      await _authService.deleteAccount(accessToken: token);
+      await _authService.signOut();
+      await _authSessionStore.clear();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('탈퇴 완료를 확인하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
     }
   }
 
@@ -251,9 +291,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openAlerts() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const AlertsScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const AlertsScreen()));
     if (mounted) {
       setState(() {
         _alertsFuture = _portfolioInsightService.fetchAlerts();
@@ -274,7 +314,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => StockDetailScreen(portfolioItemId: alert.portfolioItemId),
+        builder: (_) =>
+            StockDetailScreen(portfolioItemId: alert.portfolioItemId),
       ),
     );
 

@@ -16,11 +16,11 @@ class AuthService {
   static const Duration _requestTimeout = Duration(seconds: 45);
 
   AuthService()
-      : _googleSignIn = GoogleSignIn(
-          scopes: const ['email', 'openid'],
-          clientId: kIsWeb ? GoogleAuthConfig.webClientId : null,
-          serverClientId: kIsWeb ? null : GoogleAuthConfig.webClientId,
-        );
+    : _googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'openid'],
+        clientId: kIsWeb ? GoogleAuthConfig.webClientId : null,
+        serverClientId: kIsWeb ? null : GoogleAuthConfig.webClientId,
+      );
 
   final GoogleSignIn _googleSignIn;
 
@@ -116,18 +116,12 @@ class AuthService {
       platformName: defaultTargetPlatform.name,
     );
     final response = await http
-        .get(
-          uri,
-          headers: {'Authorization': 'Bearer $accessToken'},
-        )
+        .get(uri, headers: {'Authorization': 'Bearer $accessToken'})
         .timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw ApiException(
-        readApiErrorMessage(
-          response,
-          fallback: '세션이 만료되었거나 유효하지 않아요.',
-        ),
+        readApiErrorMessage(response, fallback: '세션이 만료되었거나 유효하지 않아요.'),
         statusCode: response.statusCode,
       );
     }
@@ -149,10 +143,7 @@ class AuthService {
       queryParameters: {'nickname': nickname},
     );
     final response = await http
-        .get(
-          uri,
-          headers: {'Authorization': 'Bearer $accessToken'},
-        )
+        .get(uri, headers: {'Authorization': 'Bearer $accessToken'})
         .timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
@@ -161,10 +152,7 @@ class AuthService {
       }
       if (response.statusCode == 400) {
         throw Exception(
-          readApiErrorMessage(
-            response,
-            fallback: '닉네임 형식을 다시 확인해주세요.',
-          ),
+          readApiErrorMessage(response, fallback: '닉네임 형식을 다시 확인해주세요.'),
         );
       }
       throw Exception('닉네임 중복 확인에 실패했어요. (${response.statusCode})');
@@ -205,10 +193,7 @@ class AuthService {
       }
       if (response.statusCode == 400) {
         throw Exception(
-          readApiErrorMessage(
-            response,
-            fallback: '닉네임 형식을 다시 확인해주세요.',
-          ),
+          readApiErrorMessage(response, fallback: '닉네임 형식을 다시 확인해주세요.'),
         );
       }
       throw Exception('닉네임 저장에 실패했어요. (${response.statusCode})');
@@ -253,10 +238,7 @@ class AuthService {
       );
       try {
         await http
-            .post(
-              uri,
-              headers: {'Authorization': 'Bearer $accessToken'},
-            )
+            .post(uri, headers: {'Authorization': 'Bearer $accessToken'})
             .timeout(_requestTimeout);
       } catch (_) {
         // Google sign-out and local session clear should still proceed.
@@ -267,6 +249,27 @@ class AuthService {
       await _googleSignIn.signOut();
     } catch (_) {
       // 서버 또는 Google 로그아웃 실패와 무관하게 로컬 세션은 제거되어야 합니다.
+    }
+  }
+
+  Future<void> deleteAccount({required String accessToken}) async {
+    final response = await http
+        .delete(
+          ApiConfig.buildUri(
+            '/api/users/me',
+            isWeb: kIsWeb,
+            platformName: defaultTargetPlatform.name,
+          ),
+          headers: {'Authorization': 'Bearer $accessToken'},
+        )
+        .timeout(_requestTimeout);
+    if (response.statusCode != 200) {
+      throw Exception(
+        readApiErrorMessage(
+          response,
+          fallback: '회원 탈퇴에 실패했어요. 잠시 후 다시 시도해주세요.',
+        ),
+      );
     }
   }
 }

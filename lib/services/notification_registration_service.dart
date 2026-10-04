@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../config/firebase_web_config.dart';
 import '../models/user_device_info.dart';
 import 'portfolio_insight_service.dart';
+import 'auth_session_store.dart';
 
 class NotificationRegistrationService {
   NotificationRegistrationService._();
@@ -17,29 +18,30 @@ class NotificationRegistrationService {
       const PortfolioInsightService();
 
   StreamSubscription<String>? _tokenRefreshSubscription;
-  bool _initialized = false;
   bool _syncInProgress = false;
 
   Future<void> initializeIfSupported() async {
-    if (_initialized || !_isSupportedPlatform) {
+    if (!_isSupportedPlatform || !AuthSessionStore.instance.isSignedIn) {
       return;
     }
 
-    _initialized = true;
     _tokenRefreshSubscription ??= FirebaseMessaging.instance.onTokenRefresh
         .listen((token) {
-          unawaited(_registerToken(token));
+          unawaited(_registerRefreshedToken(token));
         });
 
     await syncNow();
   }
 
   Future<UserDeviceInfo?> syncNow({bool reportFailure = false}) async {
-    if (!_isSupportedPlatform || _syncInProgress) {
+    if (!_isSupportedPlatform ||
+        _syncInProgress ||
+        !AuthSessionStore.instance.isSignedIn) {
       return null;
     }
 
     _syncInProgress = true;
+    final sessionToken = AuthSessionStore.instance.accessToken;
     try {
       final permission = await FirebaseMessaging.instance.requestPermission(
         alert: true,
@@ -81,6 +83,10 @@ class NotificationRegistrationService {
       return null;
     } finally {
       _syncInProgress = false;
+      if (AuthSessionStore.instance.isSignedIn &&
+          AuthSessionStore.instance.accessToken != sessionToken) {
+        unawaited(syncNow());
+      }
     }
   }
 
@@ -103,6 +109,7 @@ class NotificationRegistrationService {
   }
 
   Future<UserDeviceInfo?> _registerToken(String token) async {
+    if (!AuthSessionStore.instance.isSignedIn) return null;
     return _portfolioInsightService.upsertNotificationDevice(
       devicePlatform: _devicePlatform,
       fcmToken: token,
@@ -123,6 +130,7 @@ class NotificationRegistrationService {
   }
 
   String get _devicePlatform {
+    if (kIsWeb) return 'WEB';
     switch (defaultTargetPlatform) {
       case TargetPlatform.iOS:
         return 'IOS';
@@ -130,6 +138,14 @@ class NotificationRegistrationService {
         return 'ANDROID';
       default:
         return 'WEB';
+    }
+  }
+
+  Future<void> _registerRefreshedToken(String token) async {
+    try {
+      await _registerToken(token);
+    } catch (_) {
+      // Login and manual reconnect retry registration after transient failures.
     }
   }
 

@@ -35,7 +35,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
   bool _checkingSavedSession = true;
   bool _localDevAutoLoginInFlight = false;
   bool _showLaunchScreen = true;
-  bool _notificationBootstrapRequested = false;
+  String? _notificationBootstrapToken;
 
   @override
   void initState() {
@@ -86,6 +86,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
             }
 
             if (!_authSessionStore.isSignedIn) {
+              _notificationBootstrapToken = null;
               if (_shouldAutoLoginLocalDev && !_localDevAutoLoginInFlight) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _signInAsLocalDev();
@@ -107,8 +108,8 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
               return const InvestmentDnaSurveyScreen();
             }
 
-            if (!_notificationBootstrapRequested) {
-              _notificationBootstrapRequested = true;
+            if (_notificationBootstrapToken != _authSessionStore.accessToken) {
+              _notificationBootstrapToken = _authSessionStore.accessToken;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 AppNavigationService.instance.flushPendingIfAny();
                 NotificationNavigationService.instance.flushPendingIfAny();
@@ -193,7 +194,7 @@ class _MaeMojiAppState extends State<MaeMojiApp> {
       await _authSessionStore.clear();
     } finally {
       _localDevAutoLoginInFlight = false;
-      _notificationBootstrapRequested = false;
+      _notificationBootstrapToken = null;
       if (mounted) {
         setState(() {
           _checkingSavedSession = false;

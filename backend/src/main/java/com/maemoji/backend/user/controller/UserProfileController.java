@@ -9,6 +9,8 @@ import com.maemoji.backend.user.dto.RiskProfileSurveyRequest;
 import com.maemoji.backend.user.dto.RiskProfileSurveyResponse;
 import com.maemoji.backend.user.service.RiskProfileService;
 import com.maemoji.backend.user.service.UserProfileService;
+import com.maemoji.backend.user.service.AccountDeletionService;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/users/me")
 public class UserProfileController {
 
+    private final AccountDeletionService accountDeletionService;
+
     private final AuthenticatedUserResolver authenticatedUserResolver;
     private final RiskProfileService riskProfileService;
     private final UserProfileService userProfileService;
@@ -29,11 +33,21 @@ public class UserProfileController {
     public UserProfileController(
             AuthenticatedUserResolver authenticatedUserResolver,
             RiskProfileService riskProfileService,
-            UserProfileService userProfileService
+            UserProfileService userProfileService,
+            AccountDeletionService accountDeletionService
     ) {
         this.authenticatedUserResolver = authenticatedUserResolver;
         this.riskProfileService = riskProfileService;
         this.userProfileService = userProfileService;
+        this.accountDeletionService = accountDeletionService;
+    }
+
+    @DeleteMapping
+    public ApiResponse<Void> deleteAccount(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader
+    ) {
+        accountDeletionService.deleteAccount(authenticatedUserResolver.requireUserId(authorizationHeader));
+        return ApiResponse.ok(null);
     }
 
     @GetMapping("/nickname-availability")
